@@ -1,4 +1,5 @@
 name: c4-2-3-exact-path-diagnostic
+# activation probe
 
 on:
   push:
