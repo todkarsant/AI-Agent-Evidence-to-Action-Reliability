@@ -13,7 +13,7 @@ Test whether the frozen C4.2.4 evidence-obligation codebook can be applied indep
 - Source evidence-capture artifact: `evidence_capture_pilot12.json`.
 - Source artifact SHA-256: `__SOURCE__`
 - Two independently randomized rater packets were generated from the same frozen source:
-  - Rater A packet SHA-256: `92a1c456ab501c9f8c9af134ad4357c4b5732`
+  - Rater A packet SHA-256: `92a1c456ab501c9f2ce1823bd110884f64649c0a97f8c9af134ad4357c4b5732`
   - Rater B packet SHA-256: `04d51ad99a194721fd9bf87cdaafd988396cb86a46f97425612e640c9a69143f`
 - Rater A randomization seed: 424241.
 - Rater B randomization seed: 424242.
