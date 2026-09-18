@@ -1,6 +1,9 @@
 name: c4-2-3-p0-pilot12
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
