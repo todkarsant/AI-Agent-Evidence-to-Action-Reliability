@@ -1,4 +1,5 @@
 name: research-auto-controller
+# Research progression: terminal success advances only to predefined next gates.
 
 on:
   push:
