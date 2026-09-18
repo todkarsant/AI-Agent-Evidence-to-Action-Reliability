@@ -125,8 +125,8 @@ The following venues supplied by the researcher are retained as the literature-s
 |---|---|
 | arXiv | Preprint repository; useful for current 2026 work, not peer review by itself. |
 | Nature Machine Intelligence | AI/ML/robotics; explicitly covers multi-agent systems, NLP, symbolic reasoning, and societal/industrial impact. |
-| Journal of Automation and Intelligence | Automation/AI/ML; decision-making, LLMs, multi-agent systems and autonomous systems are within scope. |
-| IEEE Transactions on Artificial Intelligence | AI research venue; retain for later scope/fit verification. |
+| Journal of Automation and Intelligence | ISSN 2949-8554; automation/AI/ML, decision-making, LLMs, multi-agent systems and autonomous systems are within scope. |
+| IEEE Transactions on Artificial Intelligence | AI research venue; retain for later scope/fit verification. **Note: the IEEE URL supplied in the request (`punumber=10207`) actually corresponds to IEEE Computational Intelligence Magazine, not IEEE Transactions on Artificial Intelligence.** |
 | Engineering Applications of Artificial Intelligence | Real-world engineering AI applications; explicitly includes decision support, verification/validation, safety/reliability and intelligent automation. |
 | Artificial Intelligence (Elsevier) | Broad AI; includes planning/action, reasoning under uncertainty, multi-agent systems and related AI advances. |
 | Applied Intelligence | Real-life complex AI problems and intelligent systems. |
@@ -134,7 +134,7 @@ The following venues supplied by the researcher are retained as the literature-s
 | Journal of Intelligent Manufacturing | Relevant mainly where the work is framed around intelligent manufacturing/industrial systems; not a default fit for the current analytical-agent study. |
 | AI & SOCIETY | Relevant for AI's social, organizational, governance and societal dimensions. |
 | Machine Intelligence Research | Broad machine-intelligence venue; scope should be checked against the final methodological contribution. |
-| IEEE Computational Intelligence Magazine | Computational intelligence design/applications, surveys/tutorials; useful for methodological positioning but not necessarily the primary target for an empirical agent-reliability paper. |
+| IEEE Computational Intelligence Magazine | **This is the journal behind the supplied IEEE `punumber=10207` URL.** Computational-intelligence design/applications, surveys/tutorials; useful for methodological positioning but not necessarily the primary target for an empirical agent-reliability paper. |
 | ACM Transactions on Intelligent Systems and Technology | Intelligent systems/AI venue; retain for scope and recent-paper collision searches. |
 | Journal of Knowledge Management | Potentially relevant only if the final paper emphasizes organizational knowledge/evidence governance; not the default technical target. |
 
@@ -156,3 +156,12 @@ Every major manuscript claim must be assigned one of:
 Industry sources must never be silently converted into scholarly evidence.
 
 For novelty claims, current literature searches must be rerun immediately before manuscript freeze because the 2026 agent-reliability literature is moving rapidly.
+
+
+### Supplied ScienceDirect ISSN links resolved
+The three ISSNs in the supplied ScienceDirect comparison URL resolve to:
+- **2949-8554 — Journal of Automation and Intelligence**.
+- **0965-9978 — Advances in Engineering Software**.
+- **0957-4174 — Expert Systems with Applications**.
+
+For Project 2, *Expert Systems with Applications* and *Journal of Automation and Intelligence* are directly relevant venue/watchlist candidates; *Advances in Engineering Software* is relevant mainly if the manuscript is framed around engineering-software methodology or validation.
