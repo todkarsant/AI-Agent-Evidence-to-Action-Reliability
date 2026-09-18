@@ -21,7 +21,7 @@ The repository has now been established as the canonical source of truth. No fre
 | C.4.2.2 Measurement Reliability | **CONDITIONAL PASS** | Requires genuine independent double annotation |
 | C.4.2.3-A Fresh Corpus Acquisition/Freedom From Historical Overlap | **PASS** | 120 fresh cases / 12 non-overlapping schemas |
 | C.4.2.3-B Clean Execution Input | **PASS** | Gold-derived fields excluded from annotator-facing input |
-| C.4.2.3-C Fresh P0 Execution | **PENDING** | Runtime recovered; smoke test required before full run |
+| C.4.2.3-C Fresh P0 Execution | **REOPENED / FAIL** | Later repeat exposed 1/12 SQL and execution-status nondeterminism |
 | P2-C1.2 Predictive / Incremental Validity | **PENDING** | Must follow validated measurement procedure |
 
 ## Important negative findings
@@ -51,3 +51,11 @@ Before the 120-case fresh P0 execution:
 The historical benchmark recorded Ollama 0.33.3 and model `llama3.2:1b`, but did not record the original model artifact digest. Therefore byte-identical reproduction of the historical model artifact is not currently proven.
 
 The current recovered runtime and model artifact are fully identified in the reproducibility records, but they must not be described as byte-identically historical without matching historical provenance.
+
+## Requalification update — 2026-09-18
+
+A later rerun of the 12-case fresh P0 pilot under the same declared historical benchmark commit and pinned Ollama runtime produced 11/12 exact SQL matches and 11/12 execution-status matches. The sole mismatch occurred on `behavior_monitoring`. Consequently, the earlier determinism PASS is not sufficient for qualification.
+
+**Current boundary:** no fresh P0 corpus run, human reliability analysis, or P2-C1.2 predictive analysis should treat C.4.2.3-C/D as qualified until this nondeterminism is characterized.
+
+The P0 and evidence-capture workflows have been changed to `workflow_dispatch` only so documentation commits cannot silently trigger experimental runs.
