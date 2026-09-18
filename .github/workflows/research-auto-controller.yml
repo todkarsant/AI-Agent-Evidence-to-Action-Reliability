@@ -1,0 +1,10 @@
+name: research-auto-controller
+
+on: [push, workflow_dispatch]
+
+jobs:
+  controller:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Controller heartbeat
+        run: echo "Research auto-controller online"
