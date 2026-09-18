@@ -25,11 +25,17 @@ jobs:
       MAX_AUTO_RETRIES: "2"
 
     steps:
+      - name: Checkout controller revision
+        uses: actions/checkout@v4
+
       - name: Inspect latest diagnostic state
         id: inspect
         shell: bash
         run: |
           set -euo pipefail
+
+          current_sha="$(git rev-parse HEAD)"
+          echo "Controller revision: $current_sha"
 
           runs_json="$(gh run list --repo "$REPO" --workflow "$DIAGNOSTIC_WORKFLOW" --limit 5 --json databaseId,status,conclusion,headSha,createdAt,url)"
           echo "$runs_json" | jq .
@@ -37,11 +43,14 @@ jobs:
           latest_id="$(echo "$runs_json" | jq -r '.[0].databaseId // empty')"
           latest_status="$(echo "$runs_json" | jq -r '.[0].status // empty')"
           latest_conclusion="$(echo "$runs_json" | jq -r '.[0].conclusion // empty')"
+          latest_sha="$(echo "$runs_json" | jq -r '.[0].headSha // empty')"
 
           {
             echo "latest_id=$latest_id"
             echo "latest_status=$latest_status"
             echo "latest_conclusion=$latest_conclusion"
+            echo "latest_sha=$latest_sha"
+            echo "current_sha=$current_sha"
           } >> "$GITHUB_OUTPUT"
 
           if [[ -z "$latest_id" ]]; then
