@@ -1,0 +1,139 @@
+name: c4-2-3-exact-path-diagnostic
+
+on:
+  push:
+    paths:
+      - ".github/workflows/c4-2-3-exact-path-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  exact-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: llama3.2:1b
+      OLLAMA_VERSION: 0.33.3
+      PYTHONPATH: .
+
+    steps:
+      - name: Checkout Project 2
+        uses: actions/checkout@v4
+
+      - name: Checkout exact historical Project 1 benchmark code
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/exact-path external
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "1765680283df63232018bf7b827d1576c81c3a61"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install gdown
+
+      - name: Download and prepare official Spider 1.0
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
+          test -n "$DB_DIR"
+          cp -R "$DB_DIR" data/database
+          test -s data/train_spider.json
+          test -s data/train_others.json
+          test -d data/database
+
+      - name: Install and fingerprint pinned Ollama
+        run: |
+          set -euo pipefail
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          sha256sum /tmp/ollama.tar.zst | tee artifacts/exact-path/ollama_archive_sha256.txt
+          zstd -t /tmp/ollama.tar.zst
+          mkdir -p "$HOME/ollama-0.33.3"
+          tar --use-compress-program=unzstd -xf /tmp/ollama.tar.zst -C "$HOME/ollama-0.33.3"
+          "$HOME/ollama-0.33.3/bin/ollama" --version | tee artifacts/exact-path/ollama_binary_version.txt
+          sha256sum "$HOME/ollama-0.33.3/bin/ollama" | tee artifacts/exact-path/ollama_binary_sha256.txt
+          echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
+          nohup "$HOME/ollama-0.33.3/bin/ollama" serve > artifacts/exact-path/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS "$OLLAMA_BASE_URL/api/version" >/dev/null 2>&1 && break; sleep 1; done
+          test "$(curl -fsS "$OLLAMA_BASE_URL/api/version" | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS "$OLLAMA_BASE_URL/api/tags" | tee artifacts/exact-path/ollama_tags.json
+          curl -fsS "$OLLAMA_BASE_URL/api/show" -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/exact-path/ollama_show.json
+
+      - name: Repeat exact historical benchmark path on behavior_monitoring
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot" python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          from app.services.llm import OllamaProvider
+          from research.spider_benchmark import BenchmarkEnvironment, SecondaryExecutionEvaluator, SpiderDataset
+          from research.deterministic_solver import RuleBasedDeterministicSolver
+
+          question = "Which student has the highest number of assessment notes?"
+          db_id = "behavior_monitoring"
+          train = json.loads(Path("data/train_spider.json").read_text()) + json.loads(Path("data/train_others.json").read_text())
+          hits = [x for x in train if x["db_id"] == db_id and x["question"] == question]
+          assert len(hits) == 1, len(hits)
+          Path("data/exact_one.json").write_text(json.dumps([{"question":question,"db_id":db_id,"query":hits[0]["query"]}], indent=2))
+
+          dataset = SpiderDataset(Path("data/exact_one.json"), Path("data/database"))
+          schema = dataset.schema(db_id)
+          provider = OllamaProvider(os.environ["OLLAMA_BASE_URL"], os.environ["OLLAMA_MODEL"])
+
+          direct=[]
+          for i in range(10):
+              r=provider.generate_sql(question, schema)
+              direct.append({"repeat":i+1,"sql":r.text,"input_tokens":r.input_tokens,"output_tokens":r.output_tokens,"model":r.model})
+
+          evaluator=SecondaryExecutionEvaluator(dataset)
+          deterministic=RuleBasedDeterministicSolver(Path("data/database"))
+          env=BenchmarkEnvironment(dataset,evaluator,provider,deterministic)
+          env_runs=[env.run(dataset.examples[0],"P0").__dict__ for _ in range(10)]
+
+          result={
+              "historical_commit":"1765680283df63232018bf7b827d1576c81c3a61",
+              "db_id":db_id,
+              "question":question,
+              "schema_sha256":hashlib.sha256(schema.encode("utf-8")).hexdigest(),
+              "schema":schema,
+              "direct_provider":{"repeat_count":10,"unique_sql_count":len({x["sql"] for x in direct}),"all_exact_match":len({x["sql"] for x in direct})==1,"outputs":direct},
+              "benchmark_environment":{"repeat_count":10,"unique_sql_count":len({x["generated_sql"] for x in env_runs}),"all_exact_match":len({x["generated_sql"] for x in env_runs})==1,"execution_statuses":[x["execution_ok"] for x in env_runs],"outputs":env_runs},
+          }
+          Path("artifacts/exact-path/exact_path_repeat10.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+          print(json.dumps({
+              "schema_sha256":result["schema_sha256"],
+              "direct_unique_sql_count":result["direct_provider"]["unique_sql_count"],
+              "direct_all_exact_match":result["direct_provider"]["all_exact_match"],
+              "env_unique_sql_count":result["benchmark_environment"]["unique_sql_count"],
+              "env_all_exact_match":result["benchmark_environment"]["all_exact_match"],
+              "env_execution_statuses":result["benchmark_environment"]["execution_statuses"],
+          },indent=2))
+          PY
+
+      - name: Upload exact-path diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c4-2-3-exact-path-diagnostic
+          path: artifacts/exact-path/
+          retention-days: 90
