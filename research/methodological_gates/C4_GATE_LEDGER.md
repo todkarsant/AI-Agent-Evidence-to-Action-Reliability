@@ -180,3 +180,11 @@ A simple attack against currently available coarse trace variables found cardina
 Projection, aggregation, grouping, ordering, extremum, selection, and join/linkage witness dimensions are not exact functions of the currently available row/column counts and coarse runtime variables.
 
 This is not yet an incremental-validity result because the P2-C1.2 baseline feature set has not been formally frozen.
+
+## C.4.2.4-A.3 — Witness Codebook / Baseline-Independence Attack
+
+**Verdict: CONDITIONAL PASS FOR CONSTRUCT SURVIVAL; FREEZE BLOCKED**
+
+The surviving witness dimensions W1-W7 are not mechanically reconstructible from the currently recovered coarse trace variables and can be defined without hidden SQL. W1 remains the highest semantic-parsing risk. The attack does not establish incremental predictive validity.
+
+Freeze remains blocked until the baseline feature set is explicitly frozen independently of X_W, adversarial examples are finalized, and the final literature collision search is refreshed.
