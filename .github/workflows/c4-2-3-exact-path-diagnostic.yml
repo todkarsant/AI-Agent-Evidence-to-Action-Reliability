@@ -1,6 +1,9 @@
 name: c4-2-3-exact-path-diagnostic
 
 on:
+  push:
+    paths:
+      - ".github/workflows/c4-2-3-exact-path-diagnostic.yml"
   workflow_dispatch:
 
 permissions:
