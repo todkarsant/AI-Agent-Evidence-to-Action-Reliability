@@ -125,3 +125,20 @@ The pilot contains 7 cases with interpretable execution evidence and 5 execution
 No inter-rater reliability coefficient is reported yet. A second model run or duplicate annotation by the same rater would not constitute independent replication.
 
 Required next action: obtain two independently completed raw annotation sets, lock them unchanged, then calculate obligation-level agreement statistics and conduct the predefined disagreement/codebook-failure audit. Any codebook revision after outcome-bearing annotation begins must create a new codebook version and measurement cohort.
+
+
+## C.4.2.4-A — Model-only adversarial feasibility subtest
+
+**Verdict: NON-CONFIRMATORY / HUMAN VALIDATION STILL REQUIRED**
+
+Two separately specified model annotation passes were run on the blinded 12-case pilot. This does not constitute independent human-rater replication.
+
+Results over 23 binary obligation comparisons:
+- raw agreement: 20/23 = 86.96%;
+- Cohen's kappa: 0.721;
+- Gwet AC1: 0.756.
+
+Three disagreements exposed unresolved boundary cases involving empty-result projection, extremum semantics, and top-k completeness.
+
+The model-only result therefore neither validates nor falsifies the construct. It identifies concrete adversarial cases that must remain in the human annotation cohort.
+
