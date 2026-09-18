@@ -41,7 +41,7 @@ fi
 while [[ "$status" != "completed" ]]; do
   echo "Diagnostic run $id is active ($status). Polling again in ${POLL_SECONDS}s."
   sleep "$POLL_SECONDS"
-  runs="$(get_latest)"
+  runs="$(get_latest "$DIAGNOSTIC_WORKFLOW")"
   read_latest
 done
 
