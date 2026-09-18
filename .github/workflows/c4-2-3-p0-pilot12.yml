@@ -133,11 +133,11 @@ jobs:
       - name: Install pinned Ollama 0.33.3
         run: |
           set -euo pipefail
-          curl -fL --retry 8 --retry-all-errors --retry-delay 5             -o artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst             "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
-          sha256sum artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst | tee artifacts/pilot/ollama_archive_sha256.txt
-          zstd -t artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5             -o /tmp/ollama-linux-amd64-0.33.3.tar.zst             "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          sha256sum /tmp/ollama-linux-amd64-0.33.3.tar.zst | tee artifacts/pilot/ollama_archive_sha256.txt
+          zstd -t /tmp/ollama-linux-amd64-0.33.3.tar.zst
           mkdir -p "$HOME/ollama-0.33.3"
-          tar --use-compress-program=unzstd -xf artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst -C "$HOME/ollama-0.33.3"
+          tar --use-compress-program=unzstd -xf /tmp/ollama-linux-amd64-0.33.3.tar.zst -C "$HOME/ollama-0.33.3"
           "$HOME/ollama-0.33.3/bin/ollama" --version | tee artifacts/pilot/ollama_binary_version.txt
           sha256sum "$HOME/ollama-0.33.3/bin/ollama" | tee artifacts/pilot/ollama_binary_sha256.txt
           echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
@@ -216,6 +216,7 @@ jobs:
               "policy": "P0",
               "case_count": 12,
               "repeat_count": 2,
+              "dataset_manifest": dataset.checksum_manifest(),
               "determinism": {
                   "exact_sql_match_count": sum(p["sql_exact_match"] for p in pairs),
                   "execution_status_match_count": sum(p["execution_status_match"] for p in pairs),
