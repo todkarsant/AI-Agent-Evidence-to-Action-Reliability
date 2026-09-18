@@ -110,3 +110,18 @@ This establishes the forward evidence-capture mechanism. It does not retroactive
 **Verdict: PENDING**
 
 Must use a frozen baseline feature set and candidate construct, evaluate out of sample, and preserve the specification before outcome-dependent analysis.
+
+
+## C.4.2.4-A — Double-blind annotation feasibility / adversarial pilot
+
+**Verdict: OPEN — awaiting two genuinely independent raters**
+
+Two outcome-blinded, independently randomized 12-case annotation packets have been prepared from the qualified C4.2.3-D evidence-capture artifact.
+
+The packets expose only question, schema, execution status, result columns, result rows, and counts. Gold SQL, generated SQL, correctness, intervention/replacement, downstream outcomes, and post-hoc labels are excluded.
+
+The pilot contains 7 cases with interpretable execution evidence and 5 execution-failure/no-usable-evidence cases; failures are intentionally retained for feasibility analysis.
+
+No inter-rater reliability coefficient is reported yet. A second model run or duplicate annotation by the same rater would not constitute independent replication.
+
+Required next action: obtain two independently completed raw annotation sets, lock them unchanged, then calculate obligation-level agreement statistics and conduct the predefined disagreement/codebook-failure audit. Any codebook revision after outcome-bearing annotation begins must create a new codebook version and measurement cohort.
