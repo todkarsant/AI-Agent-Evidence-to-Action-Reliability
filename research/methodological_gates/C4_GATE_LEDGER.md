@@ -142,3 +142,18 @@ Three disagreements exposed unresolved boundary cases involving empty-result pro
 
 The model-only result therefore neither validates nor falsifies the construct. It identifies concrete adversarial cases that must remain in the human annotation cohort.
 
+
+
+## C.4.2.4-A.1 — Formal observability matrix
+
+**Verdict: FAIL FOR CURRENT X_E OPERATIONALIZATION**
+
+A case-by-case attack found repeated non-identifiability of semantic sufficiency from (question, schema, result evidence) alone. Selection, top-k/extremum, completeness, join/linkage, and population-level aggregate semantics can admit materially different latent execution states with identical observable result evidence.
+
+This means human agreement cannot rescue the current result-only semantic-sufficiency definition.
+
+Candidate redesigns:
+1. add independently verifiable execution/provenance witnesses without collapsing into gold/query verification; or
+2. redefine the construct as observable evidence-witness coverage rather than semantic sufficiency.
+
+Next gate: **C.4.2.4-A.2 — redesign + novelty attack**.
