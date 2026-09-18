@@ -76,3 +76,12 @@ This distinction is intentional.
 ## Freeze condition
 
 Do not freeze v2 until the mechanical-redundancy attack and current-literature collision attack are complete.
+
+
+## A.3 attack outcome
+
+The A.3 hidden-SQL and baseline-independence attack found no surviving dimension that is mechanically reconstructible from the currently recovered coarse trace alone. The construct survives provisionally.
+
+W1 is the highest semantic-parsing risk. Incremental validity cannot be inferred until the P2-C1.2 baseline is frozen independently of X_W.
+
+**Freeze status: BLOCKED pending independent baseline specification, adversarial examples, and final literature collision refresh.**
