@@ -91,19 +91,19 @@ Gold-derived fields are excluded from annotator-facing execution input.
 
 ## C.4.2.3-C — Fresh P0 Execution
 
-**Verdict: PASS — pilot qualified**
+**Verdict: REOPENED / FAIL — determinism not established**
 
-A 12-case fresh pilot was executed twice through the exact historical P0 provider path. All 12 cases produced identical SQL across repeats and identical execution status. The pilot artifact is preserved in GitHub Actions run 35335264293.
+A prior 12-case fresh pilot run produced identical SQL/status across repeats. A later rerun under the same declared Project 1 code, Ollama 0.33.3, model tag, and 12-case manifest produced a mismatch on 1/12 cases. Therefore the earlier PASS cannot be generalized as a stable qualification. The pilot artifact is preserved in GitHub Actions run 35335264293.
 
-This qualifies runtime/trace determinism only; it does not establish full-corpus accuracy or historical model-artifact identity.
+The latest run produced 11/12 exact SQL matches and 11/12 execution-status matches. The mismatch was behavior_monitoring: repeat 1 generated a valid join/query, while repeat 2 generated a different invalid query referencing the wrong relation/aggregation form. This is a direct failure of the predefined determinism gate. No fresh confirmatory experiment should proceed until the source of nondeterminism is characterized and the qualification procedure is repaired.
 
 ## C.4.2.3-D — Observational Evidence Capture
 
-**Verdict: PASS — measurement path qualified**
+**Verdict: REOPENED / FAIL — measurement path not qualified under current determinism requirement**
 
-A second 12-case pilot captured raw SQLite execution rows and column names observationally while preserving the historical P0 return contract. Across two repeats, SQL, execution status, and captured evidence were identical for all 12 cases; captured row/column counts matched the historical trace counts.
+A prior evidence-capture run showed exact agreement across the 12 paired cases. The later rerun failed the same determinism prerequisite: behavior_monitoring changed SQL, execution status, and captured evidence across repeats, although the captured row/column counts continued to match the trace where execution succeeded.
 
-This establishes the forward evidence-capture mechanism. It does not retroactively prove preservation of discarded historical raw evidence.
+The observational capture mechanism itself remains structurally intact, but its qualification cannot be declared complete while the underlying P0 repeatability gate fails.
 
 ## P2-C1.2 — Predictive / Incremental Validity
 
