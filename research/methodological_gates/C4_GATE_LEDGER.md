@@ -157,3 +157,26 @@ Candidate redesigns:
 2. redefine the construct as observable evidence-witness coverage rather than semantic sufficiency.
 
 Next gate: **C.4.2.4-A.2 — redesign + novelty attack**.
+
+
+## C.4.2.4-A.2 — Observable witness redesign + novelty collision
+
+**Verdict: PASS WITH MAJOR NOVELTY RESTRICTION**
+
+The redesigned observable evidence-witness construct survives the A.1 identifiability attack because it measures only what is visibly inspectable in decision-time evidence rather than hidden SQL correctness.
+
+Current-literature collision attack found that evidence sufficiency, evidence coverage, claim-level support, provenance-aware action auditing, and evidence-backed action gating are already active research areas.
+
+Therefore the witness score is **not** a standalone novelty claim.
+
+The potentially defensible seam remains the incremental predictive validity of an independently measured decision-time witness-coverage variable for consequential incumbent-replacement harm.
+
+## C.4.2.4-A.2b — Mechanical redundancy attack
+
+**Verdict: PRELIMINARY PASS**
+
+A simple attack against currently available coarse trace variables found cardinality/completeness to be mechanically redundant if defined as row count; that dimension is removed from the candidate score.
+
+Projection, aggregation, grouping, ordering, extremum, selection, and join/linkage witness dimensions are not exact functions of the currently available row/column counts and coarse runtime variables.
+
+This is not yet an incremental-validity result because the P2-C1.2 baseline feature set has not been formally frozen.
