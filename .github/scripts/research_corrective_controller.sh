@@ -27,7 +27,7 @@ if [[ -z "$id" ]]; then
   gh workflow run "$DIAGNOSTIC_WORKFLOW" --repo "$REPO" --ref main
   for _ in {1..10}; do
     sleep 3
-    runs="$(get_latest)"
+    runs="$(get_latest "$DIAGNOSTIC_WORKFLOW")"
     read_latest
     [[ -n "$id" ]] && break
   done
@@ -72,6 +72,15 @@ if [[ "$conclusion" == "success" ]]; then
       echo "C.4.2.3-D succeeded. C.4.2.4-A requires genuinely independent human raters and is therefore not auto-executable."
     else
       echo "C.4.2.3-D failed on current main. Preserve failure and do not advance."
+      title="Research controller: C.4.2.3-D evidence-capture failure #$evidence_id"
+      existing="$(gh issue list --repo "$REPO" --state open --search "in:title $title" --json number)"
+      if [[ "$(echo "$existing" | jq length)" -eq 0 ]]; then
+        gh issue create --repo "$REPO" --title "$title" --body "Automated research-progression controller detected failure of the predefined C.4.2.3-D evidence-capture qualification on current main.
+
+Run: https://github.com/$REPO/actions/runs/$evidence_id
+
+Safety boundary: no scientific code, benchmark data, model parameters, seeds, annotations, or gate verdicts were modified automatically."
+      fi
     fi
     exit 0
   fi
