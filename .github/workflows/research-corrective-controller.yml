@@ -1,9 +1,6 @@
 name: research-corrective-controller
 
 on:
-  push:
-    paths:
-      - ".github/workflows/research-corrective-controller.yml"
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
@@ -28,109 +25,98 @@ jobs:
       MAX_AUTO_RETRIES: "2"
 
     steps:
-      - name: Checkout controller revision
-        uses: actions/checkout@v4
-
-      - name: Inspect latest diagnostic state
+      - name: Inspect and classify latest diagnostic
         id: inspect
         shell: bash
         run: |
           set -euo pipefail
 
-          current_sha="$(git rev-parse HEAD)"
-          echo "Controller revision: $current_sha"
+          runs="$(gh run list --repo "$REPO" --workflow "$DIAGNOSTIC_WORKFLOW" --limit 5 --json databaseId,status,conclusion,headSha,createdAt,url)"
+          echo "$runs" | jq .
 
-          runs_json="$(gh run list --repo "$REPO" --workflow "$DIAGNOSTIC_WORKFLOW" --limit 5 --json databaseId,status,conclusion,headSha,createdAt,url)"
-          echo "$runs_json" | jq .
+          id="$(echo "$runs" | jq -r '.[0].databaseId // empty')"
+          status="$(echo "$runs" | jq -r '.[0].status // empty')"
+          conclusion="$(echo "$runs" | jq -r '.[0].conclusion // empty')"
+          sha="$(echo "$runs" | jq -r '.[0].headSha // empty')"
 
-          latest_id="$(echo "$runs_json" | jq -r '.[0].databaseId // empty')"
-          latest_status="$(echo "$runs_json" | jq -r '.[0].status // empty')"
-          latest_conclusion="$(echo "$runs_json" | jq -r '.[0].conclusion // empty')"
-          latest_sha="$(echo "$runs_json" | jq -r '.[0].headSha // empty')"
+          echo "latest_id=$id" >> "$GITHUB_OUTPUT"
+          echo "latest_status=$status" >> "$GITHUB_OUTPUT"
+          echo "latest_conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+          echo "latest_sha=$sha" >> "$GITHUB_OUTPUT"
 
-          {
-            echo "latest_id=$latest_id"
-            echo "latest_status=$latest_status"
-            echo "latest_conclusion=$latest_conclusion"
-            echo "latest_sha=$latest_sha"
-            echo "current_sha=$current_sha"
-          } >> "$GITHUB_OUTPUT"
-
-          if [[ -z "$latest_id" ]]; then
-            echo "No diagnostic run exists yet; controller will dispatch one."
+          if [[ -z "$id" ]]; then
             echo "action=dispatch" >> "$GITHUB_OUTPUT"
+            echo "reason=no_diagnostic_exists" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [[ "$latest_status" != "completed" ]]; then
-            echo "Latest diagnostic is still active; do not start another."
+          if [[ "$status" != "completed" ]]; then
             echo "action=none" >> "$GITHUB_OUTPUT"
+            echo "reason=diagnostic_still_running" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [[ "$latest_conclusion" == "success" ]]; then
-            echo "Latest diagnostic succeeded; no automatic action."
+          if [[ "$conclusion" == "success" ]]; then
             echo "action=none" >> "$GITHUB_OUTPUT"
+            echo "reason=diagnostic_success" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          failed_log="$(gh run view "$latest_id" --repo "$REPO" --log-failed 2>&1 || true)"
-          printf '%s\n' "$failed_log" > /tmp/failed.log
+          log="$(gh run view "$id" --repo "$REPO" --log-failed 2>&1 || true)"
+          printf '%s
+' "$log" > /tmp/failure.log
 
-          echo "Failure classification evidence:"
-          grep -Ei "command not found|exit code 127|connection reset|connection refused|timed out|rate limit|502|503|504|runner.*failed|no space left|network.*unavailable" /tmp/failed.log || true
-
-          if grep -Eqi "command not found|exit code 127|connection reset|connection refused|timed out|rate limit|502|503|504|runner.*failed|no space left|network.*unavailable" /tmp/failed.log; then
+          if grep -Eqi "command not found|exit code 127|connection reset|connection refused|timed out|rate limit|502|503|504|runner.*failed|no space left|network.*unavailable" /tmp/failure.log; then
             echo "action=dispatch" >> "$GITHUB_OUTPUT"
-            echo "auto_reason=infrastructure_or_transient_failure" >> "$GITHUB_OUTPUT"
+            echo "reason=safe_infrastructure_or_transient_failure" >> "$GITHUB_OUTPUT"
           else
             echo "action=issue" >> "$GITHUB_OUTPUT"
-            echo "auto_reason=unclassified_failure" >> "$GITHUB_OUTPUT"
+            echo "reason=unclassified_failure" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Dispatch a fresh diagnostic attempt for safe infrastructure failures
+      - name: Automatically retry only safe infrastructure failures
         if: steps.inspect.outputs.action == 'dispatch'
         shell: bash
         run: |
           set -euo pipefail
 
-          current_sha="${{ github.sha }}"
           latest_sha="${{ steps.inspect.outputs.latest_sha }}"
-          recent_auto="$(gh run list --repo "$REPO" --workflow "$DIAGNOSTIC_WORKFLOW" --limit 20 --json databaseId,status,conclusion,headSha \
-            | jq --arg sha "$current_sha" '[.[] | select(.status=="completed" and .conclusion=="failure" and .headSha==$sha)] | length')"
+          current_sha="$(gh api "repos/$REPO/commits/main" -q .sha)"
 
-          # If the latest failure belongs to an older diagnostic revision, a fresh
-          # run is allowed because the workflow itself has since been corrected.
+          # A failure on an older workflow revision is eligible for one fresh
+          # attempt on current main after a known infrastructure fix.
           if [[ "$latest_sha" != "$current_sha" ]]; then
-            echo "Latest failure is from an older diagnostic revision; dispatching current revision."
-          elif [[ "$recent_auto" -ge "$MAX_AUTO_RETRIES" ]]; then
-            echo "Retry guard reached for the current diagnostic revision; refusing further automatic retries."
+            gh workflow run "$DIAGNOSTIC_WORKFLOW" --repo "$REPO" --ref main
+            echo "Fresh diagnostic dispatched on current main after an older-revision infrastructure failure."
             exit 0
           fi
 
-          gh workflow run "$DIAGNOSTIC_WORKFLOW" --repo "$REPO" --ref main
-          echo "Dispatched a fresh exact-path diagnostic after a classified infrastructure/transient failure."
+          failures="$(gh run list --repo "$REPO" --workflow "$DIAGNOSTIC_WORKFLOW" --limit 20 --json conclusion,headSha             | jq --arg sha "$current_sha" '[.[] | select(.conclusion=="failure" and .headSha==$sha)] | length')"
 
-      - name: Open an issue for an unclassified failure
+          if [[ "$failures" -lt "$MAX_AUTO_RETRIES" ]]; then
+            gh workflow run "$DIAGNOSTIC_WORKFLOW" --repo "$REPO" --ref main
+            echo "Automatic retry $((failures + 1)) dispatched."
+          else
+            echo "Retry guard reached for current diagnostic revision; no further automatic retries."
+          fi
+
+      - name: Open tracking issue for an unclassified failure
         if: steps.inspect.outputs.action == 'issue'
         shell: bash
         run: |
           set -euo pipefail
 
-          latest_id="${{ steps.inspect.outputs.latest_id }}"
-          title="Research controller: unclassified diagnostic failure #$latest_id"
+          id="${{ steps.inspect.outputs.latest_id }}"
+          title="Research controller: unclassified diagnostic failure #$id"
 
-          if gh issue list --repo "$REPO" --state open --search "in:title $title" --json number | jq -e 'length > 0' >/dev/null; then
-            echo "An open tracking issue already exists."
+          existing="$(gh issue list --repo "$REPO" --state open --search "in:title $title" --json number)"
+          if [[ "$(echo "$existing" | jq length)" -gt 0 ]]; then
+            echo "Existing tracking issue found."
             exit 0
           fi
 
-          gh issue create --repo "$REPO" --title "$title" --body "## Automated research-controller alert
+          gh issue create --repo "$REPO"             --title "$title"             --body "Automated controller detected an unclassified failure in the C.4.2.3 exact historical-path diagnostic.
 
-The C.4.2.3 exact historical-path diagnostic failed, but the controller did not classify the failure as a known safe infrastructure/transient failure.
+Run: https://github.com/$REPO/actions/runs/$id
 
-Run: https://github.com/$REPO/actions/runs/$latest_id
-
-**Safety boundary:** the controller deliberately does not modify scientific code, benchmark data, model parameters, seeds, annotations, or gate verdicts for unclassified failures.
-
-Human/reviewer-level investigation is required before any methodological change."
+Safety boundary: no scientific code, benchmark data, model parameters, seeds, annotations, or gate verdicts are modified automatically for unclassified failures. Reviewer investigation is required."
