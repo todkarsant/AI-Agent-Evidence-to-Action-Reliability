@@ -29,18 +29,21 @@ if [[ "$conclusion" == "success" ]]; then
   exit 0
 fi
 
+current_sha="$(gh api "repos/$REPO/commits/main" -q .sha")
+
+# Any failure from an older diagnostic revision must be re-evaluated against
+# current main. This prevents a corrected harness from being blocked by stale
+# failures while preserving the scientific result itself.
+if [[ "$latest_sha" != "$current_sha" ]]; then
+  echo "Latest diagnostic failed on an older revision; dispatching current revision."
+  gh workflow run "$DIAGNOSTIC_WORKFLOW" --repo "$REPO" --ref main
+  exit 0
+fi
+
 log="$(gh run view "$id" --repo "$REPO" --log-failed 2>&1 || true)"
 printf '%s\n' "$log" > /tmp/diagnostic_failure.log
 
 if grep -Eqi "command not found|exit code 127|connection reset|connection refused|timed out|rate limit|502|503|504|runner.*failed|no space left|network.*unavailable" /tmp/diagnostic_failure.log; then
-  current_sha="$(gh api "repos/$REPO/commits/main" -q .sha)"
-
-  if [[ "$latest_sha" != "$current_sha" ]]; then
-    echo "Known infrastructure failure occurred on an older revision. Dispatching current diagnostic."
-    gh workflow run "$DIAGNOSTIC_WORKFLOW" --repo "$REPO" --ref main
-    exit 0
-  fi
-
   failures="$(gh run list --repo "$REPO" --workflow "$DIAGNOSTIC_WORKFLOW" --limit 20 --json conclusion,headSha     | jq --arg sha "$current_sha" '[.[] | select(.conclusion=="failure" and .headSha==$sha)] | length')"
 
   if [[ "$failures" -lt "$MAX_AUTO_RETRIES" ]]; then
