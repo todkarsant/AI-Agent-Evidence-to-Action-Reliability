@@ -20,35 +20,44 @@ jobs:
     steps:
       - name: Checkout Project 2
         uses: actions/checkout@v4
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
+
       - name: Checkout exact historical Project 1 benchmark code
         run: |
+          set -euo pipefail
+          mkdir -p artifacts/runtime external
           git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
           git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
           git -C external/Enterprise-Analytics-Copilot rev-parse HEAD | tee artifacts/runtime/project1_benchmark_commit.txt
 
-      - name: Install workflow dependencies
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install workflow dependencies and zstd
         run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd
           python -m pip install --upgrade pip
           python -m pip install httpx
+
       - name: Record source provenance
         run: |
+          set -euo pipefail
           mkdir -p artifacts/runtime
           git rev-parse HEAD | tee artifacts/runtime/project2_commit.txt
           python --version | tee artifacts/runtime/python_version.txt
+
       - name: Download pinned Ollama 0.33.3 archive
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/runtime
           url="https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
           curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o artifacts/runtime/ollama-linux-amd64-0.33.3.tar.zst "$url"
           sha256sum artifacts/runtime/ollama-linux-amd64-0.33.3.tar.zst | tee artifacts/runtime/ollama_archive_sha256.txt
           zstd -t artifacts/runtime/ollama-linux-amd64-0.33.3.tar.zst
+
       - name: Install pinned Ollama binary
         shell: bash
         run: |
@@ -58,6 +67,7 @@ jobs:
           "$HOME/ollama-0.33.3/bin/ollama" --version
           sha256sum "$HOME/ollama-0.33.3/bin/ollama" | tee artifacts/runtime/ollama_binary_sha256.txt
           echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
+
       - name: Start pinned Ollama server
         shell: bash
         run: |
@@ -69,6 +79,7 @@ jobs:
           done
           curl -fsS "$OLLAMA_BASE_URL/api/version" | tee artifacts/runtime/ollama_api_version.json
           test "$(curl -fsS "$OLLAMA_BASE_URL/api/version" | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+
       - name: Pull and fingerprint model
         shell: bash
         run: |
@@ -77,6 +88,7 @@ jobs:
           ollama list | tee artifacts/runtime/ollama_list.txt
           curl -fsS "$OLLAMA_BASE_URL/api/tags" | tee artifacts/runtime/ollama_tags.json
           curl -fsS "$OLLAMA_BASE_URL/api/show" -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' | tee artifacts/runtime/ollama_show.json
+
       - name: Exact historical provider smoke test
         shell: bash
         run: |
@@ -97,7 +109,9 @@ jobs:
               "generated_sql": result.text,
           }, indent=2))
           PY
+
       - name: Upload runtime qualification evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: project2-runtime-qualification
