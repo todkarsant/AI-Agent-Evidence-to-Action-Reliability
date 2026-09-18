@@ -1,6 +1,9 @@
 name: research-corrective-controller
 
 on:
+  push:
+    paths:
+      - ".github/workflows/research-corrective-controller.yml"
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
