@@ -91,9 +91,19 @@ Gold-derived fields are excluded from annotator-facing execution input.
 
 ## C.4.2.3-C — Fresh P0 Execution
 
-**Verdict: PENDING**
+**Verdict: PASS — pilot qualified**
 
-Runtime recovered. A small P0 smoke test must precede the full 120-case execution.
+A 12-case fresh pilot was executed twice through the exact historical P0 provider path. All 12 cases produced identical SQL across repeats and identical execution status. The pilot artifact is preserved in GitHub Actions run 35335264293.
+
+This qualifies runtime/trace determinism only; it does not establish full-corpus accuracy or historical model-artifact identity.
+
+## C.4.2.3-D — Observational Evidence Capture
+
+**Verdict: PASS — measurement path qualified**
+
+A second 12-case pilot captured raw SQLite execution rows and column names observationally while preserving the historical P0 return contract. Across two repeats, SQL, execution status, and captured evidence were identical for all 12 cases; captured row/column counts matched the historical trace counts.
+
+This establishes the forward evidence-capture mechanism. It does not retroactively prove preservation of discarded historical raw evidence.
 
 ## P2-C1.2 — Predictive / Incremental Validity
 
