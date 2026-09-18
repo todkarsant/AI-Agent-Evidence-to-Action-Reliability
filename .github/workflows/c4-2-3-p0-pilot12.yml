@@ -66,12 +66,14 @@ jobs:
           test "$(cut -d' ' -f1 artifacts/pilot/spider_archive_sha256.txt)" = "$SPIDER_ARCHIVE_SHA256"
           unzip -q data/spider_data.zip -d data/spider_unpacked
           mkdir -p data/spider
-          find data/spider_unpacked -name dev.json -exec cp {} data/spider/dev.json \;
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/spider/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/spider/train_others.json \;
           find data/spider_unpacked -name tables.json -exec cp {} data/spider/tables.json \;
           DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
           test -n "$DB_DIR"
           cp -R "$DB_DIR" data/spider/database
-          test -s data/spider/dev.json
+          test -s data/spider/train_spider.json
+          test -s data/spider/train_others.json
           test -s data/spider/tables.json
           test -d data/spider/database
 
@@ -83,7 +85,9 @@ jobs:
           from pathlib import Path
 
           manifest = json.loads(Path("data/manifests/C4_2_3B_PILOT12_CASES.json").read_text())
-          dev = json.loads(Path("data/spider/dev.json").read_text())
+          train_spider = json.loads(Path("data/spider/train_spider.json").read_text())
+          train_others = json.loads(Path("data/spider/train_others.json").read_text())
+          train = train_spider + train_others
 
           assert manifest["source_archive_sha256"] == "00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b"
           assert manifest["source_split"] == "train"
@@ -94,7 +98,7 @@ jobs:
 
           out = []
           for c in manifest["cases"]:
-              matches = [x for x in dev if x["db_id"] == c["db_id"] and x["question"] == c["question"]]
+              matches = [x for x in train if x["db_id"] == c["db_id"] and x["question"] == c["question"]]
               assert len(matches) == 1, (c["pilot_case_id"], c["db_id"], len(matches))
               out.append({
                   "pilot_case_id": c["pilot_case_id"],
