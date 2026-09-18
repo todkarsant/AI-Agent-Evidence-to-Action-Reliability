@@ -45,3 +45,21 @@ The target is **incremental predictive validity**, not generic robustness, pertu
 ## Current status
 
 PENDING. No confirmatory predictive-validity result exists.
+
+
+## Literature boundary
+
+The construct is explicitly positioned against current work on:
+- agent reliability and repeated/perturbation testing;
+- evidence sufficiency and abstention;
+- provenance-sensitive action selection;
+- evidence-to-action grounding;
+- auditable decision traces and action gating.
+
+See the living register at `research/REFERENCES.md`. The current literature already occupies generic claims about semantic invariance, reliability under perturbations, evidence sufficiency/coverage, and provenance sensitivity. Therefore P2-C1.2 does **not** claim those as novel.
+
+The only intended novelty seam remains the narrower empirical question:
+
+> whether an independently measured, decision-time observable evidence-witness construct contributes incremental out-of-sample predictive information about consequential incumbent-replacement harm beyond a frozen set of existing decision-time signals.
+
+This is a working research proposition, not an established result.
