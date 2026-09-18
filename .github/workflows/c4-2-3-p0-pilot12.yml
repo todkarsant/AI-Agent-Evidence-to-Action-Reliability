@@ -214,6 +214,7 @@ jobs:
               "status": "pilot_complete",
               "benchmark": "Spider 1.0 fresh C4.2.3 subset",
               "policy": "P0",
+              "policies": ["P0"],
               "case_count": 12,
               "repeat_count": 2,
               "dataset_manifest": dataset.checksum_manifest(),
@@ -227,6 +228,11 @@ jobs:
               "traces_second": [x.__dict__ for x in second],
               "pairs": pairs,
           }
+
+          # Persist raw paired traces before post-hoc evaluation so a verifier failure cannot erase evidence.
+          Path("artifacts/pilot/p0_pilot12_raw.json").write_text(
+              json.dumps(payload, indent=2), encoding="utf-8"
+          )
 
           # Official evaluation is post-hoc only; gold SQL never enters the provider prompt.
           payload["official_spider_execution_first"] = evaluate_traces(
