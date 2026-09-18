@@ -1,0 +1,245 @@
+name: c4-2-3-evidence-capture12
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-capture12:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: llama3.2:1b
+      OLLAMA_VERSION: 0.33.3
+      SPIDER_ARCHIVE_SHA256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
+      PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
+
+    steps:
+      - name: Checkout Project 2
+        uses: actions/checkout@v4
+
+      - name: Checkout exact historical Project 1 benchmark code
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/capture external
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "1765680283df63232018bf7b827d1576c81c3a61"
+          git -C external/Enterprise-Analytics-Copilot rev-parse HEAD | tee artifacts/capture/project1_benchmark_commit.txt
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install gdown
+
+      - name: Download and verify official Spider 1.0
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          sha256sum data/spider_data.zip | tee artifacts/capture/spider_archive_sha256.txt
+          test "$(cut -d' ' -f1 artifacts/capture/spider_archive_sha256.txt)" = "$SPIDER_ARCHIVE_SHA256"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
+          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
+          test -n "$DB_DIR"
+          cp -R "$DB_DIR" data/database
+          test -s data/train_spider.json
+          test -s data/train_others.json
+          test -s data/tables.json
+          test -d data/database
+
+      - name: Build leakage-safe pilot input
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+
+          m = json.loads(Path("data/manifests/C4_2_3B_PILOT12_CASES.json").read_text())
+          train = json.loads(Path("data/train_spider.json").read_text()) + json.loads(Path("data/train_others.json").read_text())
+          assert m["source_archive_sha256"] == "00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b"
+          assert m["case_count"] == 12
+          out=[]
+          for c in m["cases"]:
+              hit=[x for x in train if x["db_id"]==c["db_id"] and x["question"]==c["question"]]
+              assert len(hit)==1, (c["pilot_case_id"],len(hit))
+              x=hit[0]
+              out.append({"question":x["question"],"db_id":x["db_id"],"query":x["query"],"pilot_case_id":c["pilot_case_id"]})
+          p=Path("data/pilot12_questions.json")
+          p.write_text(json.dumps(out,indent=2),encoding="utf-8")
+          h=hashlib.sha256(p.read_bytes()).hexdigest()
+          Path("artifacts/capture/pilot_questions_sha256.txt").write_text(h+"  data/pilot12_questions.json\n")
+          print({"cases":len(out),"sha256":h,"gold_used_only_for_posthoc_evaluation":True})
+          PY
+
+      - name: Install pinned Ollama 0.33.3
+        run: |
+          set -euo pipefail
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5             -o /tmp/ollama-linux-amd64-0.33.3.tar.zst             "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          sha256sum /tmp/ollama-linux-amd64-0.33.3.tar.zst | tee artifacts/capture/ollama_archive_sha256.txt
+          zstd -t /tmp/ollama-linux-amd64-0.33.3.tar.zst
+          mkdir -p "$HOME/ollama-0.33.3"
+          tar --use-compress-program=unzstd -xf /tmp/ollama-linux-amd64-0.33.3.tar.zst -C "$HOME/ollama-0.33.3"
+          "$HOME/ollama-0.33.3/bin/ollama" --version | tee artifacts/capture/ollama_binary_version.txt
+          sha256sum "$HOME/ollama-0.33.3/bin/ollama" | tee artifacts/capture/ollama_binary_sha256.txt
+          echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
+
+      - name: Start and fingerprint Ollama model
+        run: |
+          set -euo pipefail
+          nohup "$HOME/ollama-0.33.3/bin/ollama" serve > artifacts/capture/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS "$OLLAMA_BASE_URL/api/version" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS "$OLLAMA_BASE_URL/api/version" | tee artifacts/capture/ollama_api_version.json
+          test "$(curl -fsS "$OLLAMA_BASE_URL/api/version" | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS "$OLLAMA_BASE_URL/api/tags" | tee artifacts/capture/ollama_tags.json
+          curl -fsS "$OLLAMA_BASE_URL/api/show" -H "Content-Type: application/json"             -d '{"name":"llama3.2:1b"}' | tee artifacts/capture/ollama_show.json
+
+      - name: Capture raw decision-time execution evidence without changing P0
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot" python - <<'PY'
+          import hashlib, json, os, sqlite3
+          from pathlib import Path
+
+          from app.services.llm import OllamaProvider
+          from research.spider_benchmark import BenchmarkEnvironment, SecondaryExecutionEvaluator, SpiderDataset
+          from research.deterministic_solver import RuleBasedDeterministicSolver
+
+          class CapturingEvaluator(SecondaryExecutionEvaluator):
+              """Observational evaluator: returns the exact historical tuple while retaining raw rows/columns."""
+              def __init__(self, dataset):
+                  super().__init__(dataset)
+                  self.last_evidence = None
+
+              def execute(self, db_id, sql):
+                  try:
+                      with sqlite3.connect(self.dataset.db_path(db_id)) as con:
+                          rows, cols = self._result(con, sql)
+                      evidence = {
+                          "db_id": db_id,
+                          "sql_sha256": hashlib.sha256(sql.encode("utf-8")).hexdigest(),
+                          "columns": cols,
+                          "rows": [list(r) for r in rows],
+                          "row_count": len(rows),
+                          "column_count": len(cols),
+                      }
+                      evidence_bytes = json.dumps(
+                          {"columns": cols, "rows": [list(r) for r in rows]},
+                          ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+                      ).encode("utf-8")
+                      evidence["evidence_sha256"] = hashlib.sha256(evidence_bytes).hexdigest()
+                      self.last_evidence = evidence
+                      # Exact historical return contract; no evidence is fed back into P0.
+                      return True, None, len(rows), len(cols)
+                  except Exception as exc:
+                      self.last_evidence = {
+                          "db_id": db_id,
+                          "sql_sha256": hashlib.sha256(sql.encode("utf-8")).hexdigest(),
+                          "columns": None, "rows": None,
+                          "row_count": None, "column_count": None,
+                          "evidence_sha256": None, "execution_error": str(exc),
+                      }
+                      return False, str(exc), None, None
+
+          dataset = SpiderDataset(Path("data/pilot12_questions.json"), Path("data/database"))
+          provider = OllamaProvider(os.environ["OLLAMA_BASE_URL"], os.environ["OLLAMA_MODEL"])
+
+          def run_once():
+              evaluator = CapturingEvaluator(dataset)
+              env = BenchmarkEnvironment(
+                  dataset, evaluator, provider, RuleBasedDeterministicSolver(Path("data/database"))
+              )
+              records=[]
+              for ex in dataset.examples:
+                  tr = env.run(ex, "P0")
+                  ev = evaluator.last_evidence
+                  rec = {"trace": tr.__dict__.copy(), "captured_evidence": ev}
+                  # Critical integrity check: capture must reproduce the historical counts.
+                  if tr.execution_ok:
+                      assert ev["row_count"] == tr.evidence_row_count
+                      assert ev["column_count"] == tr.evidence_column_count
+                  records.append(rec)
+              return records
+
+          first = run_once()
+          second = run_once()
+
+          pairs=[]
+          for a,b in zip(first,second):
+              ea, eb = a["captured_evidence"], b["captured_evidence"]
+              pairs.append({
+                  "db_id": a["trace"]["db_id"],
+                  "question": a["trace"]["question"],
+                  "sql_exact_match": a["trace"]["generated_sql"] == b["trace"]["generated_sql"],
+                  "execution_status_match": a["trace"]["execution_ok"] == b["trace"]["execution_ok"],
+                  "evidence_exact_match": ea == eb,
+                  "evidence_hash_match": ea.get("evidence_sha256") == eb.get("evidence_sha256"),
+                  "trace_row_count": a["trace"]["evidence_row_count"],
+                  "captured_row_count": ea.get("row_count"),
+                  "trace_column_count": a["trace"]["evidence_column_count"],
+                  "captured_column_count": ea.get("column_count"),
+                  "first_evidence_sha256": ea.get("evidence_sha256"),
+                  "second_evidence_sha256": eb.get("evidence_sha256"),
+              })
+
+          result={
+              "status":"evidence_capture_pilot_complete",
+              "case_count":12,
+              "repeat_count":2,
+              "historical_p0_path":"1765680283df63232018bf7b827d1576c81c3a61",
+              "capture_is_observational":True,
+              "gold_sql_excluded_from_provider_prompt":True,
+              "checks":{
+                  "all_sql_exact_match":all(x["sql_exact_match"] for x in pairs),
+                  "all_execution_status_match":all(x["execution_status_match"] for x in pairs),
+                  "all_evidence_exact_match":all(x["evidence_exact_match"] for x in pairs),
+                  "all_trace_counts_equal_captured_counts":all(
+                      x["trace_row_count"]==x["captured_row_count"] and
+                      x["trace_column_count"]==x["captured_column_count"]
+                      for x in pairs if x["trace_row_count"] is not None
+                  ),
+              },
+              "pairs":pairs,
+              "first":[x for x in first],
+              "second":[x for x in second],
+          }
+          Path("artifacts/capture/evidence_capture_pilot12.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+          print(json.dumps(result["checks"],indent=2))
+
+          if not all(x["sql_exact_match"] for x in pairs): raise SystemExit("FAIL: P0 SQL nondeterminism")
+          if not all(x["execution_status_match"] for x in pairs): raise SystemExit("FAIL: P0 execution-status nondeterminism")
+          if not all(x["evidence_exact_match"] for x in pairs): raise SystemExit("FAIL: captured evidence nondeterminism")
+          if not result["checks"]["all_trace_counts_equal_captured_counts"]: raise SystemExit("FAIL: captured evidence counts disagree with historical trace")
+          PY
+
+      - name: Upload evidence-capture artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c4-2-3-evidence-capture12
+          path: artifacts/capture/
+          retention-days: 90
