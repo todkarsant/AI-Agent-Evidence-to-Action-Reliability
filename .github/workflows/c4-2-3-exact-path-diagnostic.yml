@@ -71,7 +71,9 @@ jobs:
           tar --use-compress-program=unzstd -xf /tmp/ollama.tar.zst -C "$HOME/ollama-0.33.3"
           "$HOME/ollama-0.33.3/bin/ollama" --version | tee artifacts/exact-path/ollama_binary_version.txt
           sha256sum "$HOME/ollama-0.33.3/bin/ollama" | tee artifacts/exact-path/ollama_binary_sha256.txt
-          echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/ollama-0.33.3/bin:$PATH"
+          command -v ollama
+          ollama --version
           nohup "$HOME/ollama-0.33.3/bin/ollama" serve > artifacts/exact-path/ollama_server.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS "$OLLAMA_BASE_URL/api/version" >/dev/null 2>&1 && break; sleep 1; done
           test "$(curl -fsS "$OLLAMA_BASE_URL/api/version" | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
