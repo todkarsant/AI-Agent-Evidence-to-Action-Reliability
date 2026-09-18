@@ -54,4 +54,8 @@ This is a **measurement-instrument qualification**, not evidence that the propos
 
 The capture is reconstructed from the same read-only SQLite execution performed by the historical evaluator. Because the historical trace discarded raw rows, this pilot cannot retrospectively prove that every byte of a historical transient result was preserved. It establishes the forward measurement mechanism for the fresh study.
 
-Next gate: freeze the evidence-obligation codebook and run the independent double-blind annotation pilot.
+Next gate: freeze the evidence-obligation codebook and run the independent double-blind annotation pilot.## Post-PASS requalification finding — 2026-09-18
+
+A later rerun of this workflow failed the upstream repeatability prerequisite on `behavior_monitoring`. SQL, execution status, and captured evidence differed across the two repeats. The integrity check that captured row/column counts matched the trace still passed, but this does not rescue the repeatability failure.
+
+**Current gate status: REOPENED / FAIL pending determinism characterization.**
