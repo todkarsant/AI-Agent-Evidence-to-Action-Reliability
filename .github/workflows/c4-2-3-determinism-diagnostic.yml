@@ -1,0 +1,88 @@
+name: c4-2-3-determinism-diagnostic
+
+on:
+  push:
+    paths:
+      - .github/workflows/c4-2-3-determinism-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: llama3.2:1b
+      OLLAMA_VERSION: 0.33.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout exact historical Project 1 benchmark code
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts external
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "1765680283df63232018bf7b827d1576c81c3a61"
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+      - name: Install and fingerprint pinned Ollama
+        run: |
+          set -euo pipefail
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          sha256sum /tmp/ollama.tar.zst | tee artifacts/ollama_archive_sha256.txt
+          zstd -t /tmp/ollama.tar.zst
+          mkdir -p "$HOME/ollama"
+          tar --use-compress-program=unzstd -xf /tmp/ollama.tar.zst -C "$HOME/ollama"
+          sha256sum "$HOME/ollama/bin/ollama" | tee artifacts/ollama_binary_sha256.txt
+          "$HOME/ollama/bin/ollama" --version | tee artifacts/ollama_version.txt
+          echo "$HOME/ollama/bin" >> "$GITHUB_PATH"
+      - name: Start Ollama and fingerprint model
+        run: |
+          set -euo pipefail
+          nohup "$HOME/ollama/bin/ollama" serve > artifacts/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS "$OLLAMA_BASE_URL/api/version" >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS "$OLLAMA_BASE_URL/api/version" | tee artifacts/ollama_api_version.json
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS "$OLLAMA_BASE_URL/api/tags" | tee artifacts/ollama_tags.json
+          curl -fsS "$OLLAMA_BASE_URL/api/show" -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' | tee artifacts/ollama_show.json
+      - name: Repeat exact historical provider call 10 times
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot" python - <<'PY'
+          import json, os, hashlib
+          from pathlib import Path
+          from app.services.llm import OllamaProvider
+          from app.services.llm import _extract_json_object
+
+          question = "Which student has the highest number of assessment notes?"
+          schema = """CREATE TABLE Students (student_id INTEGER, first_name TEXT); CREATE TABLE Assessment_Notes (notes_id INTEGER, student_id INTEGER, notes TEXT);"""
+          provider = OllamaProvider(os.environ["OLLAMA_BASE_URL"], os.environ["OLLAMA_MODEL"])
+          out=[]
+          for i in range(10):
+              r=provider.generate_sql(question, schema)
+              out.append({"repeat":i+1,"sql":r.text,"input_tokens":r.input_tokens,"output_tokens":r.output_tokens,"model":r.model})
+          sqls=[x["sql"] for x in out]
+          result={"repeat_count":10,"unique_sql_count":len(set(sqls)),"all_exact_match":len(set(sqls))==1,"outputs":out}
+          Path("artifacts/historical_provider_repeat10.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+          print(json.dumps({"repeat_count":10,"unique_sql_count":result["unique_sql_count"],"all_exact_match":result["all_exact_match"]},indent=2))
+          PY
+      - name: Upload diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c4-2-3-determinism-diagnostic
+          path: artifacts/
+          retention-days: 90
