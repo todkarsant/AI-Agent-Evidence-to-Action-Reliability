@@ -13,3 +13,10 @@ This register separates established facts, working propositions, and claims not 
 | C-007 | The construct generalizes across AI agents/models/domains | **NOT ESTABLISHED** | No evidence yet |
 | C-008 | The framework establishes improved AI safety or universal reliability | **NOT ESTABLISHED** | Outside current evidence |
 | C-009 | The recovered model artifact is byte-identical to the historical P1 artifact | **NOT PROVEN** | Historical digest absent |
+
+| C-010 | Generic semantic perturbation/reliability robustness is novel to Project 2 | **REJECTED** | Current literature collision: ReliabilityBench, Semantic Invariance in Agentic AI, and broader agent-reliability work |
+| C-011 | Generic evidence sufficiency/coverage is novel to Project 2 | **REJECTED** | Current literature collision: SURE-RAG, Evidence Sufficiency Benchmark, and Evidence Sufficiency Boundaries |
+| C-012 | Industry claims about automation unreliability establish scientific evidence for Project 2 | **NOT ESTABLISHED** | Corporate/vendor evidence can motivate the problem but cannot establish causal or predictive validity |
+| C-013 | Gartner's hyperautomation market projection exceeds $1T by 2026 | **SECONDARY ATTRIBUTION ONLY** | SEC filing quoting Gartner; primary Gartner report not independently verified |
+| C-014 | Kognitos is independently proven hallucination-free/deterministic | **NOT ESTABLISHED** | Kognitos makes these vendor claims; no independent validation has been established here |
+| C-015 | The current Project 2 witness construct has incremental predictive validity for replacement harm | **NOT ESTABLISHED** | Requires completed runtime qualification, measurement reliability, frozen model specification and OOS analysis |
