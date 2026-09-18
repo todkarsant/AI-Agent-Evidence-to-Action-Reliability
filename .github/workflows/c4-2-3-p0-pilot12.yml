@@ -1,0 +1,265 @@
+name: c4-2-3-p0-pilot12
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p0-pilot12:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: llama3.2:1b
+      OLLAMA_VERSION: 0.33.3
+      SPIDER_ARCHIVE_SHA256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
+      PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
+
+    steps:
+      - name: Checkout Project 2
+        uses: actions/checkout@v4
+
+      - name: Checkout exact historical Project 1 benchmark code
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pilot external
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "1765680283df63232018bf7b827d1576c81c3a61"
+          git -C external/Enterprise-Analytics-Copilot rev-parse HEAD | tee artifacts/pilot/project1_benchmark_commit.txt
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install gdown
+
+      - name: Record provenance
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD | tee artifacts/pilot/project2_commit.txt
+          python --version | tee artifacts/pilot/python_version.txt
+          sha256sum data/manifests/C4_2_3B_PILOT12_CASES.json | tee artifacts/pilot/pilot_manifest_sha256.txt
+          test "$(cut -d' ' -f1 artifacts/pilot/pilot_manifest_sha256.txt)" = "$PILOT_MANIFEST_SHA256"
+
+      - name: Download and verify official Spider 1.0
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          sha256sum data/spider_data.zip | tee artifacts/pilot/spider_archive_sha256.txt
+          test "$(cut -d' ' -f1 artifacts/pilot/spider_archive_sha256.txt)" = "$SPIDER_ARCHIVE_SHA256"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          mkdir -p data/spider
+          find data/spider_unpacked -name dev.json -exec cp {} data/spider/dev.json \;
+          find data/spider_unpacked -name tables.json -exec cp {} data/spider/tables.json \;
+          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
+          test -n "$DB_DIR"
+          cp -R "$DB_DIR" data/spider/database
+          test -s data/spider/dev.json
+          test -s data/spider/tables.json
+          test -d data/spider/database
+
+      - name: Build exact 12-case pilot question file
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("data/manifests/C4_2_3B_PILOT12_CASES.json").read_text())
+          dev = json.loads(Path("data/spider/dev.json").read_text())
+
+          assert manifest["source_archive_sha256"] == "00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b"
+          assert manifest["source_split"] == "train"
+          assert manifest["case_count"] == 12
+          assert len(manifest["cases"]) == 12
+          assert len({c["pilot_case_id"] for c in manifest["cases"]}) == 12
+          assert len({c["db_id"] for c in manifest["cases"]}) == 12
+
+          out = []
+          for c in manifest["cases"]:
+              matches = [x for x in dev if x["db_id"] == c["db_id"] and x["question"] == c["question"]]
+              assert len(matches) == 1, (c["pilot_case_id"], c["db_id"], len(matches))
+              out.append({
+                  "pilot_case_id": c["pilot_case_id"],
+                  "question": matches[0]["question"],
+                  "db_id": matches[0]["db_id"],
+                  "query": matches[0]["query"],
+              })
+
+          Path("artifacts/pilot/pilot_questions_for_posthoc_eval.json").write_text(
+              json.dumps(out, indent=2), encoding="utf-8"
+          )
+          Path("data/spider/pilot12_questions.json").write_text(
+              json.dumps([{"question":x["question"],"db_id":x["db_id"],"query":x["query"]} for x in out], indent=2),
+              encoding="utf-8"
+          )
+          print(json.dumps({
+              "status":"PASS",
+              "cases":len(out),
+              "schemas":sorted({x["db_id"] for x in out}),
+              "gold_used_only_for_posthoc_evaluation":True
+          }, indent=2))
+          PY
+
+      - name: Fetch pinned official Spider evaluator
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/taoyds/spider.git external/spider
+          git -C external/spider checkout --quiet b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
+          test "$(git -C external/spider rev-parse HEAD)" = "b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c"
+          git -C external/spider rev-parse HEAD | tee artifacts/pilot/spider_evaluator_commit.txt
+
+      - name: Install pinned Ollama 0.33.3
+        run: |
+          set -euo pipefail
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5             -o artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst             "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          sha256sum artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst | tee artifacts/pilot/ollama_archive_sha256.txt
+          zstd -t artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst
+          mkdir -p "$HOME/ollama-0.33.3"
+          tar --use-compress-program=unzstd -xf artifacts/pilot/ollama-linux-amd64-0.33.3.tar.zst -C "$HOME/ollama-0.33.3"
+          "$HOME/ollama-0.33.3/bin/ollama" --version | tee artifacts/pilot/ollama_binary_version.txt
+          sha256sum "$HOME/ollama-0.33.3/bin/ollama" | tee artifacts/pilot/ollama_binary_sha256.txt
+          echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
+
+      - name: Start and fingerprint Ollama model
+        run: |
+          set -euo pipefail
+          nohup "$HOME/ollama-0.33.3/bin/ollama" serve > artifacts/pilot/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS "$OLLAMA_BASE_URL/api/version" >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS "$OLLAMA_BASE_URL/api/version" | tee artifacts/pilot/ollama_api_version.json
+          test "$(curl -fsS "$OLLAMA_BASE_URL/api/version" | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS "$OLLAMA_BASE_URL/api/tags" | tee artifacts/pilot/ollama_tags.json
+          curl -fsS "$OLLAMA_BASE_URL/api/show" -H "Content-Type: application/json"             -d '{"name":"llama3.2:1b"}' | tee artifacts/pilot/ollama_show.json
+
+      - name: Execute deterministic P0 pilot twice per case
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot" python - <<'PY'
+          import json
+          import os
+          import statistics
+          from pathlib import Path
+
+          from app.services.llm import OllamaProvider
+          from research.spider_benchmark import (
+              BenchmarkEnvironment,
+              SecondaryExecutionEvaluator,
+              SpiderDataset,
+              Trace,
+          )
+          from research.deterministic_solver import RuleBasedDeterministicSolver
+          from research.spider_official_eval import evaluate_traces
+
+          questions = Path("data/spider/pilot12_questions.json")
+          db_dir = Path("data/spider/database")
+          tables = Path("data/spider/tables.json")
+          evaluator_dir = Path("external/spider")
+
+          dataset = SpiderDataset(questions, db_dir)
+          evaluator = SecondaryExecutionEvaluator(dataset)
+          deterministic = RuleBasedDeterministicSolver(db_dir)
+          provider = OllamaProvider(os.environ["OLLAMA_BASE_URL"], os.environ["OLLAMA_MODEL"])
+          env = BenchmarkEnvironment(dataset, evaluator, provider, deterministic)
+
+          raw = json.loads(questions.read_text())
+          assert len(raw) == 12
+
+          # Run each frozen case twice with the historical P0 path.
+          first = []
+          second = []
+          for example in dataset.examples:
+              first.append(env.run(example, "P0"))
+          for example in dataset.examples:
+              second.append(env.run(example, "P0"))
+
+          pairs = []
+          for a, b in zip(first, second):
+              pairs.append({
+                  "db_id": a.db_id,
+                  "question": a.question,
+                  "sql_exact_match": a.generated_sql == b.generated_sql,
+                  "execution_status_match": a.execution_ok == b.execution_ok,
+                  "sql_first": a.generated_sql,
+                  "sql_second": b.generated_sql,
+                  "first": a.__dict__,
+                  "second": b.__dict__,
+              })
+
+          payload = {
+              "status": "pilot_complete",
+              "benchmark": "Spider 1.0 fresh C4.2.3 subset",
+              "policy": "P0",
+              "case_count": 12,
+              "repeat_count": 2,
+              "determinism": {
+                  "exact_sql_match_count": sum(p["sql_exact_match"] for p in pairs),
+                  "execution_status_match_count": sum(p["execution_status_match"] for p in pairs),
+                  "all_exact_sql_match": all(p["sql_exact_match"] for p in pairs),
+                  "all_execution_status_match": all(p["execution_status_match"] for p in pairs),
+              },
+              "traces_first": [x.__dict__ for x in first],
+              "traces_second": [x.__dict__ for x in second],
+              "pairs": pairs,
+          }
+
+          # Official evaluation is post-hoc only; gold SQL never enters the provider prompt.
+          payload["official_spider_execution_first"] = evaluate_traces(
+              payload | {"traces": payload["traces_first"]},
+              db_dir, tables, evaluator_dir
+          )
+
+          payload["official_spider_execution_second"] = evaluate_traces(
+              payload | {"traces": payload["traces_second"]},
+              db_dir, tables, evaluator_dir
+          )
+
+          Path("artifacts/pilot/p0_pilot12.json").write_text(
+              json.dumps(payload, indent=2), encoding="utf-8"
+          )
+
+          summary = {
+              "case_count": 12,
+              "exact_sql_match_count": payload["determinism"]["exact_sql_match_count"],
+              "all_exact_sql_match": payload["determinism"]["all_exact_sql_match"],
+              "execution_status_match_count": payload["determinism"]["execution_status_match_count"],
+              "all_execution_status_match": payload["determinism"]["all_execution_status_match"],
+              "first_official": payload["official_spider_execution_first"],
+              "second_official": payload["official_spider_execution_second"],
+          }
+          Path("artifacts/pilot/p0_pilot12_summary.json").write_text(
+              json.dumps(summary, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(summary, indent=2))
+
+          # This pilot is explicitly a determinism gate.
+          if not payload["determinism"]["all_exact_sql_match"]:
+              raise SystemExit("FAIL: at least one frozen case produced different SQL across identical P0 repeats")
+          if not payload["determinism"]["all_execution_status_match"]:
+              raise SystemExit("FAIL: at least one frozen case changed execution status across identical P0 repeats")
+          PY
+
+      - name: Upload P0 pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c4-2-3-p0-pilot12
+          path: artifacts/pilot/
+          retention-days: 90
