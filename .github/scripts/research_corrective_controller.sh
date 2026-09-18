@@ -3,11 +3,12 @@ set -euo pipefail
 
 REPO="${REPO:?}"
 DIAGNOSTIC_WORKFLOW="c4-2-3-exact-path-diagnostic.yml"
+EVIDENCE_WORKFLOW="c4-2-3-evidence-capture12.yml"
 MAX_AUTO_RETRIES=2
 POLL_SECONDS=30
 
 get_latest() {
-  gh run list --repo "$REPO" --workflow "$DIAGNOSTIC_WORKFLOW" --limit 5     --json databaseId,status,conclusion,headSha,createdAt,url
+  gh run list --repo "$REPO" --workflow "$1" --limit 5     --json databaseId,status,conclusion,headSha,createdAt,url
 }
 
 read_latest() {
@@ -17,7 +18,7 @@ read_latest() {
   latest_sha="$(echo "$runs" | jq -r '.[0].headSha // empty')"
 }
 
-runs="$(get_latest)"
+runs="$(get_latest "$DIAGNOSTIC_WORKFLOW")"
 echo "$runs" | jq .
 read_latest
 
@@ -47,7 +48,36 @@ done
 echo "Diagnostic run $id reached terminal state: $conclusion"
 
 if [[ "$conclusion" == "success" ]]; then
-  echo "Latest diagnostic succeeded. Scientific result is preserved; no automatic methodological change."
+  echo "C.4.2.3 exact-path diagnostic succeeded. Advancing only to the predefined C.4.2.3-D evidence-capture qualification."
+
+  evidence_runs="$(get_latest "$EVIDENCE_WORKFLOW")"
+  evidence_id="$(echo "$evidence_runs" | jq -r '.[0].databaseId // empty')"
+  evidence_status="$(echo "$evidence_runs" | jq -r '.[0].status // empty')"
+  evidence_conclusion="$(echo "$evidence_runs" | jq -r '.[0].conclusion // empty')"
+  evidence_sha="$(echo "$evidence_runs" | jq -r '.[0].headSha // empty')"
+  current_sha="$(gh api "repos/$REPO/commits/main" -q .sha)"
+
+  if [[ -n "$evidence_id" && "$evidence_sha" == "$current_sha" ]]; then
+    echo "Existing C.4.2.3-D run $evidence_id on current main: status=$evidence_status conclusion=$evidence_conclusion"
+    if [[ "$evidence_status" != "completed" ]]; then
+      while [[ "$evidence_status" != "completed" ]]; do
+        sleep "$POLL_SECONDS"
+        evidence_runs="$(get_latest "$EVIDENCE_WORKFLOW")"
+        evidence_status="$(echo "$evidence_runs" | jq -r '.[0].status // empty')"
+        evidence_conclusion="$(echo "$evidence_runs" | jq -r '.[0].conclusion // empty')"
+        echo "C.4.2.3-D run $evidence_id status=$evidence_status conclusion=$evidence_conclusion"
+      done
+    fi
+    if [[ "$evidence_conclusion" == "success" ]]; then
+      echo "C.4.2.3-D succeeded. C.4.2.4-A requires genuinely independent human raters and is therefore not auto-executable."
+    else
+      echo "C.4.2.3-D failed on current main. Preserve failure and do not advance."
+    fi
+    exit 0
+  fi
+
+  echo "No current-main C.4.2.3-D run exists. Dispatching the predefined evidence-capture qualification."
+  gh workflow run "$EVIDENCE_WORKFLOW" --repo "$REPO" --ref main
   exit 0
 fi
 
