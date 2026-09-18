@@ -1,6 +1,9 @@
 name: c4-2-3-evidence-capture12
 
 on:
+  push:
+    paths:
+      - ".github/workflows/c4-2-3-evidence-capture12.yml"
   workflow_dispatch:
 
 permissions:
