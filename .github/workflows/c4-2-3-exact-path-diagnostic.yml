@@ -89,12 +89,18 @@ jobs:
           from research.spider_benchmark import BenchmarkEnvironment, SecondaryExecutionEvaluator, SpiderDataset
           from research.deterministic_solver import RuleBasedDeterministicSolver
 
-          question = "Which student has the highest number of assessment notes?"
-          db_id = "behavior_monitoring"
+          manifest = json.loads(Path("data/manifests/C4_2_3B_PILOT12_CASES.json").read_text())
+          target = [x for x in manifest["cases"] if x["db_id"] == "behavior_monitoring"]
+          assert len(target) == 1, ("behavior_monitoring manifest cases", len(target))
+          question = target[0]["question"]
+          db_id = target[0]["db_id"]
+
           train = json.loads(Path("data/train_spider.json").read_text()) + json.loads(Path("data/train_others.json").read_text())
           hits = [x for x in train if x["db_id"] == db_id and x["question"] == question]
-          assert len(hits) == 1, len(hits)
-          Path("data/exact_one.json").write_text(json.dumps([{"question":question,"db_id":db_id,"query":hits[0]["query"]}], indent=2))
+          assert len(hits) == 1, (db_id, question, len(hits))
+          Path("data/exact_one.json").write_text(
+              json.dumps([{"question":hits[0]["question"],"db_id":hits[0]["db_id"],"query":hits[0]["query"]}], indent=2)
+          )
 
           dataset = SpiderDataset(Path("data/exact_one.json"), Path("data/database"))
           schema = dataset.schema(db_id)
