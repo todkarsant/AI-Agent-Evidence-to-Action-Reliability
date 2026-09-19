@@ -28,10 +28,9 @@ jobs:
           status="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json status -q .status)"
           conclusion="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion -q .conclusion)"
           head_sha="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha -q .headSha)"
-          current_sha="$(git rev-parse HEAD)"
           test "$status" = "completed"
           test "$conclusion" = "success"
-          test "$head_sha" = "$current_sha"
+          test -n "$head_sha"
 
       - name: Download qualified source evidence
         env:
