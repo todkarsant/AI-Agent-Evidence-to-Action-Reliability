@@ -104,20 +104,20 @@ jobs:
           schema_sha="$(sha256sum data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json | cut -d' ' -f1)"
           manifest_sha="$(sha256sum data/manifests/C4_2_3B_PILOT12_CASES.json | cut -d' ' -f1)"
           cat > research/annotation_packets/C4_2_4A_WITNESS_V2_PROVENANCE.md <<EOF
-# C4.2.4-A W1-W7 packet provenance
+          # C4.2.4-A W1-W7 packet provenance
 
-Generated as a new versioned cohort; not a reconstruction of the unrecoverable 2026-09-18 packets.
+          Generated as a new versioned cohort; not a reconstruction of the unrecoverable 2026-09-18 packets.
 
-Source C.4.2.3-D run: $SOURCE_RUN_ID
-Source evidence SHA-256: $source_hash
-Source run head SHA: $SOURCE_HEAD_SHA
-Generator blob SHA-1: $generator_sha
-Frozen W1-W7 codebook blob SHA-1: $codebook_sha
-Schema fixture SHA-256: $schema_sha
-12-case manifest SHA-256: $manifest_sha
-Rater A randomization seed: 424241
-Rater B randomization seed: 424242
-EOF
+          Source C.4.2.3-D run: $SOURCE_RUN_ID
+          Source evidence SHA-256: $source_hash
+          Source run head SHA: $SOURCE_HEAD_SHA
+          Generator blob SHA-1: $generator_sha
+          Frozen W1-W7 codebook blob SHA-1: $codebook_sha
+          Schema fixture SHA-256: $schema_sha
+          12-case manifest SHA-256: $manifest_sha
+          Rater A randomization seed: 424241
+          Rater B randomization seed: 424242
+          EOF
 
       - name: Commit generated cohort
         run: |
