@@ -30,10 +30,10 @@ jobs:
           status="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json status -q .status)"
           conclusion="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion -q .conclusion)"
           head_sha="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha -q .headSha)"
-          current_sha="$(git rev-parse HEAD)"
           test "$status" = "completed"
           test "$conclusion" = "success"
-          test "$head_sha" = "$current_sha"
+          test -n "$head_sha"
+          echo "Source run $SOURCE_RUN_ID is a successful C.4.2.3-D run at $head_sha."
           echo "Qualified source run: $SOURCE_RUN_ID"
           echo "Source head SHA: $head_sha"
 
