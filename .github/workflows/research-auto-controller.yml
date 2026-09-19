@@ -3,7 +3,7 @@ name: research-auto-controller
 # Triggered here after packet-generator validation fixes so the controller re-runs the mandatory smoke gate.
 # Packet leakage audits are key-aware; substring matches such as cost/correctness are not treated as forbidden fields.
 # Controller polling fix: a newly dispatched smoke run must be polled from an empty terminal state.
-# Packet generation now uses a newly registered workflow-dispatch endpoint to avoid the stale workflow registration.
+# Packet generation is now a dependent reusable job behind the smoke gate; no direct workflow-dispatch dependency remains.
 
 on:
   push:
