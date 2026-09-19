@@ -70,19 +70,10 @@ if [[ "$conclusion" == "success" ]]; then
 
   if [[ -z "$smoke_id" || "$smoke_conclusion" != "success" || "$invalidating" -eq 1 ]]; then
     echo "Smoke test is absent, failed, or invalidated by evidence-capture changes. Dispatching mandatory smoke test and stopping before actual evidence capture."
-    gh workflow run "$SMOKE_WORKFLOW" --repo "$REPO" --ref main
-    for _ in {1..10}; do
-      sleep 3
-      smoke_runs="$(get_latest "$SMOKE_WORKFLOW")"
-      smoke_id="$(echo "$smoke_runs" | jq -r '.[0].databaseId // empty')"
-      smoke_status="$(echo "$smoke_runs" | jq -r '.[0].status // empty')"
-      smoke_conclusion="$(echo "$smoke_runs" | jq -r '.[0].conclusion // empty')"
-      [[ -n "$smoke_id" ]] && break
-    done
-    if [[ -z "$smoke_id" ]]; then
-      echo "Smoke dispatch accepted but run could not be resolved; controller will resume on its next trigger."
-      exit 0
-    fi
+    smoke_dispatch_url="$(gh workflow run "$SMOKE_WORKFLOW" --repo "$REPO" --ref main)"
+    smoke_id="${smoke_dispatch_url##*/}"
+    test -n "$smoke_id"
+    echo "Dispatched smoke test run $smoke_id."
   fi
 
   if [[ "$smoke_status" != "completed" ]]; then
@@ -188,19 +179,10 @@ Safety boundary: no scientific code, benchmark data, model parameters, seeds, an
   fi
 
   echo "No current-main C.4.2.3-D run exists. Dispatching the predefined evidence-capture qualification."
-  gh workflow run "$EVIDENCE_WORKFLOW" --repo "$REPO" --ref main
-  for _ in {1..10}; do
-    sleep 3
-    evidence_runs="$(get_latest "$EVIDENCE_WORKFLOW")"
-    evidence_id="$(echo "$evidence_runs" | jq -r '.[0].databaseId // empty')"
-    evidence_status="$(echo "$evidence_runs" | jq -r '.[0].status // empty')"
-    evidence_conclusion="$(echo "$evidence_runs" | jq -r '.[0].conclusion // empty')"
-    [[ -n "$evidence_id" ]] && break
-  done
-  if [[ -z "$evidence_id" ]]; then
-    echo "Evidence-capture dispatch accepted but run could not be resolved; controller will resume on its next trigger."
-    exit 0
-  fi
+  evidence_dispatch_url="$(gh workflow run "$EVIDENCE_WORKFLOW" --repo "$REPO" --ref main)"
+  evidence_id="${evidence_dispatch_url##*/}"
+  test -n "$evidence_id"
+  echo "Dispatched C.4.2.3-D run $evidence_id."
   while [[ "$evidence_status" != "completed" ]]; do
     echo "C.4.2.3-D run $evidence_id is active ($evidence_status). Polling every ${POLL_SECONDS}s."
     sleep "$POLL_SECONDS"
