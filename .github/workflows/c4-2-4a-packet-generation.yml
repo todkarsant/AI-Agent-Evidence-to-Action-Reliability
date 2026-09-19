@@ -23,7 +23,7 @@ jobs:
 
       - name: Download qualified C4.2.3-D source artifact
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           rm -rf /tmp/source
