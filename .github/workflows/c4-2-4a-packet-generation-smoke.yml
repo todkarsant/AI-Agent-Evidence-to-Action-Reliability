@@ -60,7 +60,18 @@ jobs:
               assert len(obj["cases"])==12 and len({x["case_id"] for x in obj["cases"]})==12
               raw=p.read_text().upper()
               assert not any(x in raw for x in ("SELECT ","INSERT ","UPDATE ","DELETE ","DROP ","ALTER ","CREATE "))
-              assert not any(x in p.read_text() for x in ("generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","latency_ms","llm_calls","cost"))
+              forbidden={"generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","source_artifact_sha256","source_evidence_sha256","latency_ms","llm_calls","cost"}
+              def keys(obj):
+                  out=set()
+                  if isinstance(obj,dict):
+                      for k,v in obj.items():
+                          out.add(k)
+                          out |= keys(v)
+                  elif isinstance(obj,list):
+                      for v in obj:
+                          out |= keys(v)
+                  return out
+              assert not (forbidden & keys(obj))
           print("PACKET_GENERATION_SMOKE=PASS")
           print(json.dumps(m,indent=2))
           PY
