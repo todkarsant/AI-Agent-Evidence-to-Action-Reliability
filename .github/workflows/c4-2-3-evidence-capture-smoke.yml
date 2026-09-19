@@ -143,7 +143,8 @@ jobs:
               assert tr.evidence_row_count == captured["row_count"]
               assert tr.evidence_column_count == captured["column_count"]
           assert captured["columns"] is not None or not tr.execution_ok
-          result={"status":"PASS","non_confirmatory":True,"case_id":ds.examples[0].pilot_case_id,
+          pilot_case_id=json.loads(Path("data/smoke_case.json").read_text())[0]["pilot_case_id"]
+          result={"status":"PASS","non_confirmatory":True,"case_id":pilot_case_id,
                   "capture_is_observational":True,"gold_sql_excluded_from_provider_prompt":True,
                   "historical_p0_contract_preserved":True,"trace":tr.__dict__,"captured_evidence":captured}
           Path("artifacts/smoke/evidence_capture_smoke.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
