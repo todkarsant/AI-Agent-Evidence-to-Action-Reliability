@@ -230,9 +230,11 @@ jobs:
           Path("artifacts/capture/evidence_capture_pilot12.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
           print(json.dumps(result["checks"],indent=2))
 
-          if not all(x["sql_exact_match"] for x in pairs): raise SystemExit("FAIL: P0 SQL nondeterminism")
-          if not all(x["execution_status_match"] for x in pairs): raise SystemExit("FAIL: P0 execution-status nondeterminism")
-          if not all(x["evidence_exact_match"] for x in pairs): raise SystemExit("FAIL: captured evidence nondeterminism")
+          mismatches = [x for x in pairs if not (x["sql_exact_match"] and x["execution_status_match"] and x["evidence_exact_match"])]
+          print("PAIR_DIAGNOSTICS")
+          for x in mismatches:
+              print(json.dumps(x, sort_keys=True))
+          if mismatches: raise SystemExit(f"FAIL: reproducibility mismatch in {len(mismatches)} of {len(pairs)} pilot cases")
           if not result["checks"]["all_trace_counts_equal_captured_counts"]: raise SystemExit("FAIL: captured evidence counts disagree with historical trace")
           PY
 
