@@ -1,0 +1,14 @@
+{
+  "codebook_blob_sha1": "fc33316b172915244e127d050142bb3bac0534b5",
+  "generator_blob_sha1": "0973565db8d68ef91cdeec92e9167ed676f8c32b",
+  "manifest_sha256": "079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80",
+  "packet_sha256": {
+    "A": "50391c44acc58ab9b9e11f7a3999cc6f8247e0a37451929b57ddc9d0392fd9ee",
+    "B": "804d633c1ff8382adc8343f41fd6035afb3e044d228d420519f5baea186a9c3e"
+  },
+  "packet_version": "C4_2_4A_WITNESS_V2_2026-09-19",
+  "rater_A_seed": 424241,
+  "rater_B_seed": 424242,
+  "schema_fixture_sha256": "e5ffbdeb359c3ff4e4b38f1c9827fafec2c556cb3ae5af2b563e417a88ee155a",
+  "source_evidence_sha256": "5cf2e45cc3be9fd43ca0d34d150069e6b26259022c712ba8b2c40087959929c5"
+}
