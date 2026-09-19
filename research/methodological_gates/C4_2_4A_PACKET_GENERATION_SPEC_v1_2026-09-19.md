@@ -47,3 +47,8 @@ The generator must:
 ## Provenance rule
 
 These packets are a **new versioned cohort**. They are not represented as reconstruction of the unrecoverable 2026-09-18 historical packet bytes.
+
+
+## Activation record
+
+The deterministic packet-generation workflow is installed on 2026-09-19; activation is intentionally separate from historical packet reconstruction.
