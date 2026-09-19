@@ -1,0 +1,75 @@
+name: C4.2.4A Witness Packet Generation Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful C.4.2.3-D evidence-capture run ID"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate source run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          status="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json status -q .status)"
+          conclusion="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion -q .conclusion)"
+          head_sha="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha -q .headSha)"
+          current_sha="$(git rev-parse HEAD)"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$current_sha"
+
+      - name: Download qualified source evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/source /tmp/packet-smoke
+          mkdir -p /tmp/source /tmp/packet-smoke
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" -n c4-2-3-evidence-capture12 -D /tmp/source
+          test -s /tmp/source/evidence_capture_pilot12.json
+          sha256sum /tmp/source/evidence_capture_pilot12.json | tee /tmp/source/evidence.sha256
+
+      - name: Smoke-test deterministic W1-W7 packet generation
+        run: |
+          set -euo pipefail
+          python research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py             --evidence /tmp/source/evidence_capture_pilot12.json             --schema-fixture data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json             --manifest data/manifests/C4_2_3B_PILOT12_CASES.json             --out /tmp/packet-smoke
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          out=Path("/tmp/packet-smoke")
+          m=json.loads((out/"C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json").read_text())
+          for label in ("A","B"):
+              p=out/f"C4_2_4A_WITNESS_V2_RATER_{label}.json"
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==m["packet_sha256"][label]
+              obj=json.loads(p.read_text())
+              assert len(obj["cases"])==12 and len({x["case_id"] for x in obj["cases"]})==12
+              raw=p.read_text().upper()
+              assert not any(x in raw for x in ("SELECT ","INSERT ","UPDATE ","DELETE ","DROP ","ALTER ","CREATE "))
+              assert not any(x in p.read_text() for x in ("generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","latency_ms","llm_calls","cost"))
+          print("PACKET_GENERATION_SMOKE=PASS")
+          print(json.dumps(m,indent=2))
+          PY
+
+      - name: Upload smoke artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c4-2-4a-packet-generation-smoke
+          path: /tmp/packet-smoke/
+          retention-days: 90
