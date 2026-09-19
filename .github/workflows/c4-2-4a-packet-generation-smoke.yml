@@ -9,7 +9,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -83,3 +83,15 @@ jobs:
           name: c4-2-4a-packet-generation-smoke
           path: /tmp/packet-smoke/
           retention-days: 90
+
+
+  generate:
+    name: Generate frozen W1-W7 cohort after smoke PASS
+    needs: smoke
+    if: ${{ needs.smoke.result == 'success' }}
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/c4-2-4a-packet-generation-v2.yml
+    with:
+      source_run_id: ${{ inputs.source_run_id }}
