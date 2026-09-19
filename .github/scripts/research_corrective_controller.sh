@@ -5,6 +5,7 @@ REPO="${REPO:?}"
 DIAGNOSTIC_WORKFLOW="c4-2-3-exact-path-diagnostic.yml"
 SMOKE_WORKFLOW="c4-2-3-evidence-capture-smoke.yml"
 EVIDENCE_WORKFLOW="c4-2-3-evidence-capture12.yml"
+PACKET_SMOKE_WORKFLOW="c4-2-4a-packet-generation-smoke.yml"
 PACKET_WORKFLOW="c4-2-4a-packet-generation.yml"
 MAX_AUTO_RETRIES=2
 POLL_SECONDS=30
@@ -123,7 +124,7 @@ No C.4.2.3-D actual evidence capture was started. Preserve the failure and fix t
       done
     fi
     if [[ "$evidence_conclusion" == "success" ]]; then
-      echo "C.4.2.3-D succeeded. Advancing to source-pinned W1-W7 cohort generation."
+      echo "C.4.2.3-D succeeded. Mandatory packet-generation smoke gate precedes W1-W7 cohort creation."
 
       provenance="$(git show main:research/annotation_packets/C4_2_4A_WITNESS_V2_PROVENANCE.md 2>/dev/null || true)"
       if grep -q "Source C.4.2.3-D run: $evidence_id" <<< "$provenance"; then
@@ -134,16 +135,33 @@ No C.4.2.3-D actual evidence capture was started. Preserve the failure and fix t
       fi
 
       if [[ "$packet_ready" -eq 0 ]]; then
-        packet_runs="$(get_latest "$PACKET_WORKFLOW")"
-        packet_id="$(echo "$packet_runs" | jq -r '.[0].databaseId // empty')"
-        packet_status="$(echo "$packet_runs" | jq -r '.[0].status // empty')"
-        packet_conclusion="$(echo "$packet_runs" | jq -r '.[0].conclusion // empty')"
-        if [[ -z "$packet_id" || "$packet_status" == "completed" ]]; then
-          packet_dispatch_url="$(gh workflow run "$PACKET_WORKFLOW" --repo "$REPO" --ref main -f source_run_id="$evidence_id")"
-          packet_id="${packet_dispatch_url##*/}"
-          test -n "$packet_id"
-          echo "Dispatched source-pinned packet generation run $packet_id."
+        packet_smoke_runs="$(get_latest "$PACKET_SMOKE_WORKFLOW")"
+        packet_smoke_id="$(echo "$packet_smoke_runs" | jq -r '.[0].databaseId // empty')"
+        packet_smoke_status="$(echo "$packet_smoke_runs" | jq -r '.[0].status // empty')"
+        packet_smoke_conclusion="$(echo "$packet_smoke_runs" | jq -r '.[0].conclusion // empty')"
+        if [[ -z "$packet_smoke_id" || "$packet_smoke_status" == "completed" ]]; then
+          dispatch="$(gh workflow run "$PACKET_SMOKE_WORKFLOW" --repo "$REPO" --ref main -f source_run_id="$evidence_id")"
+          packet_smoke_id="${dispatch##*/}"
+          test -n "$packet_smoke_id"
+          echo "Dispatched packet-generation smoke run $packet_smoke_id."
         fi
+        while [[ "$packet_smoke_status" != "completed" ]]; do
+          sleep "$POLL_SECONDS"
+          packet_smoke_status="$(gh run view "$packet_smoke_id" --repo "$REPO" --json status -q .status)"
+          packet_smoke_conclusion="$(gh run view "$packet_smoke_id" --repo "$REPO" --json conclusion -q .conclusion)"
+          echo "Packet smoke run $packet_smoke_id status=$packet_smoke_status conclusion=$packet_smoke_conclusion"
+        done
+        if [[ "$packet_smoke_conclusion" != "success" ]]; then
+          echo "Packet-generation smoke failed; actual W1-W7 cohort generation remains blocked."
+          exit 0
+        fi
+
+        dispatch="$(gh workflow run "$PACKET_WORKFLOW" --repo "$REPO" --ref main -f source_run_id="$evidence_id")"
+        packet_id="${dispatch##*/}"
+        test -n "$packet_id"
+        echo "Packet-generation smoke passed. Dispatched actual W1-W7 cohort run $packet_id."
+        packet_status=""
+        packet_conclusion=""
         while [[ "$packet_status" != "completed" ]]; do
           sleep "$POLL_SECONDS"
           packet_status="$(gh run view "$packet_id" --repo "$REPO" --json status -q .status)"
@@ -151,7 +169,7 @@ No C.4.2.3-D actual evidence capture was started. Preserve the failure and fix t
           echo "Packet generation run $packet_id status=$packet_status conclusion=$packet_conclusion"
         done
         if [[ "$packet_conclusion" != "success" ]]; then
-          echo "Packet generation failed; human annotation remains blocked."
+          echo "Actual W1-W7 cohort generation failed; human annotation remains blocked."
           exit 0
         fi
         packet_ready=1
@@ -167,6 +185,7 @@ No C.4.2.3-D actual evidence capture was started. Preserve the failure and fix t
 Completed:
 - C.4.2.3-C: limited-scope exact-path qualification; global determinism remains unestablished.
 - C.4.2.3-D: current-main evidence-capture qualification succeeded in run $evidence_id.
+- W1-W7 packet-generation smoke test passed.
 - W1-W7: new versioned blinded annotation cohort generated from source run $evidence_id with automated leakage/integrity checks and immutable provenance.
 
 Required before P2-C1.2 confirmatory modeling:
