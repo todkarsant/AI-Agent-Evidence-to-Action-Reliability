@@ -150,6 +150,8 @@ No C.4.2.3-D actual evidence capture was started. Preserve the failure and fix t
           dispatch="$(gh workflow run "$PACKET_SMOKE_WORKFLOW" --repo "$REPO" --ref main -f source_run_id="$evidence_id")"
           packet_smoke_id="${dispatch##*/}"
           test -n "$packet_smoke_id"
+          packet_smoke_status=""
+          packet_smoke_conclusion=""
           echo "Dispatched packet-generation smoke run $packet_smoke_id."
         fi
         while [[ "$packet_smoke_status" != "completed" ]]; do
