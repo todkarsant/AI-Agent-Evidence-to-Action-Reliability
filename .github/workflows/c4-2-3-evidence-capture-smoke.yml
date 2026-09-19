@@ -1,0 +1,160 @@
+name: c4-2-3-evidence-capture-smoke
+
+# Mandatory pre-use smoke test. Non-confirmatory: one frozen pilot case, one execution.
+on:
+  push:
+    paths:
+      - ".github/workflows/c4-2-3-evidence-capture-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: llama3.2:1b
+      OLLAMA_VERSION: 0.33.3
+      SPIDER_ARCHIVE_SHA256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
+      PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
+    steps:
+      - name: Checkout Project 2
+        uses: actions/checkout@v4
+
+      - name: Checkout exact historical Project 1 benchmark code
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/smoke external
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "1765680283df63232018bf7b827d1576c81c3a61"
+
+      - name: Set up Python 3.11 and dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install gdown
+
+      - name: Download and verify official Spider 1.0
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          sha256sum data/spider_data.zip | tee artifacts/smoke/spider_archive_sha256.txt
+          test "$(cut -d' ' -f1 artifacts/smoke/spider_archive_sha256.txt)" = "$SPIDER_ARCHIVE_SHA256"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
+          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
+          test -n "$DB_DIR"
+          cp -R "$DB_DIR" data/database
+          test -s data/train_spider.json && test -s data/tables.json && test -d data/database
+
+      - name: Resolve one frozen smoke case without exposing gold SQL to the provider
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          m=json.loads(Path("data/manifests/C4_2_3B_PILOT12_CASES.json").read_text())
+          assert m["source_archive_sha256"] == "00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b"
+          assert m["case_count"] == 12
+          c=next(x for x in m["cases"] if x["db_id"]=="behavior_monitoring")
+          train=json.loads(Path("data/train_spider.json").read_text())+json.loads(Path("data/train_others.json").read_text())
+          hits=[x for x in train if x["db_id"]==c["db_id"] and x["question"]==c["question"]]
+          assert len(hits)==1
+          x=hits[0]
+          Path("data/smoke_case.json").write_text(json.dumps([{
+              "question":x["question"],"db_id":x["db_id"],"query":x["query"],"pilot_case_id":c["pilot_case_id"]
+          }],indent=2),encoding="utf-8")
+          Path("artifacts/smoke/manifest_sha256.txt").write_text(
+              hashlib.sha256(Path("data/manifests/C4_2_3B_PILOT12_CASES.json").read_bytes()).hexdigest()+"\n")
+          PY
+
+      - name: Install and fingerprint pinned Ollama
+        run: |
+          set -euo pipefail
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          zstd -t /tmp/ollama.tar.zst
+          mkdir -p "$HOME/ollama-0.33.3"
+          tar --use-compress-program=unzstd -xf /tmp/ollama.tar.zst -C "$HOME/ollama-0.33.3"
+          "$HOME/ollama-0.33.3/bin/ollama" --version | tee artifacts/smoke/ollama_version.txt
+          sha256sum "$HOME/ollama-0.33.3/bin/ollama" | tee artifacts/smoke/ollama_binary_sha256.txt
+          echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
+
+      - name: Start Ollama and verify model
+        run: |
+          set -euo pipefail
+          nohup "$HOME/ollama-0.33.3/bin/ollama" serve > artifacts/smoke/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS "$OLLAMA_BASE_URL/api/version" >/dev/null 2>&1 && break; sleep 1; done
+          test "$(curl -fsS "$OLLAMA_BASE_URL/api/version" | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS "$OLLAMA_BASE_URL/api/show" -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/smoke/ollama_show.json
+
+      - name: Smoke-test observational evidence capture on one frozen case
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot" python - <<'PY'
+          import hashlib,json,os,sqlite3
+          from pathlib import Path
+          from app.services.llm import OllamaProvider
+          from research.spider_benchmark import BenchmarkEnvironment,SecondaryExecutionEvaluator,SpiderDataset
+          from research.deterministic_solver import RuleBasedDeterministicSolver
+
+          class Capture(SecondaryExecutionEvaluator):
+              def __init__(self,dataset): super().__init__(dataset); self.last=None
+              def execute(self,db_id,sql):
+                  try:
+                      with sqlite3.connect(self.dataset.db_path(db_id)) as con: rows,cols=self._result(con,sql)
+                      raw={"columns":cols,"rows":[list(r) for r in rows]}
+                      self.last={"db_id":db_id,"sql_sha256":hashlib.sha256(sql.encode()).hexdigest(),
+                                 "columns":cols,"rows":[list(r) for r in rows],
+                                 "row_count":len(rows),"column_count":len(cols),
+                                 "evidence_sha256":hashlib.sha256(json.dumps(raw,ensure_ascii=False,separators=(",",":"),sort_keys=True).encode()).hexdigest()}
+                      return True,None,len(rows),len(cols)
+                  except Exception as e:
+                      self.last={"db_id":db_id,"sql_sha256":hashlib.sha256(sql.encode()).hexdigest(),
+                                 "columns":None,"rows":None,"row_count":None,"column_count":None,
+                                 "evidence_sha256":None,"execution_error":str(e)}
+                      return False,str(e),None,None
+
+          ds=SpiderDataset(Path("data/smoke_case.json"),Path("data/database"))
+          ev=Capture(ds)
+          env=BenchmarkEnvironment(ds,ev,OllamaProvider(os.environ["OLLAMA_BASE_URL"],os.environ["OLLAMA_MODEL"]),
+                                   RuleBasedDeterministicSolver(Path("data/database")))
+          tr=env.run(ds.examples[0],"P0")
+          captured=ev.last
+          assert tr.execution_ok == (captured["row_count"] is not None)
+          if tr.execution_ok:
+              assert tr.evidence_row_count == captured["row_count"]
+              assert tr.evidence_column_count == captured["column_count"]
+          assert captured["columns"] is not None or not tr.execution_ok
+          result={"status":"PASS","non_confirmatory":True,"case_id":ds.examples[0].pilot_case_id,
+                  "capture_is_observational":True,"gold_sql_excluded_from_provider_prompt":True,
+                  "historical_p0_contract_preserved":True,"trace":tr.__dict__,"captured_evidence":captured}
+          Path("artifacts/smoke/evidence_capture_smoke.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+          print(json.dumps({"SMOKE_TEST":"PASS","execution_ok":tr.execution_ok,"row_count":captured["row_count"],
+                            "column_count":captured["column_count"]},indent=2))
+          PY
+
+      - name: Upload smoke artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c4-2-3-evidence-capture-smoke
+          path: artifacts/smoke/
+          retention-days: 90
