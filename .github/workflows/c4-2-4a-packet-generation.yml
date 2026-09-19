@@ -1,0 +1,76 @@
+name: C4.2.4A Witness Packet Generation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/c4-2-4a-packet-generation.yml"
+      - "research/methodological_gates/C4_2_4A3_WITNESS_CODEBOOK_v2_FROZEN_2026-09-19.md"
+      - "research/methodological_gates/C4_2_4A_PACKET_GENERATION_SPEC_v1_2026-09-19.md"
+      - "research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py"
+      - "data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json"
+      - "data/manifests/C4_2_3B_PILOT12_CASES.json"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download qualified C4.2.3-D source artifact
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/source
+          mkdir -p /tmp/source
+          gh run download 35367903444 -n c4-2-3-evidence-capture12 -D /tmp/source
+          test -f /tmp/source/evidence_capture_pilot12.json
+          echo "cff5110eb99371acf128b1c6558b7af427380a9f55a149cc5e97904efff0259e  /tmp/source/evidence_capture_pilot12.json" | sha256sum -c -
+
+      - name: Generate and leakage-audit packets
+        run: |
+          set -euo pipefail
+          rm -rf research/annotation_packets
+          python research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py \
+            --evidence /tmp/source/evidence_capture_pilot12.json \
+            --schema-fixture data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json \
+            --manifest data/manifests/C4_2_3B_PILOT12_CASES.json \
+            --out research/annotation_packets
+
+      - name: Verify frozen packet hashes
+        run: |
+          set -euo pipefail
+          grep -q '"3fa0be905a8892acc2b3bc329c5f0f6806eca3e456331dc5a9085b33722008d2"' research/annotation_packets/C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json
+          grep -q '"3f07b0080fd01bb5d795cb470f1f5e8cf9346ef52f83a8de3b7c195b7e3c277e"' research/annotation_packets/C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json
+
+      - name: Write provenance record
+        run: |
+          set -euo pipefail
+          cat > research/annotation_packets/C4_2_4A_WITNESS_V2_PROVENANCE.md <<EOF
+          # C4.2.4-A W1-W7 packet provenance
+
+          Generated from qualified C4.2.3-D artifact run 35367903444.
+          Source evidence SHA-256: cff5110eb99371acf128b1c6558b7af427380a9f55a149cc5e97904efff0259e
+          Packet A SHA-256: 3fa0be905a8892acc2b3bc329c5f0f6806eca3e456331dc5a9085b33722008d2
+          Packet B SHA-256: 3f07b0080fd01bb5d795cb470f1f5e8cf9346ef52f83a8de3b7c195b7e3c277e
+          Rater A randomization seed: 424241
+          Rater B randomization seed: 424242
+
+          These are a new versioned cohort generated under the frozen W1-W7 codebook.
+          They are not reconstruction of the unrecoverable 2026-09-18 packet bytes.
+          EOF
+
+      - name: Commit generated cohort
+        run: |
+          set -euo pipefail
+          git config user.name "research-pipeline-bot"
+          git config user.email "research-pipeline-bot@users.noreply.github.com"
+          git add research/annotation_packets
+          git diff --cached --quiet && exit 0
+          git commit -m "research: generate frozen W1-W7 annotation cohort"
+          git push
