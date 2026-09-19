@@ -1,0 +1,135 @@
+name: C4.2.4A Witness Packet Generation v2
+
+on:
+  # Packet generation is research-use and must be explicitly dispatched by the controller
+  # after a successful packet-generation smoke test.
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful C.4.2.3-D evidence-capture run ID"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate qualified source run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          status="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json status -q .status)"
+          conclusion="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion -q .conclusion)"
+          head_sha="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha -q .headSha)"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test -n "$head_sha"
+          echo "Source run $SOURCE_RUN_ID is a successful C.4.2.3-D run at $head_sha."
+          echo "Qualified source run: $SOURCE_RUN_ID"
+          echo "Source head SHA: $head_sha"
+
+      - name: Download qualified C.4.2.3-D source artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/source
+          mkdir -p /tmp/source
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" -n c4-2-3-evidence-capture12 -D /tmp/source
+          test -f /tmp/source/evidence_capture_pilot12.json
+          source_sha="$(sha256sum /tmp/source/evidence_capture_pilot12.json | cut -d' ' -f1)"
+          source_head_sha="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha -q .headSha)"
+          echo "SOURCE_EVIDENCE_SHA=$source_sha" >> "$GITHUB_ENV"
+          echo "SOURCE_HEAD_SHA=$source_head_sha" >> "$GITHUB_ENV"
+
+      - name: Generate and leakage-audit packets
+        run: |
+          set -euo pipefail
+          rm -rf research/annotation_packets
+          python research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py             --evidence /tmp/source/evidence_capture_pilot12.json             --schema-fixture data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json             --manifest data/manifests/C4_2_3B_PILOT12_CASES.json             --out research/annotation_packets
+          test -s research/annotation_packets/C4_2_4A_WITNESS_V2_RATER_A.json
+          test -s research/annotation_packets/C4_2_4A_WITNESS_V2_RATER_B.json
+          test -s research/annotation_packets/C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json
+
+      - name: Verify packet integrity and provenance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          out=Path("research/annotation_packets")
+          manifest=json.loads((out/"C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json").read_text())
+          assert manifest["source_evidence_sha256"] == __import__("os").environ["SOURCE_EVIDENCE_SHA"]
+          for label in ("A","B"):
+              p=out/f"C4_2_4A_WITNESS_V2_RATER_{label}.json"
+              got=hashlib.sha256(p.read_bytes()).hexdigest()
+              assert manifest["packet_sha256"][label] == got
+              obj=json.loads(p.read_text())
+              assert len(obj["cases"]) == 12
+              assert len({x["case_id"] for x in obj["cases"]}) == 12
+              raw=p.read_text().upper()
+              for forbidden in ("SELECT ","INSERT ","UPDATE ","DELETE ","DROP ","ALTER ","CREATE "):
+                  assert forbidden not in raw
+              forbidden={"generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","source_artifact_sha256","source_evidence_sha256","latency_ms","llm_calls","cost"}
+              def keys(obj):
+                  out=set()
+                  if isinstance(obj,dict):
+                      for k,v in obj.items():
+                          out.add(k)
+                          out |= keys(v)
+                  elif isinstance(obj,list):
+                      for v in obj:
+                          out |= keys(v)
+                  return out
+              assert not (forbidden & keys(obj))
+          print("PACKET_INTEGRITY=PASS")
+          PY
+
+      - name: Write immutable provenance record
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          source_hash="$SOURCE_EVIDENCE_SHA"
+          generator_sha="$(git rev-parse HEAD:research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py)"
+          codebook_sha="$(git rev-parse HEAD:research/methodological_gates/C4_2_4A3_WITNESS_CODEBOOK_v2_FROZEN_2026-09-19.md)"
+          schema_sha="$(sha256sum data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json | cut -d' ' -f1)"
+          manifest_sha="$(sha256sum data/manifests/C4_2_3B_PILOT12_CASES.json | cut -d' ' -f1)"
+          cat > research/annotation_packets/C4_2_4A_WITNESS_V2_PROVENANCE.md <<EOF
+# C4.2.4-A W1-W7 packet provenance
+
+Generated as a new versioned cohort; not a reconstruction of the unrecoverable 2026-09-18 packets.
+
+Source C.4.2.3-D run: $SOURCE_RUN_ID
+Source evidence SHA-256: $source_hash
+Source run head SHA: $SOURCE_HEAD_SHA
+Generator blob SHA-1: $generator_sha
+Frozen W1-W7 codebook blob SHA-1: $codebook_sha
+Schema fixture SHA-256: $schema_sha
+12-case manifest SHA-256: $manifest_sha
+Rater A randomization seed: 424241
+Rater B randomization seed: 424242
+EOF
+
+      - name: Commit generated cohort
+        run: |
+          set -euo pipefail
+          git config user.name "research-pipeline-bot"
+          git config user.email "research-pipeline-bot@users.noreply.github.com"
+          git add research/annotation_packets
+          if git diff --cached --quiet; then
+            echo "No packet changes to commit."
+          else
+            git commit -m "research: generate frozen W1-W7 annotation cohort"
+            git push
+          fi
