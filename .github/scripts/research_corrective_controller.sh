@@ -69,6 +69,26 @@ if [[ "$conclusion" == "success" ]]; then
       done
     fi
     if [[ "$evidence_conclusion" == "success" ]]; then
+      echo "C.4.2.3-D succeeded. Generating the frozen W1-W7 human-annotation cohort before the human-validation boundary."
+      mkdir -p /tmp/c4_2_4a
+      gh run download "$evidence_id" --repo "$REPO" -n c4-2-3-evidence-capture12 -D /tmp/c4_2_4a
+      test -f /tmp/c4_2_4a/evidence_capture_pilot12.json
+      echo "cff5110eb99371acf128b1c6558b7af427380a9f55a149cc5e97904efff0259e  /tmp/c4_2_4a/evidence_capture_pilot12.json" | sha256sum -c -
+      python research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py \
+        --evidence /tmp/c4_2_4a/evidence_capture_pilot12.json \
+        --schema-fixture data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json \
+        --manifest data/manifests/C4_2_3B_PILOT12_CASES.json \
+        --out research/annotation_packets
+      git config user.name "research-pipeline-bot"
+      git config user.email "research-pipeline-bot@users.noreply.github.com"
+      git add research/annotation_packets
+      if ! git diff --cached --quiet; then
+        git commit -m "research: generate frozen W1-W7 annotation cohort"
+        git push
+        echo "Frozen W1-W7 cohort committed; stop controller before issuing any further scientific action."
+      else
+        echo "Frozen W1-W7 cohort already present and deterministic; no packet mutation."
+      fi
       echo "C.4.2.3-D succeeded. C.4.2.4-A requires genuinely independent human raters and is therefore not auto-executable."
       title="C.4.2.4-A — Human validation required before X_W freeze"
       existing_issue="$(gh issue list --repo "$REPO" --state open --search "in:title $title" --json number)"
