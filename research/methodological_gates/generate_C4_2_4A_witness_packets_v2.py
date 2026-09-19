@@ -4,10 +4,23 @@ from pathlib import Path
 
 SEEDS={"A":424241,"B":424242}
 VERSION="C4_2_4A_WITNESS_V2_2026-09-19"
-FORBIDDEN=("generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","source_artifact_sha256","source_evidence_sha256","latency_ms","llm_calls","cost")
+FORBIDDEN_KEYS={"generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","source_artifact_sha256","source_evidence_sha256","latency_ms","llm_calls","cost"}
 SQL_PATTERNS=("SELECT ","INSERT ","UPDATE ","DELETE ","DROP ","ALTER ","CREATE ")
 
-def sha256(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+def sha256(p):
+    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+
+def forbidden_keys(obj):
+    found=[]
+    if isinstance(obj,dict):
+        for k,v in obj.items():
+            if k in FORBIDDEN_KEYS:
+                found.append(k)
+            found.extend(forbidden_keys(v))
+    elif isinstance(obj,list):
+        for v in obj:
+            found.extend(forbidden_keys(v))
+    return found
 
 def git_blob_sha1(p):
     data=Path(p).read_bytes()
@@ -66,7 +79,7 @@ def main():
         raw=json.dumps(packet,indent=2,sort_keys=True)+"\n"
         u=raw.upper()
         assert not any(p in u for p in SQL_PATTERNS)
-        assert not any(k in raw for k in FORBIDDEN)
+        assert not forbidden_keys(packet), forbidden_keys(packet)
         assert len(arr)==12 and len({x["case_id"] for x in arr})==12
         p=out/f"C4_2_4A_WITNESS_V2_RATER_{label}.json"; p.write_text(raw)
         ph[label]=sha256(p)
@@ -85,4 +98,5 @@ def main():
     (out/"C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json").write_text(json.dumps(rec,indent=2,sort_keys=True)+"\n")
     print(json.dumps(rec,indent=2,sort_keys=True))
 
-if __name__=="__main__": main()
+if __name__=="__main__":
+    main()
