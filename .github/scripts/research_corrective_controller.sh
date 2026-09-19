@@ -73,7 +73,9 @@ if [[ "$conclusion" == "success" ]]; then
       mkdir -p /tmp/c4_2_4a
       gh run download "$evidence_id" --repo "$REPO" -n c4-2-3-evidence-capture12 -D /tmp/c4_2_4a
       test -f /tmp/c4_2_4a/evidence_capture_pilot12.json
-      echo "cff5110eb99371acf128b1c6558b7af427380a9f55a149cc5e97904efff0259e  /tmp/c4_2_4a/evidence_capture_pilot12.json" | sha256sum -c -
+      source_sha="$(sha256sum /tmp/c4_2_4a/evidence_capture_pilot12.json | cut -d' ' -f1)"
+      echo "Current qualified source evidence SHA-256: $source_sha"
+      echo "Qualified source run: $evidence_id"
       python research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py \
         --evidence /tmp/c4_2_4a/evidence_capture_pilot12.json \
         --schema-fixture data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json \
