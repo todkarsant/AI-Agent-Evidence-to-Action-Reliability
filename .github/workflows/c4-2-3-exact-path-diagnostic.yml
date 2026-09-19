@@ -13,7 +13,7 @@ permissions:
 jobs:
   exact-path:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       LLM_PROVIDER: ollama
       OLLAMA_BASE_URL: http://127.0.0.1:11434
@@ -111,13 +111,13 @@ jobs:
           provider = OllamaProvider(os.environ["OLLAMA_BASE_URL"], os.environ["OLLAMA_MODEL"])
 
           direct=[]
-          for i in range(10):
+          for i in range(30):
               r=provider.generate_sql(question, schema)
               direct.append({"repeat":i+1,"sql":r.text,"input_tokens":r.input_tokens,"output_tokens":r.output_tokens,"model":r.model})
 
           evaluator=SecondaryExecutionEvaluator(dataset)
           deterministic=RuleBasedDeterministicSolver(Path("data/database"))
-          env_runs=[BenchmarkEnvironment(dataset,evaluator,provider,deterministic).run(dataset.examples[0],"P0").__dict__ for _ in range(10)]
+          env_runs=[BenchmarkEnvironment(dataset,evaluator,provider,deterministic).run(dataset.examples[0],"P0").__dict__ for _ in range(30)]
 
           result={
               "historical_commit":"1765680283df63232018bf7b827d1576c81c3a61",
@@ -125,7 +125,7 @@ jobs:
               "question":question,
               "schema_sha256":hashlib.sha256(schema.encode("utf-8")).hexdigest(),
               "schema":schema,
-              "direct_provider":{"repeat_count":10,"unique_sql_count":len({x["sql"] for x in direct}),"all_exact_match":len({x["sql"] for x in direct})==1,"outputs":direct},
+              "direct_provider":{"repeat_count":30,"unique_sql_count":len({x["sql"] for x in direct}),"all_exact_match":len({x["sql"] for x in direct})==1,"outputs":direct},
               "benchmark_environment":{"repeat_count":10,"unique_sql_count":len({x["generated_sql"] for x in env_runs}),"all_exact_match":len({x["generated_sql"] for x in env_runs})==1,"execution_statuses":[x["execution_ok"] for x in env_runs],"outputs":env_runs},
           }
           Path("artifacts/exact-path/exact_path_repeat10.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
