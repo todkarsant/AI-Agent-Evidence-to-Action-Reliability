@@ -152,32 +152,22 @@ No C.4.2.3-D actual evidence capture was started. Preserve the failure and fix t
           test -n "$packet_smoke_id"
           packet_smoke_status=""
           packet_smoke_conclusion=""
-          echo "Dispatched packet-generation smoke run $packet_smoke_id."
+          echo "Dispatched packet-generation smoke/cohort workflow run $packet_smoke_id."
         fi
         while [[ "$packet_smoke_status" != "completed" ]]; do
           sleep "$POLL_SECONDS"
           packet_smoke_status="$(gh run view "$packet_smoke_id" --repo "$REPO" --json status -q .status)"
           packet_smoke_conclusion="$(gh run view "$packet_smoke_id" --repo "$REPO" --json conclusion -q .conclusion)"
-          echo "Packet smoke run $packet_smoke_id status=$packet_smoke_status conclusion=$packet_smoke_conclusion"
+          echo "Packet smoke/cohort run $packet_smoke_id status=$packet_smoke_status conclusion=$packet_smoke_conclusion"
         done
         if [[ "$packet_smoke_conclusion" != "success" ]]; then
-          echo "Packet-generation smoke failed; actual W1-W7 cohort generation remains blocked."
+          echo "Packet-generation smoke or dependent W1-W7 cohort generation failed; human annotation remains blocked."
           exit 0
         fi
-        dispatch="$(gh workflow run "$PACKET_WORKFLOW" --repo "$REPO" --ref main -f source_run_id="$evidence_id")"
-        packet_id="${dispatch##*/}"
-        test -n "$packet_id"
-        echo "Packet-generation smoke passed. Dispatched actual W1-W7 cohort run $packet_id."
-        packet_status=""
-        packet_conclusion=""
-        while [[ "$packet_status" != "completed" ]]; do
-          sleep "$POLL_SECONDS"
-          packet_status="$(gh run view "$packet_id" --repo "$REPO" --json status -q .status)"
-          packet_conclusion="$(gh run view "$packet_id" --repo "$REPO" --json conclusion -q .conclusion)"
-          echo "Packet generation run $packet_id status=$packet_status conclusion=$packet_conclusion"
-        done
-        if [[ "$packet_conclusion" != "success" ]]; then
-          echo "Actual W1-W7 cohort generation failed; human annotation remains blocked."
+        echo "Packet smoke PASS and dependent actual W1-W7 cohort generation PASS in run $packet_smoke_id."
+        provenance="$(gh api "repos/$REPO/contents/research/annotation_packets/C4_2_4A_WITNESS_V2_PROVENANCE.md" -H "Accept: application/vnd.github.raw+json" 2>/dev/null || true)"
+        if ! grep -q "Source C.4.2.3-D run: $evidence_id" <<< "$provenance"; then
+          echo "Expected immutable W1-W7 provenance for source run $evidence_id was not found. Stop at provenance verification."
           exit 0
         fi
       fi
