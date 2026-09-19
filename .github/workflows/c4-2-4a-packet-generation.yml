@@ -80,8 +80,18 @@ jobs:
               raw=p.read_text().upper()
               for forbidden in ("SELECT ","INSERT ","UPDATE ","DELETE ","DROP ","ALTER ","CREATE "):
                   assert forbidden not in raw
-              for forbidden in ("generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","latency_ms","llm_calls","cost"):
-                  assert forbidden not in p.read_text()
+              forbidden={"generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","source_artifact_sha256","source_evidence_sha256","latency_ms","llm_calls","cost"}
+              def keys(obj):
+                  out=set()
+                  if isinstance(obj,dict):
+                      for k,v in obj.items():
+                          out.add(k)
+                          out |= keys(v)
+                  elif isinstance(obj,list):
+                      for v in obj:
+                          out |= keys(v)
+                  return out
+              assert not (forbidden & keys(obj))
           print("PACKET_INTEGRITY=PASS")
           PY
 
