@@ -4,6 +4,7 @@ name: research-auto-controller
 # Packet leakage audits are key-aware; substring matches such as cost/correctness are not treated as forbidden fields.
 # Controller polling fix: a newly dispatched smoke run must be polled from an empty terminal state.
 # Packet generation is now a dependent reusable job behind the smoke gate; no direct workflow-dispatch dependency remains.
+# Reusable packet workflow YAML was repaired; re-run the controller against the corrected definition.
 
 on:
   push:
