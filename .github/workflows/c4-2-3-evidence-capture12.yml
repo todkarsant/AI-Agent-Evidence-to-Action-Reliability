@@ -1,5 +1,7 @@
 name: c4-2-3-evidence-capture12
 
+# Research progression trigger: rerun qualification on the current main revision after determinism diagnostics.
+
 on:
   push:
     paths:
