@@ -56,13 +56,20 @@ if [[ "$conclusion" == "success" ]]; then
   smoke_status="$(echo "$smoke_runs" | jq -r '.[0].status // empty')"
   smoke_conclusion="$(echo "$smoke_runs" | jq -r '.[0].conclusion // empty')"
   smoke_sha="$(echo "$smoke_runs" | jq -r '.[0].headSha // empty')"
-  # The smoke test validates the evidence-capture implementation, not controller-only changes.
-  # Therefore compare its SHA with the current evidence-capture workflow SHA rather than the
-  # repository HEAD. This prevents controller commits from invalidating an otherwise valid smoke.
-  evidence_file_sha="$(gh api "repos/$REPO/contents/.github/workflows/$EVIDENCE_WORKFLOW?ref=main" -q .sha)"
+  # Smoke validity is tied to the evidence-capture implementation it exercised.
+  # Controller-only changes after the smoke do not invalidate that machinery test.
+  changed_files="$(gh api "repos/$REPO/compare/$smoke_sha...main" --paginate -q '.files[].filename' || true)"
+  invalidating=0
+  while IFS= read -r changed; do
+    [[ -z "$changed" ]] && continue
+    case "$changed" in
+      .github/workflows/c4-2-3-evidence-capture12.yml|research/spider_benchmark/*|research/deterministic_solver/*|data/manifests/C4_2_3B_PILOT12_CASES.json)
+        invalidating=1 ;;
+    esac
+  done <<< "$changed_files"
 
-  if [[ -z "$smoke_id" || "$smoke_sha" != "$(gh api "repos/$REPO/commits/main" -q .sha)" && "$smoke_sha" != "$evidence_file_sha" ]]; then
-    echo "Smoke test does not correspond to the current evidence-capture implementation. Dispatching mandatory smoke test and stopping before actual evidence capture."
+  if [[ -z "$smoke_id" || "$smoke_conclusion" != "success" || "$invalidating" -eq 1 ]]; then
+    echo "Smoke test is absent, failed, or invalidated by evidence-capture changes. Dispatching mandatory smoke test and stopping before actual evidence capture."
     gh workflow run "$SMOKE_WORKFLOW" --repo "$REPO" --ref main
     exit 0
   fi
