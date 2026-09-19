@@ -70,6 +70,24 @@ if [[ "$conclusion" == "success" ]]; then
     fi
     if [[ "$evidence_conclusion" == "success" ]]; then
       echo "C.4.2.3-D succeeded. C.4.2.4-A requires genuinely independent human raters and is therefore not auto-executable."
+      title="C.4.2.4-A — Human validation required before X_W freeze"
+      existing_issue="$(gh issue list --repo "$REPO" --state open --search "in:title $title" --json number)"
+      if [[ "$(echo "$existing_issue" | jq length)" -eq 0 ]]; then
+        gh issue create --repo "$REPO" --title "$title" --body "Research progression is blocked at C.4.2.4-A pending two genuinely independent outcome-blinded human annotation passes.
+
+Completed:
+- C.4.2.3-C: limited-scope exact-path qualification; global determinism remains unestablished.
+- C.4.2.3-D: current-main evidence-capture qualification succeeded in run $evidence_id.
+
+Required before P2-C1.2 confirmatory modeling:
+1. Two independent raters complete frozen packets.
+2. Raw annotations are locked unchanged.
+3. Obligation-level agreement statistics and contingency tables are calculated.
+4. The predefined disagreement/codebook-failure audit is completed.
+5. Any codebook revision creates a new version/cohort.
+
+Scientific safety boundary: no automatic changes to scientific code, data, model parameters, seeds, annotations, or gate verdicts."
+      fi
     else
       echo "C.4.2.3-D failed on current main. Preserve failure and do not advance."
       title="Research controller: C.4.2.3-D evidence-capture failure #$evidence_id"
