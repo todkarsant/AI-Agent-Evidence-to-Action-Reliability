@@ -48,7 +48,9 @@ jobs:
           gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" -n c4-2-3-evidence-capture12 -D /tmp/source
           test -f /tmp/source/evidence_capture_pilot12.json
           source_sha="$(sha256sum /tmp/source/evidence_capture_pilot12.json | cut -d' ' -f1)"
+          source_head_sha="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha -q .headSha)"
           echo "SOURCE_EVIDENCE_SHA=$source_sha" >> "$GITHUB_ENV"
+          echo "SOURCE_HEAD_SHA=$source_head_sha" >> "$GITHUB_ENV"
 
       - name: Generate and leakage-audit packets
         run: |
@@ -86,7 +88,7 @@ jobs:
       - name: Write immutable provenance record
         env:
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
-          SOURCE_HEAD_SHA: ${{ github.sha }}
+          SOURCE_HEAD_SHA: ${{ env.SOURCE_HEAD_SHA }}
         run: |
           set -euo pipefail
           source_hash="$SOURCE_EVIDENCE_SHA"
