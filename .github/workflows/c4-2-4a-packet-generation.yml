@@ -2,7 +2,7 @@ name: C4.2.4A Witness Packet Generation
 
 on:
   # Packet generation is research-use and must be explicitly dispatched by the controller
-  # after a successful, smoke-qualified C.4.2.3-D run.
+  # after a successful packet-generation smoke test.
   workflow_dispatch:
     inputs:
       source_run_id:
