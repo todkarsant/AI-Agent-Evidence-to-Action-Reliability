@@ -56,10 +56,13 @@ if [[ "$conclusion" == "success" ]]; then
   smoke_status="$(echo "$smoke_runs" | jq -r '.[0].status // empty')"
   smoke_conclusion="$(echo "$smoke_runs" | jq -r '.[0].conclusion // empty')"
   smoke_sha="$(echo "$smoke_runs" | jq -r '.[0].headSha // empty')"
-  current_sha="$(gh api "repos/$REPO/commits/main" -q .sha)"
+  # The smoke test validates the evidence-capture implementation, not controller-only changes.
+  # Therefore compare its SHA with the current evidence-capture workflow SHA rather than the
+  # repository HEAD. This prevents controller commits from invalidating an otherwise valid smoke.
+  evidence_file_sha="$(gh api "repos/$REPO/contents/.github/workflows/$EVIDENCE_WORKFLOW?ref=main" -q .sha)"
 
-  if [[ -z "$smoke_id" || "$smoke_sha" != "$current_sha" ]]; then
-    echo "No smoke test exists for current main. Dispatching mandatory smoke test and stopping before actual evidence capture."
+  if [[ -z "$smoke_id" || "$smoke_sha" != "$(gh api "repos/$REPO/commits/main" -q .sha)" && "$smoke_sha" != "$evidence_file_sha" ]]; then
+    echo "Smoke test does not correspond to the current evidence-capture implementation. Dispatching mandatory smoke test and stopping before actual evidence capture."
     gh workflow run "$SMOKE_WORKFLOW" --repo "$REPO" --ref main
     exit 0
   fi
