@@ -2,6 +2,7 @@ name: research-auto-controller
 # Research progression: terminal success advances only to predefined next gates.
 # Triggered here after packet-generator validation fixes so the controller re-runs the mandatory smoke gate.
 # Packet leakage audits are key-aware; substring matches such as cost/correctness are not treated as forbidden fields.
+# Controller polling fix: a newly dispatched smoke run must be polled from an empty terminal state.
 
 on:
   push:
