@@ -4,10 +4,14 @@ from pathlib import Path
 
 SEEDS={"A":424241,"B":424242}
 VERSION="C4_2_4A_WITNESS_V2_2026-09-19"
-FORBIDDEN=("generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","latency_ms","llm_calls","cost")
+FORBIDDEN=("generated_sql","gold_sql","gold_answer","p0_correctness","intervention","replacement","downstream_outcome","post_hoc","sql_sha256","evidence_sha256","source_artifact_sha256","source_evidence_sha256","latency_ms","llm_calls","cost")
 SQL_PATTERNS=("SELECT ","INSERT ","UPDATE ","DELETE ","DROP ","ALTER ","CREATE ")
 
-def sha(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+def sha256(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+
+def git_blob_sha1(p):
+    data=Path(p).read_bytes()
+    return hashlib.sha1(f"blob {len(data)}\0".encode()+data).hexdigest()
 
 def main():
     ap=argparse.ArgumentParser()
@@ -45,12 +49,17 @@ def main():
 
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     ph={}
-    source_hash=sha(a.evidence)
+    source_hash=sha256(a.evidence)
+    generator_sha=git_blob_sha1(__file__)
+    codebook_sha=git_blob_sha1(Path(__file__).with_name("C4_2_4A3_WITNESS_CODEBOOK_v2_FROZEN_2026-09-19.md"))
+    schema_hash=sha256(a.schema_fixture)
+    manifest_hash=sha256(a.manifest)
+
     for label,seed in SEEDS.items():
         arr=json.loads(json.dumps(base)); random.Random(seed).shuffle(arr)
         packet={
           "packet_version":VERSION,"rater_packet":label,"randomization_seed":seed,
-          "source_artifact_sha256":source_hash,"source_case_count":12,
+          "source_case_count":12,
           "blinding":{"excluded_information":"No generated query text, reference query/answer, correctness labels, intervention/outcome variables, post-hoc labels, execution provenance hashes, or model/runtime telemetry are exposed."},
           "cases":arr
         }
@@ -60,8 +69,20 @@ def main():
         assert not any(k in raw for k in FORBIDDEN)
         assert len(arr)==12 and len({x["case_id"] for x in arr})==12
         p=out/f"C4_2_4A_WITNESS_V2_RATER_{label}.json"; p.write_text(raw)
-        ph[label]=sha(p)
-    rec={"packet_version":VERSION,"source_evidence_sha256":source_hash,"rater_A_seed":424241,"rater_B_seed":424242,"packet_sha256":ph}
+        ph[label]=sha256(p)
+
+    rec={
+      "packet_version":VERSION,
+      "source_evidence_sha256":source_hash,
+      "generator_blob_sha1":generator_sha,
+      "codebook_blob_sha1":codebook_sha,
+      "schema_fixture_sha256":schema_hash,
+      "manifest_sha256":manifest_hash,
+      "rater_A_seed":424241,
+      "rater_B_seed":424242,
+      "packet_sha256":ph
+    }
     (out/"C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json").write_text(json.dumps(rec,indent=2,sort_keys=True)+"\n")
     print(json.dumps(rec,indent=2,sort_keys=True))
+
 if __name__=="__main__": main()
