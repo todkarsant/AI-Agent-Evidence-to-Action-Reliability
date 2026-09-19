@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO="${REPO:?}"
 DIAGNOSTIC_WORKFLOW="c4-2-3-exact-path-diagnostic.yml"
+SMOKE_WORKFLOW="c4-2-3-evidence-capture-smoke.yml"
 EVIDENCE_WORKFLOW="c4-2-3-evidence-capture12.yml"
 MAX_AUTO_RETRIES=2
 POLL_SECONDS=30
@@ -48,7 +49,47 @@ done
 echo "Diagnostic run $id reached terminal state: $conclusion"
 
 if [[ "$conclusion" == "success" ]]; then
-  echo "C.4.2.3 exact-path diagnostic succeeded. Advancing only to the predefined C.4.2.3-D evidence-capture qualification."
+  echo "C.4.2.3 exact-path diagnostic succeeded. Mandatory smoke-test gate precedes C.4.2.3-D actual use."
+
+  smoke_runs="$(get_latest "$SMOKE_WORKFLOW")"
+  smoke_id="$(echo "$smoke_runs" | jq -r '.[0].databaseId // empty')"
+  smoke_status="$(echo "$smoke_runs" | jq -r '.[0].status // empty')"
+  smoke_conclusion="$(echo "$smoke_runs" | jq -r '.[0].conclusion // empty')"
+  smoke_sha="$(echo "$smoke_runs" | jq -r '.[0].headSha // empty')"
+  current_sha="$(gh api "repos/$REPO/commits/main" -q .sha)"
+
+  if [[ -z "$smoke_id" || "$smoke_sha" != "$current_sha" ]]; then
+    echo "No smoke test exists for current main. Dispatching mandatory smoke test and stopping before actual evidence capture."
+    gh workflow run "$SMOKE_WORKFLOW" --repo "$REPO" --ref main
+    exit 0
+  fi
+
+  if [[ "$smoke_status" != "completed" ]]; then
+    echo "Smoke test $smoke_id is active ($smoke_status). Polling it; no actual evidence capture will start."
+    while [[ "$smoke_status" != "completed" ]]; do
+      sleep "$POLL_SECONDS"
+      smoke_runs="$(get_latest "$SMOKE_WORKFLOW")"
+      smoke_status="$(echo "$smoke_runs" | jq -r '.[0].status // empty')"
+      smoke_conclusion="$(echo "$smoke_runs" | jq -r '.[0].conclusion // empty')"
+      echo "Smoke test $smoke_id status=$smoke_status conclusion=$smoke_conclusion"
+    done
+  fi
+
+  if [[ "$smoke_conclusion" != "success" ]]; then
+    echo "Mandatory smoke test $smoke_id failed. Actual C.4.2.3-D evidence capture remains blocked."
+    title="Research controller: evidence-capture smoke-test failure #$smoke_id"
+    existing="$(gh issue list --repo "$REPO" --state open --search "in:title $title" --json number)"
+    if [[ "$(echo "$existing" | jq length)" -eq 0 ]]; then
+      gh issue create --repo "$REPO" --title "$title" --body "Mandatory pre-use smoke test failed for current main.
+
+Run: https://github.com/$REPO/actions/runs/$smoke_id
+
+No C.4.2.3-D actual evidence capture was started. Preserve the failure and fix the smoke-test implementation before proceeding."
+    fi
+    exit 0
+  fi
+
+  echo "Mandatory smoke test $smoke_id passed on current main. Actual C.4.2.3-D qualification may now proceed."
 
   evidence_runs="$(get_latest "$EVIDENCE_WORKFLOW")"
   evidence_id="$(echo "$evidence_runs" | jq -r '.[0].databaseId // empty')"
