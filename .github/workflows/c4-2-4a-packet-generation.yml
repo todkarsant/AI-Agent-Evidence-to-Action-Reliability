@@ -88,7 +88,6 @@ jobs:
       - name: Write immutable provenance record
         env:
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
-          SOURCE_HEAD_SHA: ${{ env.SOURCE_HEAD_SHA }}
         run: |
           set -euo pipefail
           source_hash="$SOURCE_EVIDENCE_SHA"
