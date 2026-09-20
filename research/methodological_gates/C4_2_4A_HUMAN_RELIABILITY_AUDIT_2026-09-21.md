@@ -87,7 +87,6 @@ A separate methodological issue remains for confirmatory X_W construction: C423_
 ## Disposition
 
 - Exact uploaded A and B response files: **PRESERVED IN THE CHAT UPLOADS**
-- Repository copies below are exact UTF-8 content copies of those uploads.
 - Mechanical validity: **PASS**
 - Frozen-packet status reconciliation: **PASS**
 - Descriptive inter-rater agreement: **100%**
