@@ -1,0 +1,28 @@
+{
+  "response_schema_version": "C4_2_4A_RATER_RESPONSE_V1_2026-09-20",
+  "construct_codebook": "C4_2_4A3_WITNESS_CODEBOOK_v2_FROZEN_2026-09-19",
+  "status": "SUPPLEMENTAL_RESPONSE_SCHEMA_FOR_HUMAN_ANNOTATION",
+  "rule": "The frozen evidence packets remain unchanged. This response schema separates applicability from witness support so N/A cannot be confused with an applicable-but-unsupported witness.",
+  "per_case": {
+    "case_id": "string",
+    "case_status": "SUCCESS | NO_USABLE_EVIDENCE",
+    "dimensions": {
+      "W1": {"applicable": "YES | NO | UNCLEAR", "witness": "PRESENT | ABSENT_OR_AMBIGUOUS | null", "notes": "string"},
+      "W2": {"applicable": "YES | NO | UNCLEAR", "witness": "PRESENT | ABSENT_OR_AMBIGUOUS | null", "notes": "string"},
+      "W3": {"applicable": "YES | NO | UNCLEAR", "witness": "PRESENT | ABSENT_OR_AMBIGUOUS | null", "notes": "string"},
+      "W4": {"applicable": "YES | NO | UNCLEAR", "witness": "PRESENT | ABSENT_OR_AMBIGUOUS | null", "notes": "string"},
+      "W5": {"applicable": "YES | NO | UNCLEAR", "witness": "PRESENT | ABSENT_OR_AMBIGUOUS | null", "notes": "string"},
+      "W6": {"applicable": "YES | NO | UNCLEAR", "witness": "PRESENT | ABSENT_OR_AMBIGUOUS | null", "notes": "string"},
+      "W7": {"applicable": "YES | NO | UNCLEAR", "witness": "PRESENT | ABSENT_OR_AMBIGUOUS | null", "notes": "string"}
+    },
+    "case_notes": "string"
+  },
+  "critical_rules": [
+    "Do not inspect generated SQL, reference SQL, reference answer, P0 correctness, intervention/replacement, downstream outcome, or post-hoc evaluator labels.",
+    "For NO_USABLE_EVIDENCE, keep witness null for all dimensions; do not convert execution failure into binary witness zeros.",
+    "If a dimension is not entailed by the natural-language question, mark applicable=NO.",
+    "If a dimension is applicable but the evidence does not expose the required witness, mark applicable=YES and witness=ABSENT_OR_AMBIGUOUS.",
+    "If applicability itself is materially ambiguous, mark applicable=UNCLEAR and explain why.",
+    "Do not reconcile with another rater during annotation."
+  ]
+}
