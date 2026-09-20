@@ -1,6 +1,6 @@
 # C.4.2.4-A — UNCLEAR → X_W Operational Rule Freeze
 
-**Status:** FROZEN FOR CONFIRMATORY X_W CONSTRUCTION  
+**Status:** FROZEN FOR CONFIRMATORY X_W CONSTRUCTION AS A PRE-OUTCOME METHODOLOGICAL AMENDMENT  
 **Freeze date:** 2026-09-21  
 **Applies to:** C4_2_4A W1-W7 witness construct, frozen human cohort  
 **Parent codebook:** C4_2_4A3_WITNESS_CODEBOOK_v2_FROZEN_2026-09-19  
@@ -138,9 +138,15 @@ No new human annotation cohort is required for this rule because it does not int
 - P2-C1.2 confirmatory X_W construction: **UNBLOCKED**, subject to the remaining preregistered statistical/modeling gates.
 - This document is the controlling operational rule for UNCLEAR handling in the current confirmatory cohort.
 
-## 7. Non-retroactivity
+## 7. Chronology and preregistration status
 
-This freeze applies to the current C4_2_4A W1-W7 confirmatory cohort only.
+This rule was frozen **after the human annotations were submitted but before confirmatory outcome modeling**. It therefore must be reported transparently as a versioned methodological amendment, not represented as if it had been prospectively preregistered before human annotation. The amendment is outcome-blind and does not use the outcome to select the rule or its result. It is now fixed before any confirmatory X_W/outcome analysis.
+
+OSF guidance defines preregistration as a time-stamped plan made before data collection or analysis and recommends making design/analysis decisions before viewing relevant data. Accordingly, the repository freeze establishes the controlling rule for the forthcoming confirmatory analysis, while the chronology of this amendment must remain explicit in any preregistration/registered-report record. citeturn3view0turn3view1
+
+## 8. Non-retroactivity
+
+This freeze applies to the current C4_2_4A W1-W7 confirmatory cohort only. The raw human annotations are not rewritten; the rule defines their deterministic analysis-time normalization.
 
 It does not rewrite the historical v1 O1-O8 construct, historical packet claims, or prior non-confirmatory analyses.
 
