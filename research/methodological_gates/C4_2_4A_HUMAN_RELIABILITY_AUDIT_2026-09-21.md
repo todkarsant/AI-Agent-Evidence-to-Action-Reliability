@@ -2,7 +2,7 @@
 
 ## Status
 
-**Human-rater provenance requirement is now satisfied by explicit independent-rater attestation. The gate remains OPEN only because the pre-confirmatory X_W rule for UNCLEAR applicability is still unresolved; P2-C1.2 confirmatory analysis remains BLOCKED pending that rule.**
+**Human-rater provenance requirement is satisfied by explicit independent-rater attestation. The previously unresolved UNCLEAR applicability issue has now been attacked and frozen in `C4_2_4A_UNCLEAR_XW_OPERATIONAL_RULE_FREEZE_2026-09-21.md`; C.4.2.4-A is resolved and P2-C1.2 confirmatory X_W construction is unblocked, subject to the remaining preregistered statistical/modeling gates.**
 
 Two response files were received and mechanically validated against the frozen W1-W7 response schema and the live frozen packet cohort.
 
@@ -81,6 +81,14 @@ Therefore the reliability coefficients are reported as descriptive results of th
 On 2026-09-21, the user supplied an explicit protocol attestation that **Human A and Human B each independently completed their annotations without seeing or coordinating the other rater's annotations**. This directly addresses the previously unestablished independence requirement for the two-rater cohort.
 
 This is an attestation of the annotation process, not a cryptographic proof of independence. The raw response files and their hashes remain preserved as the primary artifacts; the attestation is recorded as provenance evidence and is not treated as a statistical result.
+
+## Frozen UNCLEAR → X_W operational rule
+
+The implementation-ambiguity issue identified for C423_0111 has been resolved before confirmatory outcome modeling. `UNCLEAR` is not a substantive X_W state. Applicability is determined from the natural-language question and frozen W1-W7 definitions only. Hidden/generated implementation uncertainty cannot create applicability uncertainty. Genuine natural-language ambiguity follows the frozen codebook rule: score 0 and retain the dimension in the X_W denominator with an ambiguity reason. Implementation-only ambiguity is deterministically resolved to YES or NO from the natural-language question.
+
+For C423_0111, W3/W4/W6 are implementation-only ambiguity and therefore resolve to N/A/NO; W1=0, W2=1, W7=0. The resulting frozen confirmatory score is X_W = 1/3 (approximately 0.3333). This rule was frozen without using outcome variables.
+
+See `research/methodological_gates/C4_2_4A_UNCLEAR_XW_OPERATIONAL_RULE_FREEZE_2026-09-21.md`, commit `13dbfb4f64e0dc16867cd5f8e421b54ef829f70a`.
 
 ## Scientific interpretation
 
