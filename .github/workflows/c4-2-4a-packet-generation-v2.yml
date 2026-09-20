@@ -53,8 +53,12 @@ jobs:
       - name: Generate and leakage-audit packets
         run: |
           set -euo pipefail
-          rm -rf research/annotation_packets
-          python research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py             --evidence /tmp/source/evidence_capture_pilot12.json             --schema-fixture data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json             --manifest data/manifests/C4_2_3B_PILOT12_CASES.json             --out research/annotation_packets
+          rm -rf /tmp/generated-w1w7
+          mkdir -p /tmp/generated-w1w7 research/annotation_packets
+          python research/methodological_gates/generate_C4_2_4A_witness_packets_v2.py             --evidence /tmp/source/evidence_capture_pilot12.json             --schema-fixture data/fixtures/C4_2_4A_SPIDER12_SCHEMA_FIXTURE.json             --manifest data/manifests/C4_2_3B_PILOT12_CASES.json             --out /tmp/generated-w1w7
+          cp /tmp/generated-w1w7/C4_2_4A_WITNESS_V2_RATER_A.json research/annotation_packets/
+          cp /tmp/generated-w1w7/C4_2_4A_WITNESS_V2_RATER_B.json research/annotation_packets/
+          cp /tmp/generated-w1w7/C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json research/annotation_packets/
           test -s research/annotation_packets/C4_2_4A_WITNESS_V2_RATER_A.json
           test -s research/annotation_packets/C4_2_4A_WITNESS_V2_RATER_B.json
           test -s research/annotation_packets/C4_2_4A_WITNESS_V2_PACKET_MANIFEST.json
