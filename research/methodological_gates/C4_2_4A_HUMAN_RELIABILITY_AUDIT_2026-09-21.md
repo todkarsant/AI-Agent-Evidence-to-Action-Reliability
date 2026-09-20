@@ -2,7 +2,7 @@
 
 ## Status
 
-**Gate remains OPEN. P2-C1.2 confirmatory analysis remains BLOCKED.**
+**Human-rater provenance requirement is now satisfied by explicit independent-rater attestation. The gate remains OPEN only because the pre-confirmatory X_W rule for UNCLEAR applicability is still unresolved; P2-C1.2 confirmatory analysis remains BLOCKED pending that rule.**
 
 Two response files were received and mechanically validated against the frozen W1-W7 response schema and the live frozen packet cohort.
 
@@ -76,6 +76,12 @@ The frozen protocol requires two genuinely independent raters. The submitted res
 
 Therefore the reliability coefficients are reported as descriptive results of the submitted annotation sets, but **are not used to close C.4.2.4-A**.
 
+## Independent-rater attestation
+
+On 2026-09-21, the user supplied an explicit protocol attestation that **Human A and Human B each independently completed their annotations without seeing or coordinating the other rater's annotations**. This directly addresses the previously unestablished independence requirement for the two-rater cohort.
+
+This is an attestation of the annotation process, not a cryptographic proof of independence. The raw response files and their hashes remain preserved as the primary artifacts; the attestation is recorded as provenance evidence and is not treated as a statistical result.
+
 ## Scientific interpretation
 
 The submitted annotations are internally coherent and exactly concordant. No disagreement-driven codebook failure is observed in these submissions.
@@ -92,8 +98,8 @@ A separate methodological issue remains for confirmatory X_W construction: C423_
 - Descriptive inter-rater agreement: **100%**
 - Descriptive Cohen kappa: **1.00**
 - Descriptive Gwet AC1: **1.00**
-- Independent-rater provenance: **UNESTABLISHED FROM SUBMITTED ARTIFACTS**
-- C.4.2.4-A: **OPEN**
-- P2-C1.2 confirmatory modeling: **BLOCKED**
+- Independent-rater provenance: **SATISFIED BY EXPLICIT USER-SUPPLIED INDEPENDENT-RATER ATTESTATION**
+- C.4.2.4-A: **OPEN — X_W UNCLEAR MAPPING RULE REMAINS**
+- P2-C1.2 confirmatory modeling: **BLOCKED PENDING PRE-OUTCOME X_W RULE**
 
 No outcome-dependent feature selection, adjudication, or confirmatory predictive modeling was performed.
