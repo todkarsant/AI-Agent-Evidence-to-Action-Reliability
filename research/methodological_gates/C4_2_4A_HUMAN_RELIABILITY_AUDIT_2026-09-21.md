@@ -31,7 +31,7 @@ All 12 case statuses match the corresponding frozen packet execution status for 
 
 ### Applicability
 
-Across the 8 SUCCESS cases there are 49 populated W1-W7 applicability judgments per rater:
+Across the 7 SUCCESS cases there are 49 populated W1-W7 applicability judgments per rater:
 
 - YES: 24
 - NO: 22
@@ -92,7 +92,7 @@ See `research/methodological_gates/C4_2_4A_UNCLEAR_XW_OPERATIONAL_RULE_FREEZE_20
 
 ## Scientific interpretation
 
-The submitted annotations are internally coherent and exactly concordant. No disagreement-driven codebook failure is observed in these submissions.
+The submitted annotations are internally coherent and exactly concordant. A forensic recount of the frozen 12-case packet shows **7 SUCCESS and 5 NO_USABLE_EVIDENCE cases**; the earlier wording '8 SUCCESS cases' was a documentation error because 49 applicability judgments = 7 × 7. The reliability denominators and reported agreement coefficients are consistent with 7 SUCCESS cases and are unchanged. No disagreement-driven codebook failure is observed in these submissions.
 
 However, the independent-human boundary is a provenance requirement, not a statistic. Perfect agreement cannot substitute for evidence that the two raters independently completed the frozen packets.
 
@@ -102,7 +102,7 @@ A separate methodological issue remains for confirmatory X_W construction: C423_
 
 - Exact uploaded A and B response files: **PRESERVED IN THE CHAT UPLOADS**
 - Mechanical validity: **PASS**
-- Frozen-packet status reconciliation: **PASS**
+- Frozen-packet status reconciliation: **PASS (7 SUCCESS, 5 NO_USABLE_EVIDENCE)**
 - Descriptive inter-rater agreement: **100%**
 - Descriptive Cohen kappa: **1.00**
 - Descriptive Gwet AC1: **1.00**
