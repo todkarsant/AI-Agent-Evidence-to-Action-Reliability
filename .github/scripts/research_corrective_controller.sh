@@ -6,7 +6,6 @@ DIAGNOSTIC_WORKFLOW="c4-2-3-exact-path-diagnostic.yml"
 SMOKE_WORKFLOW="c4-2-3-evidence-capture-smoke.yml"
 EVIDENCE_WORKFLOW="c4-2-3-evidence-capture12.yml"
 PACKET_SMOKE_WORKFLOW="c4-2-4a-packet-generation-smoke.yml"
-PACKET_WORKFLOW="c4-2-4a-packet-generation-v2.yml"
 MAX_AUTO_RETRIES=2
 POLL_SECONDS=30
 
