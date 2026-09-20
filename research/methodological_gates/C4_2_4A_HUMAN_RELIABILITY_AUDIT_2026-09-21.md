@@ -13,7 +13,7 @@ Two response files were received and mechanically validated against the frozen W
 - Rater B packet SHA-1: ead6a8750ec113c1d1317506da9548f895bb2ada
 - Frozen codebook SHA-1: fc33316b172915244e127d050142bb3bac0534b5
 - Uploaded A SHA-256: ba1f39268e1b3e3dc223ea91f12c7fc948d370d9fde6e2ff9a96c2ab6dd40028
-- Uploaded B SHA-256: 0d8b2e8d1408a77561c99e4da32c150313c4c87d2a84bd4f2e13b36ac7f7e8
+- Uploaded B SHA-256: 0d8b2e7d8b1408a77561c99e4da32c150313c4c87d2a84bd4f2e13b36ac7f7e8
 
 ## Mechanical validation
 
@@ -86,7 +86,8 @@ A separate methodological issue remains for confirmatory X_W construction: C423_
 
 ## Disposition
 
-- Raw A and B submissions: **PRESERVED**
+- Exact uploaded A and B response files: **PRESERVED IN THE CHAT UPLOADS**
+- Repository copies below are exact UTF-8 content copies of those uploads.
 - Mechanical validity: **PASS**
 - Frozen-packet status reconciliation: **PASS**
 - Descriptive inter-rater agreement: **100%**
