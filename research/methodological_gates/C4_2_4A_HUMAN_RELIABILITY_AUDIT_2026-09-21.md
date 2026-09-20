@@ -1,0 +1,99 @@
+# C4.2.4-A Human Annotation Reliability Audit — 2026-09-21
+
+## Status
+
+**Gate remains OPEN. P2-C1.2 confirmatory analysis remains BLOCKED.**
+
+Two response files were received and mechanically validated against the frozen W1-W7 response schema and the live frozen packet cohort.
+
+## Inputs
+
+- Frozen packet version: C4_2_4A_WITNESS_V2_2026-09-19
+- Rater A packet SHA-1: 73ac1ae0d3118e62be992839389a6a64c1bb19bd
+- Rater B packet SHA-1: ead6a8750ec113c1d1317506da9548f895bb2ada
+- Frozen codebook SHA-1: fc33316b172915244e127d050142bb3bac0534b5
+- Uploaded A SHA-256: ba1f39268e1b3e3dc223ea91f12c7fc948d370d9fde6e2ff9a96c2ab6dd40028
+- Uploaded B SHA-256: 0d8b2e8d1408a77561c99e4da32c150313c4c87d2a84bd4f2e13b36ac7f7e8
+
+## Mechanical validation
+
+- 12/12 expected case IDs present in each response.
+- Both response files pass the response-schema structural constraints.
+- NO_USABLE_EVIDENCE cases contain null applicability/witness fields.
+- SUCCESS cases obey the applicability-to-witness dependency.
+- No forbidden scientific fields were supplied.
+
+## Frozen-packet status reconciliation
+
+All 12 case statuses match the corresponding frozen packet execution status for both raters.
+
+## Reliability calculations
+
+### Applicability
+
+Across the 8 SUCCESS cases there are 49 populated W1-W7 applicability judgments per rater:
+
+- YES: 24
+- NO: 22
+- UNCLEAR: 3
+- Raw agreement: 49/49 = 100%
+- Cohen's kappa: 1.00
+
+Applicability contingency table:
+
+| | B YES | B NO | B UNCLEAR |
+|---|---:|---:|---:|
+| A YES | 24 | 0 | 0 |
+| A NO | 0 | 22 | 0 |
+| A UNCLEAR | 0 | 0 | 3 |
+
+### Witness labels
+
+For applicable YES/UNCLEAR dimensions, there are 27 populated binary witness judgments per rater:
+
+- PRESENT: 11
+- ABSENT_OR_AMBIGUOUS: 16
+- Raw agreement: 27/27 = 100%
+- Cohen's kappa: 1.00
+- Gwet AC1: 1.00
+
+Witness contingency table:
+
+| | B PRESENT | B ABSENT_OR_AMBIGUOUS |
+|---|---:|---:|
+| A PRESENT | 11 | 0 |
+| A ABSENT_OR_AMBIGUOUS | 0 | 16 |
+
+These statistics describe the submitted labels only. They do not establish scientific validity, correctness of the labels, or rater independence.
+
+## Independence audit
+
+The two uploaded files have different raw SHA-256 hashes because their case ordering differs, but their annotation payloads are **identical after canonical case-ID normalization**. Both also contain the same wording in the sole non-empty case note for C423_0111.
+
+This is **not evidence that either rater copied the other**. It is, however, sufficient to say that the JSON artifacts themselves do not establish that the two annotations were produced independently.
+
+The frozen protocol requires two genuinely independent raters. The submitted response schema contains no cryptographic provenance, timestamped attestation, or independent-rater declaration that can establish this property.
+
+Therefore the reliability coefficients are reported as descriptive results of the submitted annotation sets, but **are not used to close C.4.2.4-A**.
+
+## Scientific interpretation
+
+The submitted annotations are internally coherent and exactly concordant. No disagreement-driven codebook failure is observed in these submissions.
+
+However, the independent-human boundary is a provenance requirement, not a statistic. Perfect agreement cannot substitute for evidence that the two raters independently completed the frozen packets.
+
+A separate methodological issue remains for confirmatory X_W construction: C423_0111 contains UNCLEAR applicability for W3/W4/W6. The applicability audit permits the UNCLEAR state, while the frozen codebook states that materially different interpretations require a zero score and an ambiguity reason. This needs an explicit pre-confirmatory rule for mapping UNCLEAR applicability into X_W; it must not be decided after looking at the outcome.
+
+## Disposition
+
+- Raw A and B submissions: **PRESERVED**
+- Mechanical validity: **PASS**
+- Frozen-packet status reconciliation: **PASS**
+- Descriptive inter-rater agreement: **100%**
+- Descriptive Cohen kappa: **1.00**
+- Descriptive Gwet AC1: **1.00**
+- Independent-rater provenance: **UNESTABLISHED FROM SUBMITTED ARTIFACTS**
+- C.4.2.4-A: **OPEN**
+- P2-C1.2 confirmatory modeling: **BLOCKED**
+
+No outcome-dependent feature selection, adjudication, or confirmatory predictive modeling was performed.
