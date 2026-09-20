@@ -1,0 +1,511 @@
+{
+  "response_schema_version": "C4_2_4A_RATER_RESPONSE_V1_2026-09-20",
+  "rater_packet": "B",
+  "packet_version": "C4_2_4A_WITNESS_V2_2026-09-19",
+  "cases": [
+    {
+      "case_id": "C423_0061",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0101",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0091",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0071",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0011",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0021",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0001",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0041",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0111",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0051",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0031",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    },
+    {
+      "case_id": "C423_0081",
+      "case_status": null,
+      "dimensions": {
+        "W1": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W2": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W3": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W4": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W5": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W6": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        },
+        "W7": {
+          "applicable": null,
+          "witness": null,
+          "notes": null
+        }
+      },
+      "case_notes": null
+    }
+  ]
+}
