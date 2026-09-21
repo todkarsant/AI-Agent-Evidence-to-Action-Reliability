@@ -1,0 +1,106 @@
+name: P2-C1.4 autonomous progression controller
+
+on:
+  workflow_run:
+    workflows:
+      - p2-c1-4-confirmatory-acquisition-runtime3
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Runtime3 run ID to process; leave blank to use latest completed Runtime3 run"
+        required: false
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+concurrency:
+  group: p2-c1-4-autonomous-progression
+  cancel-in-progress: false
+
+jobs:
+  progress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Determine source Runtime3 run
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            id="${{ github.event.workflow_run.id }}"
+          elif [[ -n "${{ inputs.source_run_id }}" ]]; then
+            id="${{ inputs.source_run_id }}"
+          else
+            id="$(gh run list --repo "$REPO" --workflow p2-c1-4-confirmatory-acquisition-runtime3.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
+          fi
+          test -n "$id"
+          echo "run_id=$id" >> "$GITHUB_OUTPUT"
+          gh run view "$id" --repo "$REPO" --json status,conclusion,headSha,url
+
+      - name: Recover known infrastructure failure automatically
+        if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
+        shell: bash
+        env:
+          RUN_ID: ${{ steps.source.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          log="$(gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>&1 || true)"
+          printf '%s\n' "$log" > /tmp/runtime3_failure.log
+
+          if ! grep -Eqi 'httpx\.ReadTimeout|httpcore\.ReadTimeout|timed out|connection reset|connection refused|502|503|504|network.*unavailable|Could not connect to Ollama|runner.*failed' /tmp/runtime3_failure.log; then
+            title="P2-C1.4 Runtime3 non-retriable failure #$RUN_ID"
+            existing="$(gh issue list --repo "$REPO" --state open --search "in:title $title" --json number)"
+            if [[ "$(echo "$existing" | jq length)" -eq 0 ]]; then
+              gh issue create --repo "$REPO" --title "$title" --body "Runtime3 failed, but the failure did not match the allowlisted infrastructure-retry signatures.
+
+Run: https://github.com/$REPO/actions/runs/$RUN_ID
+
+Scientific safety: no automatic rerun or scientific-method change was made. Diagnose the failure before continuing."
+            fi
+            exit 0
+          fi
+
+          active="$(gh run list --repo "$REPO" --workflow p2-c1-4-confirmatory-acquisition-runtime3.yml --limit 10 --json status --jq '[.[] | select(.status=="queued" or .status=="in_progress")] | length')"
+          if [[ "$active" != "0" ]]; then
+            echo "A Runtime3 run is already queued/in progress; no duplicate dispatch."
+            exit 0
+          fi
+
+          failures="$(gh run list --repo "$REPO" --workflow p2-c1-4-confirmatory-acquisition-runtime3.yml --limit 5 --json conclusion --jq '[.[] | select(.conclusion=="failure")] | length')"
+          if [[ "$failures" -ge 3 ]]; then
+            title="P2-C1.4 Runtime3 retry guard reached"
+            existing="$(gh issue list --repo "$REPO" --state open --search "in:title $title" --json number)"
+            if [[ "$(echo "$existing" | jq length)" -eq 0 ]]; then
+              gh issue create --repo "$REPO" --title "$title" --body "Three recent Runtime3 failures matched infrastructure-retry signatures. Automatic retry stopped to prevent uncontrolled runner consumption.
+
+Latest run: https://github.com/$REPO/actions/runs/$RUN_ID
+
+No scientific protocol change was made automatically."
+            fi
+            exit 0
+          fi
+
+          echo "Allowlisted Runtime3 infrastructure failure detected. Dispatching the current-main Runtime3 workflow."
+          gh workflow run p2-c1-4-confirmatory-acquisition-runtime3.yml --repo "$REPO" --ref main
+
+      - name: Advance successful Runtime3 to post-lock preparation
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+        env:
+          RUN_ID: ${{ steps.source.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(gh run view "$RUN_ID" --repo "$REPO" --json status -q .status)"
+          conclusion="$(gh run view "$RUN_ID" --repo "$REPO" --json conclusion -q .conclusion)"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          echo "Runtime3 $RUN_ID succeeded. Dispatching deterministic post-lock preparation."
+          gh workflow run p2-c1-4-post-lock-prepare.yml --repo "$REPO" --ref main -f source_run_id="$RUN_ID"
