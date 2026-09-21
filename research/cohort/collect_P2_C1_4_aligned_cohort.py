@@ -162,17 +162,18 @@ def main():
             "row_count": p0_ev["row_count"],
             "column_count": p0_ev["column_count"],
         }
+        decision_schema=env.dataset.schema(c["db_id"])
         evidence={
-            "question":c["question"],"database_id":c["db_id"],
+            "question":c["question"],"database_id":c["db_id"],"schema":decision_schema,
             "returned_columns":p0_ev["columns"] if p0_ev["columns"] is not None else None,
             "returned_rows":p0_ev["rows"] if p0_ev["rows"] is not None else None,
             "row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"],
-            "evidence_hash":(sha256_json({"question":c["question"],"database_id":c["db_id"],"returned_columns":p0_ev["columns"],"returned_rows":p0_ev["rows"],"row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"]}) if p0_ev["row_count"] is not None else None),
+            "evidence_hash":(sha256_json({"question":c["question"],"database_id":c["db_id"],"schema":decision_schema,"returned_columns":p0_ev["columns"],"returned_rows":p0_ev["rows"],"row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"]}) if p0_ev["row_count"] is not None else None),
             "captured_before_intervention":True,
         }
         record={
             "decision_id":c["decision_id"],
-            "protocol_version":"P2-C1.4-DECISION-TIME-EVIDENCE-V1",
+            "protocol_version":"P2-C1.4-DECISION-TIME-EVIDENCE-V2",
             "question":c["question"],"database_id":c["db_id"],
             "baseline":baseline,"decision_time_evidence":evidence,
             "provenance":{
@@ -189,7 +190,7 @@ def main():
     args.outdir.mkdir(parents=True,exist_ok=True)
     evidence_path=args.outdir/"decision_time_evidence.json"
     evidence_path.write_text(json.dumps({
-        "protocol_version":"P2-C1.4-DECISION-TIME-EVIDENCE-V1",
+        "protocol_version":"P2-C1.4-DECISION-TIME-EVIDENCE-V2",
         "manifest_hash":manifest_hash,"records":evidence_records
     },indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     evidence_hash=sha256_bytes(evidence_path.read_bytes())
@@ -229,7 +230,7 @@ def main():
                  "y_h":y_h,"locked_after_evidence":True}
         outcomes.append(outcome)
         e=next(x for x in evidence_records if x["decision_id"]==did)
-        aligned.append({"decision_id":did,"protocol_version":"P2-C1.4-ALIGNED-V1",
+        aligned.append({"decision_id":did,"protocol_version":"P2-C1.4-ALIGNED-V2",
                         "baseline":e["baseline"],
                         "decision_time_evidence":e["decision_time_evidence"],
                         "intervention_outcome":outcome,
@@ -245,7 +246,7 @@ def main():
         "evidence_artifact_sha256":evidence_hash,
         "official_spider_execution":official,"records":outcomes},indent=2)+"\n",encoding="utf-8")
     (args.outdir/"aligned_records.json").write_text(json.dumps({
-        "protocol_version":"P2-C1.4-ALIGNED-V1","records":aligned},
+        "protocol_version":"P2-C1.4-ALIGNED-V2","records":aligned},
         indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
 
     metadata={
