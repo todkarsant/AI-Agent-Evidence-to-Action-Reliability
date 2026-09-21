@@ -74,11 +74,16 @@ def main():
     ap.add_argument("--outdir",type=Path,required=True)
     ap.add_argument("--limit",type=int)
     ap.add_argument("--non-confirmatory",action="store_true")
+    ap.add_argument("--confirmatory",action="store_true")
     args=ap.parse_args()
 
-    if not args.non_confirmatory:
-        raise SystemExit("REFUSED: collector requires --non-confirmatory until the collection protocol is explicitly frozen")
+    if args.non_confirmatory == args.confirmatory:
+        raise SystemExit("REFUSED: specify exactly one of --non-confirmatory or --confirmatory")
 
+    if args.confirmatory:
+        if os.getenv("P2_C1_4_PROTOCOL_FROZEN") != "P2-C1.4-CONFIRMATORY-V1-2026-09-21":
+            raise SystemExit("REFUSED: confirmatory collection requires the frozen P2-C1.4 protocol authorization")
+    
     p1=Path(os.environ["PROJECT1_ROOT"]).resolve()
     sys.path.insert(0,str(p1))
     from research.spider_benchmark import (
@@ -88,8 +93,12 @@ def main():
     from research.p6_ip_runner import run_case
 
     manifest=json.loads(args.manifest.read_text(encoding="utf-8"))
-    if manifest.get("confirmatory") is True:
-        raise SystemExit("REFUSED: confirmatory manifest is not authorized by the current protocol state")
+    if args.confirmatory:
+        if manifest.get("confirmatory") is not True:
+            raise SystemExit("REFUSED: confirmatory execution requires confirmatory=true manifest")
+    else:
+        if manifest.get("confirmatory") is True:
+            raise SystemExit("REFUSED: non-confirmatory execution cannot consume confirmatory manifest")
     cases=manifest["cases"][:args.limit] if args.limit else manifest["cases"]
     if not cases: raise SystemExit("FAIL: empty cohort manifest")
     decision_ids=[c["decision_id"] for c in cases]
@@ -224,15 +233,18 @@ def main():
         indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
 
     metadata={
-        "status":"PASS_NON_CONFIRMATORY_ALIGNED_DRY_RUN",
-        "non_confirmatory":True,
+        "status":"PASS_CONFIRMATORY_ALIGNED_ACQUISITION" if args.confirmatory else "PASS_NON_CONFIRMATORY_ALIGNED_DRY_RUN",
+        "confirmatory":bool(args.confirmatory),
+        "non_confirmatory":bool(args.non_confirmatory),
         "decision_count":len(evidence_records),
         "decision_time_evidence_sha256":evidence_hash,
         "official_outcome_evaluation":"RUN_AFTER_EVIDENCE_LOCK",
         "official_execution":official,
         "harm_count":sum(x["y_h"] for x in outcomes),
         "x_w":"NOT_ANNOTATED_IN_COLLECTOR",
-        "reason":"Dry run proves same-unit evidence/outcome linkage and temporal leakage boundary; it is not confirmatory data."
+        "reason":("Confirmatory aligned outcome-bearing acquisition under frozen protocol."
+                  if args.confirmatory else
+                  "Dry run proves same-unit evidence/outcome linkage and temporal leakage boundary; it is not confirmatory data.")
     }
     (args.outdir/"runtime_qualification_manifest.json").write_text(json.dumps(metadata,indent=2)+"\n")
     print(json.dumps(metadata,indent=2))
