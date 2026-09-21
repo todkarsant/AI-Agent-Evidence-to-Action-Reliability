@@ -194,7 +194,7 @@ jobs:
           set -euo pipefail
           if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
           mkdir -p artifacts/cohort
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/confirmatory_questions_source.json             --database-dir data/database             --manifest data/manifests/shard.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort             --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE:$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot" python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/confirmatory_questions_source.json             --database-dir data/database             --manifest data/manifests/shard.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort             --confirmatory
       - name: Validate shard
         run: |
           set -euo pipefail
