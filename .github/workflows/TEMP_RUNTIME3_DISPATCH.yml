@@ -28,3 +28,5 @@ jobs:
 Run ID: $id
 Run URL: $url
 Scientific protocol unchanged. This issue is infrastructure bookkeeping only."
+
+# trigger dispatch
