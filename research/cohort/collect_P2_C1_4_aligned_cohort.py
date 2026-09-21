@@ -142,7 +142,7 @@ def main():
             "returned_columns":p0_ev["columns"] if p0_ev["columns"] is not None else [],
             "returned_rows":p0_ev["rows"] if p0_ev["rows"] is not None else [],
             "row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"],
-            "evidence_hash":p0_ev["evidence_sha256"],
+            "evidence_hash":sha256_json({"question":c["question"],"database_id":c["db_id"],"returned_columns":p0_ev["columns"] if p0_ev["columns"] is not None else [],"returned_rows":p0_ev["rows"] if p0_ev["rows"] is not None else [],"row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"]}),
             "captured_before_intervention":True,
         }
         record={
