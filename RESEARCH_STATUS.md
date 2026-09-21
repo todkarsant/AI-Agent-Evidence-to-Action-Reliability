@@ -61,3 +61,10 @@ The paper must explicitly distinguish:
 No predictive-validity result may be written before the same-unit B/X_W/Y_H cohort exists and the complete modeling protocol is frozen.
 
 See `research/P2_RESEARCH_DEVELOPMENT_JOURNEY.md` and `paper/PROJECT2_LIVING_RESEARCH_DRAFT.md`.
+
+
+### P2-C1.4 acquisition forensic update — 2026-09-21
+- Confirmatory acquisition attempts exposed runtime Ollama HTTP timeouts; a versioned transport-only amendment now pins Project 1 commit `7bef895846f2ac89d885827be16b30e69986b013` and `OLLAMA_TIMEOUT_SECONDS=300` under protocol `P2-C1.4-CONFIRMATORY-V1-RUNTIME1-2026-09-21`.
+- Forensic audit also found that the collector did not preserve the exact decision-time schema required for W1-W7 annotation. This was corrected before accepting any confirmatory cohort; aligned records are now V2 and include schema in the evidence hash.
+- A mechanical forensic lock auditor is now wired into consolidation and will fail closed unless all 8,638 source-frame decision IDs are present in exact order and evidence/outcome invariants pass.
+- Current target acquisition run: `35598330749` (run #12), currently pending GitHub Actions capacity. No cohort is locked; no X_W annotation or M0/M1 analysis has begun.
