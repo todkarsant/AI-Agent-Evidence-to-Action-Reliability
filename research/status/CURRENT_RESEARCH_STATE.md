@@ -62,17 +62,24 @@ Do not:
 - call the historical 91-case holdout external validation for X_W;
 - fit M0/M1 before aligned data exist.
 
+## Latest movement — 2026-09-21
+
+P2-C1.4 has advanced beyond a design-only document. Three sub-attacks were executed:
+
+- **P2-C1.4-S:** sample-size/event-rate feasibility — PASS WITH CONDITIONS; no arbitrary N frozen.
+- **P2-C1.4-M:** model/scoring-rule attack — PASS WITH CONDITIONS; low-dimensional penalized logistic + paired out-of-sample proper-loss comparison is the candidate protocol, not yet frozen.
+- **P2-C1.4-R:** runtime/evidence-preservation — FAIL FOR COLLECTION READINESS because the repository did not yet contain a verified aligned-cohort collector/validator contract.
+
+Implementation has now started. Added:
+- `research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V1.json`
+- `research/cohort/validate_P2_C1_4_aligned_records.py`
+- `research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_DRY_RUN.json`
+
+The dry-run fixture is synthetic and is not scientific outcome data.
+
 ## Next gate
 
-**P2-C1.4 — Aligned Outcome-Bearing Cohort Design and Evidence-Preservation Protocol**
-
-The new cohort must preserve, for each eligible decision instance:
-
-[
-(id,B,E_{decision-time},intervention,final correctness,Y_H)
-]
-
-and permit independent outcome-blinded W1-W7 annotation.
+**P2-C1.4-R implementation dry run → protocol freeze → fresh aligned outcome-bearing cohort.**
 
 ## Publication record
 
