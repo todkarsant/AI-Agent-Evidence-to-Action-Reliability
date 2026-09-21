@@ -26,8 +26,14 @@ The repository is the canonical source of truth. The project has completed the c
 | C.4.2.4-A Human X_W validation | **RESOLVED** | 49/49 applicability and 27/27 witness agreement; explicit independence attestation |
 | P2-C1.2 Predictive / Incremental Validity Attack | **COMPLETE** | Confirmatory modeling blocked by alignment/missingness/model-protocol issues |
 | P2-C1.3 Aligned cohort reconstruction | **COMPLETE — FAILED** | Historical outcome/X_W alignment cannot be established |
-| P2-C1.4 New aligned cohort | **NEXT** | Evidence-preserving outcome-bearing cohort required |
+| P2-C1.4 New aligned cohort | **RUNTIME QUALIFIED — NON-CONFIRMATORY** | Four fresh dry-run cases passed aligned artifact validation; confirmatory collection still requires protocol freeze |
 | Confirmatory M0 vs M1 | **BLOCKED** | Do not fit until P2-C1.4 is complete |
+
+## Latest execution progress — 2026-09-21
+
+P2-C1.4-R runtime qualification passed in GitHub Actions run **35591634277**. Four fresh non-confirmatory cases were collected with the pinned P6-IP path, decision-time evidence was locked before official outcome derivation, and aligned records passed mechanical and JSON-schema validation. Hardening failures remain preserved in `research/methodological_gates/P2_C1_4_RUNTIME_DRY_RUN_AUDIT_2026-09-21.md`.
+
+This is runtime qualification only; no confirmatory predictive-validity claim is authorized.
 
 ## Important negative findings
 
