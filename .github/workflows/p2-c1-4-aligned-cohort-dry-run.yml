@@ -114,7 +114,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/cohort
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/fresh_questions_source.json             --database-dir data/database             --manifest data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/fresh_questions_source.json             --database-dir data/database             --manifest data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort \
+             --non-confirmatory
 
       - name: Validate aligned records
         run: |
