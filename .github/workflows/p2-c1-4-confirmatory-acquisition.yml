@@ -287,6 +287,16 @@ jobs:
           print({"expected_shards":expected_shards,"successful_shards":len(files),"record_count":len(all_records),"sha256":digest})
           PY
           python research/cohort/validate_P2_C1_4_aligned_records.py consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json
+      - name: Forensic audit and immutable cohort lock
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p consolidated/lock
+          python research/cohort/forensic_lock_audit_P2_C1_4.py \
+            --manifest frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json \
+            --cohort consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json \
+            --outdir consolidated/lock
       - name: Upload consolidated cohort
         uses: actions/upload-artifact@v4
         with:
