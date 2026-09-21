@@ -55,6 +55,14 @@ jobs:
           test -s data/train_spider.json
           test -s data/train_others.json
           test -d data/database
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("data/train_spider.json").read_text())
+          b=json.loads(Path("data/train_others.json").read_text())
+          Path("data/fresh_questions_source.json").write_text(json.dumps(a+b), encoding="utf-8")
+          print({"source_questions": len(a)+len(b)})
+          PY
 
       - name: Locate frozen pilot manifest
         run: |
