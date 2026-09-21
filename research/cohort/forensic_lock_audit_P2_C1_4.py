@@ -117,7 +117,7 @@ def main() -> None:
         "final_correct_count":final_correct,
         "harm_count":harms,
         "aligned_record_protocol":"P2-C1.4-ALIGNED-V2",
-        "runtime_protocol":"P2-C1.4-CONFIRMATORY-V1-RUNTIME1-2026-09-21",
+        "runtime_protocol":"P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21",
         "annotation_status":"NOT_ANNOTATED",
     }
     p=args.outdir/"P2_C1_4_CONFIRMATORY_COHORT_LOCK.json"
