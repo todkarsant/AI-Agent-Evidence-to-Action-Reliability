@@ -75,15 +75,7 @@ jobs:
           set -euo pipefail
           python research/cohort/generate_P2_C1_4_XW_annotation_packets.py             --cohort source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json             --out annotation_packets             --expected-count 8638
 
-      - name: Upload immutable blinded annotation packets
-        uses: actions/upload-artifact@v4
-        with:
-          name: p2-c1-4-xw-blinded-annotation-packets
-          path: annotation_packets/
-          retention-days: 14
-          compression-level: 6
-
-      - name: Upload machine-readable progression gate
+      - name: Write machine-readable progression gate
         shell: bash
         run: |
           cat > annotation_packets/P2_C1_4_NEXT_GATE.json <<EOF
@@ -96,3 +88,11 @@ jobs:
             "confirmatory_modeling_authorized": false
           }
           EOF
+
+      - name: Upload immutable blinded annotation packets
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-xw-blinded-annotation-packets
+          path: annotation_packets/
+          retention-days: 14
+          compression-level: 6
