@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 env:
-  PROJECT1_COMMIT: ffb4cc5ecf8b762baf03ddb42ecf401c1957e640
+  PROJECT1_COMMIT: 7bef895846f2ac89d885827be16b30e69986b013
   SPIDER_COMMIT: b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
   SPIDER_ARCHIVE_SHA256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
   PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
@@ -185,6 +185,7 @@ jobs:
           LLM_PROVIDER: ollama
           OLLAMA_BASE_URL: http://127.0.0.1:11434
           OLLAMA_MODEL: llama3.2:1b
+          OLLAMA_TIMEOUT_SECONDS: 300
         run: |
           set -euo pipefail
           if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
