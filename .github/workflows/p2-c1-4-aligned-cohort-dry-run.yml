@@ -1,0 +1,133 @@
+name: p2-c1-4-aligned-cohort-dry-run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: llama3.2:1b
+      OLLAMA_VERSION: 0.33.3
+      SPIDER_ARCHIVE_SHA256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
+      PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout qualified C4.2.3-D Project 1 path
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "1765680283df63232018bf7b827d1576c81c3a61"
+
+      - name: Python dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install gdown jsonschema
+
+      - name: Download and verify Spider 1.0
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
+          test -n "$DB_DIR"
+          cp -R "$DB_DIR" data/database
+          test -s data/train_spider.json
+          test -s data/train_others.json
+          test -d data/database
+
+      - name: Locate frozen pilot manifest
+        run: |
+          set -euo pipefail
+          mkdir -p data/manifests
+          git clone --quiet --depth 1 https://github.com/todkarsant/AI-Agent-Evidence-to-Action-Reliability.git /tmp/p2-self
+          cp /tmp/p2-self/data/manifests/C4_2_3B_PILOT12_CASES.json data/manifests/C4_2_3B_PILOT12_CASES.json
+          test "$(sha256sum data/manifests/C4_2_3B_PILOT12_CASES.json | cut -d' ' -f1)" = "$PILOT_MANIFEST_SHA256"
+
+      - name: Prepare four fresh non-confirmatory cases
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          python research/cohort/prepare_P2_C1_4_fresh_manifest.py             --train data/train_spider.json data/train_others.json             --pilot-manifest data/manifests/C4_2_3B_PILOT12_CASES.json             --output data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json             --count 4
+          sha256sum data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json | tee artifacts/manifest_sha256.txt
+
+      - name: Install pinned Ollama
+        run: |
+          set -euo pipefail
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5             -o /tmp/ollama-linux-amd64-0.33.3.tar.zst             "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          zstd -t /tmp/ollama-linux-amd64-0.33.3.tar.zst
+          mkdir -p "$HOME/ollama-0.33.3"
+          tar --use-compress-program=unzstd -xf /tmp/ollama-linux-amd64-0.33.3.tar.zst -C "$HOME/ollama-0.33.3"
+          "$HOME/ollama-0.33.3/bin/ollama" --version
+          echo "$HOME/ollama-0.33.3/bin" >> "$GITHUB_PATH"
+
+      - name: Start and fingerprint Ollama
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          nohup "$HOME/ollama-0.33.3/bin/ollama" serve > artifacts/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS "$OLLAMA_BASE_URL/api/version" >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS "$OLLAMA_BASE_URL/api/version" | tee artifacts/ollama_api_version.json
+          test "$(curl -fsS "$OLLAMA_BASE_URL/api/version" | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS "$OLLAMA_BASE_URL/api/show" -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
+
+      - name: Run aligned-cohort collector on fresh dry-run cases
+        env:
+          PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
+          PROJECT1_COMMIT: 1765680283df63232018bf7b827d1576c81c3a61
+          RUNTIME_MANIFEST_HASH: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/cohort
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/train_spider.json             --database-dir data/database             --manifest data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json             --outdir artifacts/cohort
+
+      - name: Validate aligned records
+        run: |
+          set -euo pipefail
+          python research/cohort/validate_P2_C1_4_aligned_records.py artifacts/cohort/aligned_records.json
+          python -m jsonschema -i artifacts/cohort/aligned_records.json research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V1.json
+
+      - name: Assert dry-run is not confirmatory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path("data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json").read_text())
+          assert m["confirmatory"] is False
+          r=json.loads(Path("artifacts/cohort/aligned_records.json").read_text())
+          assert r["protocol_version"]=="P2-C1.4-ALIGNED-V1"
+          assert len(r["records"])==4
+          print("PASS: dry-run is explicitly non-confirmatory and aligned.")
+          PY
+
+      - name: Upload dry-run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-aligned-cohort-dry-run
+          path: |
+            artifacts/
+            data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json
+          retention-days: 90
