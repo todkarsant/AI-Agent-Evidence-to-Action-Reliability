@@ -11,6 +11,7 @@ serialized and hashed. X_W is intentionally not produced by this collector.
 """
 from __future__ import annotations
 import argparse, hashlib, json, os, sys
+from dataclasses import asdict
 from pathlib import Path
 
 def canonical(obj):
@@ -82,7 +83,7 @@ def main():
 
     p1=Path(os.environ["PROJECT1_ROOT"]).resolve()
     sys.path.insert(0,str(p1))
-    from research.spider_benchmark import SpiderDataset, SecondaryExecutionEvaluator, BenchmarkEnvironment
+    from research.spider_benchmark import SpiderDataset, SecondaryExecutionEvaluator, BenchmarkEnvironment, Trace
     from research.deterministic_solver import RuleBasedDeterministicSolver
     from research.p5_selector import assess_strict_evidence
     from research.p6_ip import decide_replacement, verify_challenger
