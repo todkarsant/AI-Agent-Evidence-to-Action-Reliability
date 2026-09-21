@@ -33,8 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
-          git -C external/Enterprise-Analytics-Copilot checkout --quiet 7bef895846f2ac89d885827be16b30e69986b013
-          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "7bef895846f2ac89d885827be16b30e69986b013"
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet 7c1864a5619af7118c690f8de72eab57dc0cdc93
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "7c1864a5619af7118c690f8de72eab57dc0cdc93"
           git clone --quiet https://github.com/taoyds/spider.git external/spider
           git -C external/spider checkout --quiet b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
 
