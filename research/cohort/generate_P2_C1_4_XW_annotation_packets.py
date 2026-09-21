@@ -19,7 +19,6 @@ FORBIDDEN_KEYS={
     "latency_ms","llm_calls","cost","evidence_hash","source_artifact_sha256",
     "manifest_hash","runtime_manifest_hash","code_version"
 }
-SQL_MARKERS=("SELECT ","INSERT ","UPDATE ","DELETE ","DROP ","ALTER ","CREATE ")
 
 def sha256_bytes(b:bytes)->str:
     return hashlib.sha256(b).hexdigest()
@@ -92,7 +91,6 @@ def main():
             "rater_packet":label,
             "randomization_seed":seed,
             "source_record_count":len(arr),
-            "source_cohort_sha256":source_hash,
             "blinding":{
                 "excluded_information":[
                     "generated SQL/reference SQL/reference answer",
