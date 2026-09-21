@@ -1,6 +1,6 @@
 # Current Research State — P2-C1.3
 
-**State:** `BLOCKED_SCIENTIFIC_COHORT_ALIGNMENT`
+**State:** `P2_C1_4_CONFIRMATORY_ACQUISITION_IN_PROGRESS`
 
 **As of:** 2026-09-21
 
@@ -89,9 +89,25 @@ Three implementation-contract failures and one safety-gating failure occurred be
 
 Important: this is **runtime qualification**, not confirmatory evidence and not predictive-validity evidence.
 
+## Latest movement — confirmatory protocol freeze and acquisition launch
+
+**P2-C1.4-S = FROZEN.**  
+**P2-C1.4-M = FROZEN.**  
+**P2-C1.4 collection protocol = FROZEN.**  
+
+Frozen protocol:
+- `research/methodological_gates/P2_C1_4_CONFIRMATORY_PROTOCOL_FREEZE_V1_2026-09-21.md`
+- protocol ID `P2-C1.4-CONFIRMATORY-V1-2026-09-21`
+
+The confirmatory acquisition workflow has been launched. It freezes an outcome-blind source-frame manifest from Spider 1.0 training-side data, excludes the frozen 12-case pilot, shards acquisition into immutable artifacts, validates each shard, and consolidates only successful aligned records.
+
+The collector now requires explicit `--confirmatory` plus the frozen protocol authorization before confirmatory execution.
+
+No X_W annotation and no M0/M1 fitting occur during this acquisition stage.
+
 ## Next gate
 
-**Freeze the confirmatory statistical/collection protocol → collect the actual aligned outcome-bearing cohort → independent X_W annotation.**
+**Complete and audit the acquired aligned cohort → independently annotate X_W → lock raw annotations/provenance → run the frozen reliability gate → only then fit M0/M1.**
 
 ## Publication record
 
