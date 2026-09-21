@@ -30,6 +30,8 @@ jobs:
           git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
           git -C external/Enterprise-Analytics-Copilot checkout --quiet ffb4cc5ecf8b762baf03ddb42ecf401c1957e640
           test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "ffb4cc5ecf8b762baf03ddb42ecf401c1957e640"
+          git clone --quiet https://github.com/taoyds/spider.git external/spider
+          git -C external/spider checkout --quiet b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
 
       - name: Python dependencies
         run: |
@@ -55,6 +57,8 @@ jobs:
           test -s data/train_spider.json
           test -s data/train_others.json
           test -d data/database
+          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \\;
+          test -s data/tables.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -108,7 +112,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/cohort
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/fresh_questions_source.json             --database-dir data/database             --manifest data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json             --outdir artifacts/cohort
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/fresh_questions_source.json             --database-dir data/database             --manifest data/manifests/P2_C1_4_FRESH_DRY_MANIFEST.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort
 
       - name: Validate aligned records
         run: |
