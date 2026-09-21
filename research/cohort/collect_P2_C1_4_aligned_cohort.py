@@ -84,7 +84,9 @@ def main():
     sys.path.insert(0,str(p1))
     from research.spider_benchmark import SpiderDataset, SecondaryExecutionEvaluator, BenchmarkEnvironment
     from research.deterministic_solver import RuleBasedDeterministicSolver
-    from research.p6_ip_runner import run_case
+    from research.p5_selector import assess_strict_evidence
+    from research.p6_ip import decide_replacement, verify_challenger
+    from research.defensibility import DefensibilityTrace, validate_trace
     from research.spider_official_eval import evaluate_traces
     from app.services.llm import OllamaProvider
 
@@ -110,11 +112,48 @@ def main():
         ex=by_key[(c["db_id"],c["question"])]
         evaluator.first_evidence=None
         evaluator.capture_next=True
-        trace, defensibility=run_case(env,ex)
+        incumbent=env.run(ex,"P0")
         evaluator.capture_next=False
         ev=evaluator.first_evidence
         if ev is None:
             raise ValueError(f"{c['decision_id']}: no incumbent decision-time evidence captured")
+
+        eligible, reason = assess_strict_evidence(ex.question, incumbent.generated_sql or "", incumbent.evidence_row_count)
+        defensibility = DefensibilityTrace(
+            case_id=f"{ex.db_id}:{ex.question}",
+            policy="P6-IP",
+            evidence={"incumbent_row_count":incumbent.evidence_row_count,"incumbent_column_count":incumbent.evidence_column_count,"incumbent_execution_ok":incumbent.execution_ok},
+            evidence_provenance=["incumbent_execution_trace"],
+            risk_reasons=[reason] if reason else [],
+            decision="INTERVENE" if eligible else "KEEP",
+            intervention=eligible,
+        )
+        if not eligible:
+            selected=incumbent
+            defensibility.outcome_class="KEEP_INCUMBENT"
+            defensibility.verification={"passed":False,"not_run":True}
+            selected.policy="P6-IP"
+            selected.termination_reason="p6_keep_incumbent"
+        else:
+            challenger=Trace(ex.question,ex.db_id,"P6-IP")
+            schema=env.dataset.schema(ex.db_id)
+            env._run_p5(challenger,ex,schema,strict=False)
+            verification=verify_challenger(ex.question,challenger.generated_sql,challenger.sql_valid,challenger.execution_ok)
+            defensibility.verification=asdict(verification)
+            decision=decide_replacement(intervention_eligible=True,verification=verification)
+            defensibility.decision=decision
+            defensibility.replacement=(decision=="REPLACE")
+            selected=challenger if decision=="REPLACE" else incumbent
+            selected.policy="P6-IP"
+            selected.actions=["incumbent:P0","risk_assessment","INTERVENE"]+[f"challenger:{a}" for a in challenger.actions]
+            defensibility.outcome_class="REPLACE_CHALLENGER" if decision=="REPLACE" else "PRESERVE_INCUMBENT"
+            selected.termination_reason="p6_replace_after_verification" if decision=="REPLACE" else "p6_preserve_incumbent"
+            selected.cost=incumbent.cost+challenger.cost
+            selected.llm_calls=incumbent.llm_calls+challenger.llm_calls
+            selected.input_tokens=incumbent.input_tokens+challenger.input_tokens
+            selected.output_tokens=incumbent.output_tokens+challenger.output_tokens
+        validate_trace(defensibility)
+        trace=selected
 
         evidence_records.append({
             "decision_id":c["decision_id"],
@@ -141,7 +180,9 @@ def main():
             }
         })
         run_rows.append({"decision_id":c["decision_id"],"question":c["question"],"db_id":c["db_id"],
-                         "trace":trace if isinstance(trace,dict) else trace.__dict__,"defensibility":defensibility})
+                         "trace":trace if isinstance(trace,dict) else trace.__dict__,
+                         "incumbent_trace":incumbent.__dict__,
+                         "defensibility":defensibility.to_dict() if hasattr(defensibility,"to_dict") else defensibility})
 
     args.outdir.mkdir(parents=True,exist_ok=True)
     evidence_path=args.outdir/"decision_time_evidence.json"
@@ -170,23 +211,10 @@ def main():
     for x in run_rows:
         t=official_by_id[x["decision_id"]]
         d=x["defensibility"]
-        p0_correct=bool(d.get("decision")=="INTERVENE" and t.get("official_execution_correct"))
-        # For KEEP cases the selected trace is the incumbent P0. For REPLACE
-        # cases it is the verified challenger selected by P6-IP.
         final_correct=bool(t.get("official_execution_correct"))
         replacement=bool(d.get("replacement") is True and d.get("decision")=="REPLACE")
-        # P0 correctness for KEEP/REPLACE must be evaluated independently.
-        ex=by_key[(x["db_id"],x["question"])]
-        p0_sql=None
-        # The P6 runner does not retain the incumbent SQL separately in its
-        # final trace. Re-run only the deterministic official correctness
-        # lookup from the trace record's stored incumbent evidence is not
-        # possible, so require an explicit p0 correctness field from the
-        # defensibility extension in future confirmatory collection.
-        # The dry-run therefore fails closed rather than inventing P0 correctness.
-        if "incumbent_official_correct" not in d:
-            raise RuntimeError("P6 defensibility record lacks immutable incumbent official correctness; collector refuses to infer Y_H")
-        p0_correct=bool(d["incumbent_official_correct"])
+        incumbent_trace=x["incumbent_trace"]
+        p0_correct=bool(incumbent_trace.get("official_execution_correct"))
         y_h=int(p0_correct and replacement and not final_correct)
         outcomes.append({
             "decision_id":x["decision_id"],
