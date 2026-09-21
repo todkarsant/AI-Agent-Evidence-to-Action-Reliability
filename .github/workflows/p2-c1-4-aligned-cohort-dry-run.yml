@@ -19,7 +19,6 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot:${{ github.workspace }}
       LLM_PROVIDER: ollama
-      NLTK_DATA: ${{ runner.temp }}/nltk_data
       OLLAMA_BASE_URL: http://127.0.0.1:11434
       OLLAMA_MODEL: llama3.2:1b
       OLLAMA_TIMEOUT_SECONDS: 300
@@ -47,9 +46,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
           python -m pip install "nltk==3.9.4"
-          mkdir -p "$NLTK_DATA"
-          python -m nltk.downloader -d "$NLTK_DATA" punkt_tab
-          python - <<'PY'
+          mkdir -p "$HOME/nltk_data"
+          python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
+          echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
+          NLTK_DATA="$HOME/nltk_data" python - <<'PY'
           from nltk.tokenize import word_tokenize
           print({"nltk_tokenizer_smoke": word_tokenize("SELECT 1")})
           PY
