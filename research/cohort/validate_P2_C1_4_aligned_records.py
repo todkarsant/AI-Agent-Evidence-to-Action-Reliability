@@ -43,19 +43,28 @@ def validate_record(r, seen):
             fail(f"{did}: missing evidence field {k}")
     if e["captured_before_intervention"] is not True:
         fail(f"{did}: evidence was not marked pre-intervention")
-    if e["row_count"] != len(e["returned_rows"]):
-        fail(f"{did}: evidence row_count mismatch")
-    if e["column_count"] != len(e["returned_columns"]):
-        fail(f"{did}: evidence column_count mismatch")
-    if e["evidence_hash"] != sha256_json({
-        "question": e["question"],
-        "database_id": e["database_id"],
-        "returned_columns": e["returned_columns"],
-        "returned_rows": e["returned_rows"],
-        "row_count": e["row_count"],
-        "column_count": e["column_count"],
-    }):
-        fail(f"{did}: evidence_hash mismatch")
+    if e["row_count"] is None or e["column_count"] is None:
+        if e["row_count"] is not None or e["column_count"] is not None:
+            fail(f"{did}: partially missing evidence counts")
+        if e["returned_rows"] is not None or e["returned_columns"] is not None:
+            fail(f"{did}: NO_USABLE_EVIDENCE must preserve null rows/columns")
+        if e["evidence_hash"] is not None:
+            fail(f"{did}: NO_USABLE_EVIDENCE must have null evidence_hash")
+    else:
+        if e["row_count"] != len(e["returned_rows"]):
+            fail(f"{did}: evidence row_count mismatch")
+        if e["column_count"] != len(e["returned_columns"]):
+            fail(f"{did}: evidence column_count mismatch")
+        expected_hash=sha256_json({
+            "question": e["question"],
+            "database_id": e["database_id"],
+            "returned_columns": e["returned_columns"],
+            "returned_rows": e["returned_rows"],
+            "row_count": e["row_count"],
+            "column_count": e["column_count"],
+        })
+        if e["evidence_hash"] != expected_hash:
+            fail(f"{did}: evidence_hash mismatch")
 
     o = r["intervention_outcome"]
     for k in ("replacement_occurred","p0_correct","final_correct","y_h","locked_after_evidence"):
