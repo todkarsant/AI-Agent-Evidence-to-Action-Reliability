@@ -31,14 +31,14 @@ def validate_record(r, seen):
     if did in seen:
         fail(f"duplicate decision_id: {did}")
     seen.add(did)
-    if r["protocol_version"] != "P2-C1.4-ALIGNED-V1":
+    if r["protocol_version"] != "P2-C1.4-ALIGNED-V2":
         fail(f"{did}: wrong protocol_version")
 
     b = r["baseline"]
     if set(b) != {"execution_ok","row_count","column_count"}:
         fail(f"{did}: baseline schema mismatch")
     e = r["decision_time_evidence"]
-    for k in ("question","database_id","returned_columns","returned_rows","row_count","column_count","evidence_hash","captured_before_intervention"):
+    for k in ("question","database_id","schema","returned_columns","returned_rows","row_count","column_count","evidence_hash","captured_before_intervention"):
         if k not in e:
             fail(f"{did}: missing evidence field {k}")
     if e["captured_before_intervention"] is not True:
@@ -58,6 +58,7 @@ def validate_record(r, seen):
         expected_hash=sha256_json({
             "question": e["question"],
             "database_id": e["database_id"],
+            "schema": e["schema"],
             "returned_columns": e["returned_columns"],
             "returned_rows": e["returned_rows"],
             "row_count": e["row_count"],
