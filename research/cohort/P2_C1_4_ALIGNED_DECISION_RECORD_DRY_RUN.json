@@ -1,0 +1,31 @@
+[
+  {
+    "decision_id": "DRY-P2C14-001",
+    "protocol_version": "P2-C1.4-ALIGNED-V1",
+    "baseline": {"execution_ok": true, "row_count": 1, "column_count": 1},
+    "decision_time_evidence": {
+      "question": "DRY RUN",
+      "database_id": "db1",
+      "returned_columns": ["id"],
+      "returned_rows": [[1]],
+      "row_count": 1,
+      "column_count": 1,
+      "evidence_hash": "ab2616761fe8f253123b797efe49bbdaa1cdc366f0eda4e10a451d4f65ee9359",
+      "captured_before_intervention": true
+    },
+    "intervention_outcome": {
+      "replacement_occurred": true,
+      "p0_correct": true,
+      "final_correct": false,
+      "y_h": 1,
+      "locked_after_evidence": true
+    },
+    "provenance": {
+      "manifest_hash": "dry",
+      "code_version": "dry",
+      "runtime_manifest_hash": "dry",
+      "baseline_hash": "dry",
+      "outcome_record_hash": "dry"
+    }
+  }
+]
