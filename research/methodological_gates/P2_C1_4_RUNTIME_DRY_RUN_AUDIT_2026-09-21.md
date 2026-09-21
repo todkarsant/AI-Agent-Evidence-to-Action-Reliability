@@ -136,3 +136,28 @@ No scientific parameter, cohort membership rule, outcome definition, X_W annotat
 ### Gate state
 
 Runtime qualification is PASS for the tested non-confirmatory four-case path. Confirmatory acquisition remains governed by the separately frozen Runtime2 workflow and must still complete the full source-frame manifest, shard acquisition, consolidation, forensic lock, and subsequent blinded X_W annotation gates.
+
+## Runtime3 requalification — 2026-09-21
+
+Dry-run run: **35606521374** (#51)
+Head commit: `68cf46f307ea65909c67950be9c1b87cb22e6deb`
+
+Result: **PASS**.
+
+All 15 workflow steps completed successfully, including:
+- pinned Project 1 checkout;
+- Python dependencies and NLTK 3.9.4 / `punkt_tab`;
+- Spider 1.0 archive verification;
+- fresh four-case non-confirmatory manifest;
+- pinned Ollama 0.33.3 / `llama3.2:1b` startup and fingerprint;
+- aligned collector with Runtime3 timeout configuration;
+- aligned-record validation;
+- JSON-schema validation;
+- explicit non-confirmatory assertion;
+- artifact upload.
+
+Runtime3 uses the transport-only 900-second Ollama request timeout. The dry-run did not alter scientific population, P6-IP logic, evidence definition, outcome definition, X_W, model, scoring, or resampling parameters.
+
+**Runtime3 runtime qualification = PASS for the tested four-case non-confirmatory path.**
+
+Fresh confirmatory acquisition is authorized only under the Runtime3 workflow and remains a separate scientific cohort. Runtime2 failed/partial artifacts remain excluded.
