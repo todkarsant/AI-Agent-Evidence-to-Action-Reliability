@@ -114,7 +114,7 @@ jobs:
       - name: Run aligned-cohort collector on fresh dry-run cases
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
-          PROJECT1_COMMIT: 7bef895846f2ac89d885827be16b30e69986b013
+          PROJECT1_COMMIT: 7c1864a5619af7118c690f8de72eab57dc0cdc93
           RUNTIME_MANIFEST_HASH: ${{ github.sha }}
         run: |
           set -euo pipefail
