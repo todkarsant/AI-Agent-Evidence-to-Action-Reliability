@@ -4,7 +4,8 @@ on:
     branches: [main]
     paths:
       - "research/methodological_gates/P2_C1_4_CONFIRMATORY_PROTOCOL_FREEZE_V1_2026-09-21.md"
-      - "research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V1.json"
+      - "research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V2.json"
+      - "research/methodological_gates/P2_C1_4_RUNTIME_AMENDMENT2_NLTK_2026-09-21.md"
       - "research/cohort/collect_P2_C1_4_aligned_cohort.py"
       - "research/cohort/prepare_P2_C1_4_confirmatory_manifest.py"
       - ".github/workflows/p2-c1-4-confirmatory-acquisition.yml"
@@ -22,7 +23,7 @@ env:
   PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
   OLLAMA_VERSION: 0.33.3
   OLLAMA_MODEL: llama3.2:1b
-  P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME1-2026-09-21
+  P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME2-2026-09-21
   SHARD_SIZE: 200
 
 jobs:
@@ -96,6 +97,8 @@ jobs:
 
   acquire:
     needs: freeze-manifest
+    env:
+      NLTK_DATA: ${{ runner.temp }}/nltk_data
     strategy:
       fail-fast: false
       max-parallel: 10
@@ -145,6 +148,13 @@ jobs:
           sudo apt-get install -y zstd unzip
           python -m pip install --upgrade pip
           python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install "nltk==3.9.4"
+          mkdir -p "$NLTK_DATA"
+          python -m nltk.downloader -d "$NLTK_DATA" punkt_tab
+          python - <<'PY'
+          from nltk.tokenize import word_tokenize
+          print({"nltk_tokenizer_smoke": word_tokenize("SELECT 1")})
+          PY
           python -m pip install gdown jsonschema
           mkdir -p data
           gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
