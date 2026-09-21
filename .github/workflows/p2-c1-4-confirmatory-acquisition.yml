@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: p2-c1-4-confirmatory-acquisition-${{ github.run_id }}
-  cancel-in-progress: false
+  group: p2-c1-4-confirmatory-acquisition
+  cancel-in-progress: true
 env:
   PROJECT1_COMMIT: 7c1864a5619af7118c690f8de72eab57dc0cdc93
   SPIDER_COMMIT: b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
@@ -30,7 +30,7 @@ env:
 
 jobs:
   freeze-manifest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
