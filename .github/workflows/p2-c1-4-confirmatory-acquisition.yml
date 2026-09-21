@@ -228,25 +228,49 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Download frozen source manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: frozen_manifest
       - name: Download all shard artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: p2-c1-4-confirmatory-shard-*
           path: shards
           merge-multiple: true
-      - name: Consolidate and verify
+      - name: Consolidate and verify complete coverage
         run: |
           set -euo pipefail
           python - <<'PY'
-          import glob,hashlib,json
+          import glob,hashlib,json,math,re
           from pathlib import Path
+          manifest_path=Path("frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json")
+          manifest=json.loads(manifest_path.read_text())
+          expected_cases=manifest["case_count"]
+          shard_size=int(__import__("os").environ["SHARD_SIZE"])
+          expected_shards=math.ceil(expected_cases/shard_size)
           files=sorted(glob.glob("shards/aligned_records_shard_*.json"))
-          if not files:
-              raise SystemExit("FAIL: no successful confirmatory shard artifacts")
-          all_records=[]
+          found={}
           for p in files:
-              all_records.extend(json.loads(Path(p).read_text())["records"])
+              m=re.search(r"aligned_records_shard_(\d+)\.json$",p)
+              if not m: raise SystemExit(f"FAIL: malformed shard filename: {p}")
+              found[int(m.group(1))]=p
+          expected=set(range(expected_shards))
+          if set(found)!=expected:
+              raise SystemExit(f"FAIL: incomplete shard coverage: expected {sorted(expected)}, found {sorted(found)}")
+          all_records=[]
+          for idx in sorted(found):
+              p=Path(found[idx]); d=json.loads(p.read_text())
+              start=idx*shard_size
+              expected_count=min(shard_size,expected_cases-start)
+              if len(d["records"])!=expected_count:
+                  raise SystemExit(f"FAIL: shard {idx} record count {len(d['records'])} != expected {expected_count}")
+              all_records.extend(d["records"])
           ids=[r["decision_id"] for r in all_records]
+          expected_ids=[c["decision_id"] for c in manifest["cases"]]
+          if ids!=expected_ids:
+              raise SystemExit("FAIL: consolidated decision_id order does not exactly match frozen manifest")
           if len(ids)!=len(set(ids)):
               raise SystemExit("FAIL: duplicate decision_id across shards")
           out={"protocol_version":"P2-C1.4-ALIGNED-V1","record_count":len(all_records),"records":all_records}
@@ -255,7 +279,7 @@ jobs:
           p.write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n")
           digest=hashlib.sha256(p.read_bytes()).hexdigest()
           Path("consolidated/SHA256SUM.txt").write_text(digest+"  "+p.name+"\n")
-          print({"successful_shards":len(files),"record_count":len(all_records),"sha256":digest})
+          print({"expected_shards":expected_shards,"successful_shards":len(files),"record_count":len(all_records),"sha256":digest})
           PY
           python research/cohort/validate_P2_C1_4_aligned_records.py consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json
       - name: Upload consolidated cohort
