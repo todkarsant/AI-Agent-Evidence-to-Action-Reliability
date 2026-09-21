@@ -171,7 +171,14 @@ def main():
                 "returned_rows":ev["rows"],
                 "row_count":ev["row_count"],
                 "column_count":ev["column_count"],
-                "evidence_hash":ev["evidence_sha256"],
+                "evidence_hash":sha256_json({
+                    "question":c["question"],
+                    "database_id":c["db_id"],
+                    "returned_columns":ev["columns"],
+                    "returned_rows":ev["rows"],
+                    "row_count":ev["row_count"],
+                    "column_count":ev["column_count"]
+                }),
                 "captured_before_intervention":True
             },
             "provenance":{
