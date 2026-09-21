@@ -53,7 +53,7 @@ jobs:
           from nltk.tokenize import word_tokenize
           print({"nltk_tokenizer_smoke": word_tokenize("SELECT 1")})
           PY
-          python -m pip install gdown jsonschema
+          python -m pip install jsonschema
 
       - name: Download and verify Spider 1.0
         run: |
