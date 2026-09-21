@@ -1,16 +1,7 @@
 name: p2-c1-4-confirmatory-acquisition-runtime3
 # Runtime3 accepted path. Free/public-repo capacity profile: keep the confirmatory fan-out below the 20-job standard-hosted concurrency ceiling and reserve capacity for controller/diagnostic jobs.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "research/methodological_gates/P2_C1_4_CONFIRMATORY_PROTOCOL_FREEZE_V1_2026-09-21.md"
-      - "research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V2.json"
-      - "research/methodological_gates/P2_C1_4_RUNTIME_AMENDMENT2_NLTK_2026-09-21.md"
-      - "research/methodological_gates/P2_C1_4_RUNTIME_AMENDMENT3_TIMEOUT_2026-09-21.md"
-      - "research/cohort/collect_P2_C1_4_aligned_cohort.py"
-      - "research/cohort/prepare_P2_C1_4_confirmatory_manifest.py"
-      - ".github/workflows/p2-c1-4-confirmatory-acquisition-runtime3.yml"
+  # Confirmatory acquisition is manual-only after runtime qualification.
   workflow_dispatch:
 permissions:
   contents: read
