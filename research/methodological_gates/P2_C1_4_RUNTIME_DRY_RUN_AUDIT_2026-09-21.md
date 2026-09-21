@@ -105,3 +105,34 @@ The next scientific gates remain:
 
 ## Reproducibility note
 The successful run is retained as the runtime qualification proof. Failed attempts remain documented rather than overwritten.
+
+## Runtime2 requalification result — 2026-09-21
+
+### Dry-run
+
+- Run: 35602554452
+- Job: 106341856955
+- Commit: 8f87935a95886a74a7c385795420c6938ecc42a2
+- Result: PASS
+- Scope: non-confirmatory, 4 fresh cases
+- Project 1 commit: 7c1864a5619af7118c690f8de72eab57dc0cdc93
+- Spider commit: b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
+- Spider archive SHA-256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
+- Ollama: 0.33.3 / llama3.2:1b
+- NLTK: 3.9.4 with punkt_tab
+- Collector status: PASS_NON_CONFIRMATORY_ALIGNED_DRY_RUN
+- Decision-time evidence SHA-256: bff6c521e42c1b3a43f6d762e3b45c2e411ba2577e33da03f6733f4a355d85f6
+- Official evaluator: P0 n=4, P6-IP n=4; execution accuracy 0.0 for this dry-run; harm count 0. These are qualification outputs only and are not confirmatory estimates.
+- Aligned-record structural validator: PASS
+- JSON Schema V2 validation: PASS
+- Explicit non-confirmatory assertion: PASS
+
+### Runtime2 forensic conclusion
+
+The Runtime2 environment successfully executed the full collector path, including the pinned Spider official evaluator, and produced schema-valid same-unit evidence/outcome records. The earlier missing-NLTK failure is therefore resolved at the tested runtime boundary.
+
+No scientific parameter, cohort membership rule, outcome definition, X_W annotation, model family, scoring rule, or resampling rule was changed by the Runtime2 correction.
+
+### Gate state
+
+Runtime qualification is PASS for the tested non-confirmatory four-case path. Confirmatory acquisition remains governed by the separately frozen Runtime2 workflow and must still complete the full source-frame manifest, shard acquisition, consolidation, forensic lock, and subsequent blinded X_W annotation gates.
