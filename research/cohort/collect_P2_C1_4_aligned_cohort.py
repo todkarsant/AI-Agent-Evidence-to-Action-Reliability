@@ -133,16 +133,16 @@ def main():
         p0_ev=new[0]
         if p0_ev["db_id"]!=c["db_id"]: raise SystemExit(f"FAIL: db mismatch: {c['decision_id']}")
         baseline={
-            "execution_ok": bool(selected.execution_ok if selected.policy=="P6-IP" and selected.actions[:1]!=["incumbent:P0"] else selected.execution_ok),
+            "execution_ok": bool(p0_ev["row_count"] is not None),
             "row_count": p0_ev["row_count"],
             "column_count": p0_ev["column_count"],
         }
         evidence={
             "question":c["question"],"database_id":c["db_id"],
-            "returned_columns":p0_ev["columns"] if p0_ev["columns"] is not None else [],
-            "returned_rows":p0_ev["rows"] if p0_ev["rows"] is not None else [],
+            "returned_columns":p0_ev["columns"] if p0_ev["columns"] is not None else None,
+            "returned_rows":p0_ev["rows"] if p0_ev["rows"] is not None else None,
             "row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"],
-            "evidence_hash":sha256_json({"question":c["question"],"database_id":c["db_id"],"returned_columns":p0_ev["columns"] if p0_ev["columns"] is not None else [],"returned_rows":p0_ev["rows"] if p0_ev["rows"] is not None else [],"row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"]}),
+            "evidence_hash":(sha256_json({"question":c["question"],"database_id":c["db_id"],"returned_columns":p0_ev["columns"],"returned_rows":p0_ev["rows"],"row_count":p0_ev["row_count"],"column_count":p0_ev["column_count"]}) if p0_ev["row_count"] is not None else None),
             "captured_before_intervention":True,
         }
         record={
