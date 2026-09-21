@@ -51,6 +51,13 @@ jobs:
           unzip -q data/spider_data.zip -d data/spider_unpacked
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
           find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("data/train_spider.json").read_text())
+          b=json.loads(Path("data/train_others.json").read_text())
+          Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
+          PY
           test -s data/train_spider.json
           test -s data/train_others.json
       - name: Recover frozen pilot manifest
@@ -172,7 +179,7 @@ jobs:
           set -euo pipefail
           if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
           mkdir -p artifacts/cohort
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/train_spider.json             --database-dir data/database             --manifest data/manifests/shard.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort             --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot"           python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/confirmatory_questions_source.json             --database-dir data/database             --manifest data/manifests/shard.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort             --confirmatory
       - name: Validate shard
         run: |
           set -euo pipefail
