@@ -240,7 +240,7 @@ jobs:
         with:
           name: p2-c1-4-confirmatory-shard-${{ matrix.shard }}
           path: artifacts/
-          retention-days: 90
+          retention-days: 14
 
   consolidate:
     needs: acquire
