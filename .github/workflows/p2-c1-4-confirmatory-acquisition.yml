@@ -83,7 +83,7 @@ jobs:
           p=Path("artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json")
           m=json.loads(p.read_text())
           assert m["confirmatory"] is True
-          assert m["protocol_version"]=="P2-C1.4-CONFIRMATORY-V1-RUNTIME1-2026-09-21"
+          assert m["protocol_version"]=="P2-C1.4-CONFIRMATORY-V1-RUNTIME2-2026-09-21"
           assert m["case_count"]==len(m["cases"]) and m["case_count"]>0
           print({"case_count":m["case_count"],"manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest()})
           PY
