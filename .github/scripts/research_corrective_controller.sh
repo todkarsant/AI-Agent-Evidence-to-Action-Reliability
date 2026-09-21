@@ -9,6 +9,32 @@ PACKET_SMOKE_WORKFLOW="c4-2-4a-packet-generation-smoke.yml"
 MAX_AUTO_RETRIES=2
 POLL_SECONDS=30
 
+# Queue hygiene for the free/public GitHub Actions capacity profile.
+# The accepted Runtime3 workflow is the only confirmatory acquisition path.
+# Cancel stale QUEUED confirmatory runs before starting long controller work.
+# Never cancel an in-progress confirmatory run automatically.
+cleanup_stale_confirmatory_queue() {
+  local keep_id=""
+  keep_id="$(gh run list --repo "$REPO" --workflow p2-c1-4-confirmatory-acquisition-runtime3.yml --limit 20 \
+    --json databaseId,status,headSha,createdAt \
+    --jq '[.[] | select(.status=="queued" and .headSha==env.GITHUB_SHA)] | sort_by(.createdAt) | last | .databaseId' 2>/dev/null || true)"
+
+  for workflow in \
+    p2-c1-4-confirmatory-acquisition.yml \
+    p2-c1-4-confirmatory-acquisition-runtime3.yml; do
+    stale_ids="$(gh run list --repo "$REPO" --workflow "$workflow" --limit 50 \
+      --json databaseId,status \
+      --jq --arg keep "$keep_id" '.[] | select(.status=="queued" and .databaseId != ($keep|tonumber?)) | .databaseId' 2>/dev/null || true)"
+    while IFS= read -r stale_id; do
+      [[ -z "$stale_id" ]] && continue
+      echo "Cancelling stale queued confirmatory run $stale_id ($workflow)."
+      gh run cancel "$stale_id" --repo "$REPO" || true
+    done <<< "$stale_ids"
+  done
+}
+
+cleanup_stale_confirmatory_queue
+
 get_latest() {
   gh run list --repo "$REPO" --workflow "$1" --limit 5     --json databaseId,status,conclusion,headSha,createdAt,url
 }
