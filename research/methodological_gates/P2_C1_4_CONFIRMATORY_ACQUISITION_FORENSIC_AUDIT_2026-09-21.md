@@ -40,6 +40,14 @@ The workflow created `data/confirmatory_questions_source.json` in the manifest j
 
 This is an infrastructure/workflow artifact-transfer error, not a scientific result.
 
+### Run #3 — new failure discovered
+
+Run #3 (`35596426619`) reached the collector with the provider/source fixes active. Several shards then failed with `FAIL: no execution capture` for individual cases. Inspection of the collector and pinned P6-IP runner established that some P0 cases legitimately produce no SQL, so there is no executable decision-time result to capture. The prior collector incorrectly escalated this to a shard failure.
+
+This was treated as a protocol-preserving implementation defect: genuine no-SQL/no-execution cases are now represented as `NO_USABLE_EVIDENCE` (null evidence fields), while a case that has executable P0 SQL but lacks a capture still fails closed. No X_W value is generated.
+
+The same run also exposed a consolidation risk: the previous consolidator could combine only successful shards. It has now been changed to fail closed unless every expected non-empty shard is present with the exact manifest decision IDs/counts.
+
 ## 3. Corrective change
 
 Commit:
@@ -52,7 +60,15 @@ The workflow was corrected to:
 
 The frozen scientific protocol was not changed.
 
-## 4. Current run
+## 4. Corrective change commit
+
+Commit `a30e8bcd674a6559dc3ba99a49746610fa600281` implements the genuine-NO_USABLE_EVIDENCE handling.
+
+Commit `6229b237383fbe4c5db7c45bf2134b6cab40d8fb` adds fail-closed complete-shard reconciliation.
+
+These changes do not alter the frozen scientific construct, outcome definition, model family, or analysis protocol.
+
+## 5. Current run
 
 Run #3:
 - Run ID: `35596426619`
@@ -66,7 +82,14 @@ Run #3:
 
 The first ten acquisition shards are currently executing in parallel; remaining shards are queued. No shard failure had been observed at the audit checkpoint.
 
-## 5. Scientific integrity decision
+
+### Current reruns
+
+- Run #4: `35596975423` — started from the no-evidence hardening commit.
+- Run #5: `35596992786` — started from the complete-shard fail-closed hardening commit and is the **current target run**.
+- Earlier runs remain forensic-only and are not eligible as confirmatory cohort sources.
+
+## 6. Scientific integrity decision
 
 The two failed runs are retained as infrastructure failures and are **not** incorporated into the confirmatory cohort.
 
@@ -80,7 +103,7 @@ No scientific parameter was altered:
 
 The confirmatory cohort is not considered complete until the frozen source frame is reconciled against all successful shard records and the forensic auditor passes.
 
-## 6. Completion criteria
+## 7. Completion criteria
 
 Cohort completion requires:
 1. all source-frame cases accounted for;
@@ -98,7 +121,7 @@ Cohort completion requires:
 
 Only after these conditions pass may the independent blinded X_W annotation stage begin.
 
-## 7. Current disposition
+## 8. Current disposition
 
 **P2-C1.4 acquisition: IN PROGRESS.**  
 **Forensic cohort PASS: NOT YET ESTABLISHED.**  
