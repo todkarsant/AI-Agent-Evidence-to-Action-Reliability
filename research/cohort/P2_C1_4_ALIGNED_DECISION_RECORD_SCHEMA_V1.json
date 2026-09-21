@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P2-C1.4 aligned decision record",
+  "type": "object",
+  "required": ["decision_id","protocol_version","baseline","decision_time_evidence","intervention_outcome","provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "decision_id": {"type":"string","minLength":1},
+    "protocol_version": {"type":"string","const":"P2-C1.4-ALIGNED-V1"},
+    "baseline": {
+      "type":"object","additionalProperties":false,
+      "required":["execution_ok","row_count","column_count"],
+      "properties":{
+        "execution_ok":{"type":"boolean"},
+        "row_count":{"type":"integer","minimum":0},
+        "column_count":{"type":"integer","minimum":0}
+      }
+    },
+    "decision_time_evidence": {
+      "type":"object","additionalProperties":false,
+      "required":["question","database_id","returned_columns","returned_rows","row_count","column_count","evidence_hash","captured_before_intervention"],
+      "properties":{
+        "question":{"type":"string","minLength":1},
+        "database_id":{"type":"string","minLength":1},
+        "returned_columns":{"type":"array","items":{"type":"string"}},
+        "returned_rows":{"type":"array"},
+        "row_count":{"type":"integer","minimum":0},
+        "column_count":{"type":"integer","minimum":0},
+        "evidence_hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+        "captured_before_intervention":{"type":"boolean","const":true}
+      }
+    },
+    "intervention_outcome": {
+      "type":"object","additionalProperties":false,
+      "required":["replacement_occurred","p0_correct","final_correct","y_h","locked_after_evidence"],
+      "properties":{
+        "replacement_occurred":{"type":"boolean"},
+        "p0_correct":{"type":"boolean"},
+        "final_correct":{"type":"boolean"},
+        "y_h":{"type":"integer","enum":[0,1]},
+        "locked_after_evidence":{"type":"boolean","const":true}
+      }
+    },
+    "provenance": {
+      "type":"object","additionalProperties":false,
+      "required":["manifest_hash","code_version","runtime_manifest_hash","baseline_hash","outcome_record_hash"],
+      "properties":{
+        "manifest_hash":{"type":"string","minLength":1},
+        "code_version":{"type":"string","minLength":1},
+        "runtime_manifest_hash":{"type":"string","minLength":1},
+        "baseline_hash":{"type":"string","minLength":1},
+        "outcome_record_hash":{"type":"string","minLength":1}
+      }
+    }
+  }
+}
