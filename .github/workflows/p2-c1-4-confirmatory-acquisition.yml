@@ -18,7 +18,7 @@ env:
   PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
   OLLAMA_VERSION: 0.33.3
   OLLAMA_MODEL: llama3.2:1b
-  P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-2026-09-21
+  P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME1-2026-09-21
   SHARD_SIZE: 200
 
 jobs:
@@ -78,7 +78,7 @@ jobs:
           p=Path("artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json")
           m=json.loads(p.read_text())
           assert m["confirmatory"] is True
-          assert m["protocol_version"]=="P2-C1.4-CONFIRMATORY-V1-2026-09-21"
+          assert m["protocol_version"]=="P2-C1.4-CONFIRMATORY-V1-RUNTIME1-2026-09-21"
           assert m["case_count"]==len(m["cases"]) and m["case_count"]>0
           print({"case_count":m["case_count"],"manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest()})
           PY
