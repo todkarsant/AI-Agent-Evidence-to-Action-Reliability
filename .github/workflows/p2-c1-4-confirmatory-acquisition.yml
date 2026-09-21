@@ -206,7 +206,7 @@ jobs:
           m=json.loads(Path("data/manifests/shard.json").read_text())
           r=json.loads(Path("artifacts/cohort/aligned_records.json").read_text())
           assert len(r["records"])==m["case_count"]
-          assert r["protocol_version"]=="P2-C1.4-ALIGNED-V1"
+          assert r["protocol_version"]=="P2-C1.4-ALIGNED-V2"
           print({"validated_records":len(r["records"]),"shard":m["shard_index"]})
           PY
       - name: Rename shard artifacts
@@ -278,7 +278,7 @@ jobs:
               raise SystemExit("FAIL: consolidated decision_id order does not exactly match frozen manifest")
           if len(ids)!=len(set(ids)):
               raise SystemExit("FAIL: duplicate decision_id across shards")
-          out={"protocol_version":"P2-C1.4-ALIGNED-V1","record_count":len(all_records),"records":all_records}
+          out={"protocol_version":"P2-C1.4-ALIGNED-V2","record_count":len(all_records),"records":all_records}
           Path("consolidated").mkdir()
           p=Path("consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json")
           p.write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n")
