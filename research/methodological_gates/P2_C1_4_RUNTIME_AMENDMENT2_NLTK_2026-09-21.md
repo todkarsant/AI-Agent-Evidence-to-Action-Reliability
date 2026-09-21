@@ -65,3 +65,8 @@ Current state remains P2-C1.4 confirmatory collection BLOCKED. The next valid st
 Runtime2 dry-run PASS → forensic runtime audit → confirmatory acquisition
 
 No cohort lock or X_W annotation is authorized by this amendment alone.
+
+
+## Runtime2 workflow trigger
+
+This amendment remains the governing runtime correction for the requalification run.
