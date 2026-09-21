@@ -6,7 +6,7 @@
     {
       "decision_id": "DRY-P2C14-001",
       "db_id": "behavior_monitoring",
-      "question": "What are the names of the publishers that have published the most books?"
+      "question": "Find the id and first name of the student that has the most number of assessment notes?"
     }
   ]
 }
