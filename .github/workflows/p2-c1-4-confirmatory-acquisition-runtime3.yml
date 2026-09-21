@@ -1,5 +1,5 @@
 name: p2-c1-4-confirmatory-acquisition-runtime3
-# Runtime3 requalification: transport timeout expansion only; see Runtime Amendment 3.
+# Runtime3 accepted path. Free/public-repo capacity profile: keep the confirmatory fan-out below the 20-job standard-hosted concurrency ceiling and reserve capacity for controller/diagnostic jobs.
 on:
   push:
     branches: [main]
@@ -16,7 +16,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: p2-c1-4-confirmatory-acquisition-runtime3
+  # One active confirmatory acquisition; a newer dispatch supersedes an older one.
+  group: p2-c1-4-confirmatory-acquisition
   cancel-in-progress: true
 env:
   PROJECT1_COMMIT: 7c1864a5619af7118c690f8de72eab57dc0cdc93
@@ -95,15 +96,19 @@ jobs:
         with:
           name: p2-c1-4-confirmatory-frozen-manifest
           path: artifacts/manifest/
-          retention-days: 90
+          retention-days: 14
 
   acquire:
     needs: freeze-manifest
     strategy:
       fail-fast: false
-      max-parallel: 10
+      # GitHub Free public repositories have a 20-job standard-hosted concurrency ceiling.
+      # Six acquisition shards leave headroom for the controller and unrelated diagnostics.
+      max-parallel: 6
       matrix:
-        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49]
+        # 8,638 cases at SHARD_SIZE=200 require exactly 44 shards (0-43).
+        # Empty shards were removed to avoid consuming scheduler slots for no work.
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -313,4 +318,6 @@ jobs:
         with:
           name: p2-c1-4-confirmatory-aligned-cohort
           path: consolidated/
-          retention-days: 90
+          # Keep the locked cohort available for immediate forensic/annotation work;
+          # long-term preservation belongs in the research evidence archive, not CI storage.
+          retention-days: 30
