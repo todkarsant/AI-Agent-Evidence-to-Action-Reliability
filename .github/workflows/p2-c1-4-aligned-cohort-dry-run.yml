@@ -114,7 +114,19 @@ jobs:
         run: |
           set -euo pipefail
           python research/cohort/validate_P2_C1_4_aligned_records.py artifacts/cohort/aligned_records.json
-          python -m jsonschema -i artifacts/cohort/aligned_records.json research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V1.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          payload=json.loads(Path("artifacts/cohort/aligned_records.json").read_text())
+          schema=json.loads(Path("research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V1.json").read_text())
+          v=Draft202012Validator(schema)
+          errors=[(r.get("decision_id"),list(v.iter_errors(r))) for r in payload["records"]]
+          errors=[(cid,errs) for cid,errs in errors if errs]
+          if errors:
+              raise SystemExit(f"schema validation failed: {[(cid,[e.message for e in es]) for cid,es in errors]}")
+          print(f"PASS: JSON schema validated {len(payload['records'])} aligned records.")
+          PY
 
       - name: Assert dry-run is not confirmatory
         run: |
