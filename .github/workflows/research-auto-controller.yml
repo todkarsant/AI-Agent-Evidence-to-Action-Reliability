@@ -21,8 +21,9 @@ permissions:
   issues: write
 
 concurrency:
+  # Hourly controller runs are idempotent; keep only the newest pending controller.
   group: research-auto-controller
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   controller:
