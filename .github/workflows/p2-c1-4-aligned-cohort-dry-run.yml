@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p data
-          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/spider_data.zip "https://huggingface.co/datasets/HAL-9001/spider-databases/resolve/main/spider_data.zip?download=true"
           test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
           unzip -q data/spider_data.zip -d data/spider_unpacked
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
