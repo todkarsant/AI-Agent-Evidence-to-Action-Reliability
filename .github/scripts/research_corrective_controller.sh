@@ -16,8 +16,8 @@ POLL_SECONDS=30
 cleanup_stale_confirmatory_queue() {
   local keep_id=""
   keep_id="$(gh run list --repo "$REPO" --workflow p2-c1-4-confirmatory-acquisition-runtime3.yml --limit 20 \
-    --json databaseId,status,headSha,createdAt \
-    --jq '[.[] | select(.status=="queued" and .headSha==env.GITHUB_SHA)] | sort_by(.createdAt) | last | .databaseId' 2>/dev/null || true)"
+    --json databaseId,status,createdAt \
+    --jq '[.[] | select(.status=="queued")] | sort_by(.createdAt) | last | .databaseId' 2>/dev/null || true)"
 
   for workflow in \
     p2-c1-4-confirmatory-acquisition.yml \
