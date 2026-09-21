@@ -153,3 +153,25 @@ This is a runtime dependency defect. No cohort record was accepted, no outcome w
 A Runtime2 amendment was therefore recorded. The dry-run and confirmatory workflows now explicitly install nltk==3.9.4, install the required punkt_tab tokenizer data, and execute a tokenizer smoke test before collection. The confirmatory authorization identifier is advanced to P2-C1.4-CONFIRMATORY-V1-RUNTIME2-2026-09-21. Runtime2 requires a fresh end-to-end non-confirmatory dry-run PASS before confirmatory acquisition can be accepted.
 
 The pending Runtime1 confirmatory runs are not evidence for the confirmatory cohort and must not be accepted if they execute under the superseded authorization.
+
+## Runtime2 confirmatory acquisition result — 2026-09-21
+
+Confirmatory run 35602663614 successfully froze the source-frame manifest and launched shard acquisition, but multiple acquisition shards failed during the frozen collector's Ollama SQL-generation call with `httpx.ReadTimeout`.
+
+Observed failure boundary:
+- pinned Project 1 and Spider checkout: PASS;
+- source tooling and Spider archive verification: PASS;
+- frozen source-frame manifest generation: PASS;
+- Ollama startup/model fingerprint: PASS;
+- collector entered P6-IP/P5 SQL generation: PASS;
+- request exceeded the 300-second Ollama transport timeout: FAIL;
+- affected shard validation did not run;
+- no incomplete shard was accepted into the scientific cohort.
+
+Representative failing jobs include shard 0, 4, 6, and 8. The exception originates in Project 1 `app/services/llm.py` and is `httpx.ReadTimeout`.
+
+This is a runtime-duration defect, not a scientific result. Because complete shard coverage is required by the consolidation and lock gate, Runtime2 cannot produce an accepted confirmatory cohort.
+
+Runtime3 was therefore introduced with transport-only changes: Ollama request timeout 900 seconds and acquisition job timeout 180 minutes. A fresh Runtime3 dry-run is required before a fresh confirmatory acquisition.
+
+All artifacts from Runtime2 remain forensic-only and are not to be mixed into the Runtime3 confirmatory cohort.
