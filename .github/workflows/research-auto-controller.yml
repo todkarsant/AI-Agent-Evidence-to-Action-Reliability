@@ -11,8 +11,8 @@ on:
     paths:
       - ".github/workflows/research-auto-controller.yml"
       - ".github/scripts/research_corrective_controller.sh"
-  schedule:
-    - cron: "17 * * * *"
+  # Controller is dispatch-only during the confirmatory acquisition.
+  # This prevents a free-tier hourly scheduler from competing with the locked run.
   workflow_dispatch:
 
 permissions:
