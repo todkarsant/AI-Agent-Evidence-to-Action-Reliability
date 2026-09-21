@@ -206,7 +206,7 @@ def main():
         "traces":[x["trace"] for x in run_rows]
     }
     official=evaluate_traces(trace_payload,args.database_dir,args.tables_file,args.spider_eval_dir)
-    official_by_id={x["decision_id"]:r for x,r in zip([x["decision_id"] for x in run_rows],trace_payload["traces"])}
+    official_by_id={row["decision_id"]:trace_row for row,trace_row in zip(run_rows,trace_payload["traces"])}
 
     outcomes=[]
     for x in run_rows:
