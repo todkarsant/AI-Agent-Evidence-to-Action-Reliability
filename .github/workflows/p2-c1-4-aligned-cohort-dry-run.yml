@@ -3,6 +3,10 @@ name: p2-c1-4-aligned-cohort-dry-run
 on:
   push:
     branches: [main]
+    paths:
+      - "research/cohort/**"
+      - "research/methodological_gates/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V1.json"
+      - ".github/workflows/p2-c1-4-aligned-cohort-dry-run.yml"
   workflow_dispatch:
 
 permissions:
