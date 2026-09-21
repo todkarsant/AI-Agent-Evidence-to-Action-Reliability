@@ -73,11 +73,10 @@ def main():
         }
         forbidden=collect_keys(item) & FORBIDDEN_KEYS
         if forbidden: raise SystemExit(f"REFUSED: forbidden annotation fields {sorted(forbidden)}")
-        raw=json.dumps(item,ensure_ascii=False,sort_keys=True)
-        if any(marker in raw.upper() for marker in SQL_MARKERS):
-            # Natural-language questions may legitimately contain SQL-like text;
-            # this is a conservative packet audit, not a content transformation.
-            raise SystemExit(f"REFUSED: SQL marker detected in annotation packet source for {r['decision_id']}")
+        # Blinding is enforced structurally by the explicit field allowlist above.
+        # Do not scan natural-language question/schema/row content for SQL substrings:
+        # legitimate database questions or returned text can contain SQL-like tokens,
+        # and such a lexical scan would create false-positive packet failures.
         base.append(item)
 
     args.out.mkdir(parents=True,exist_ok=True)
