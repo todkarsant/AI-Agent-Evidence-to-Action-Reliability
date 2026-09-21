@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse, hashlib, json
 from pathlib import Path
 
-PROTOCOL = "P2-C1.4-CONFIRMATORY-V1-2026-09-21"
+PROTOCOL = "P2-C1.4-CONFIRMATORY-V1-RUNTIME2-2026-09-21"
 
 def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
