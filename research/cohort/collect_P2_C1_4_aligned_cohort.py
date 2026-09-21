@@ -138,8 +138,24 @@ def main():
         new=evaluator.captures[before:]
         # P0 is the first execution performed by run_case. It is the only
         # evidence eligible for X_W and must precede intervention logic.
-        if not new: raise SystemExit(f"FAIL: no execution capture: {c['decision_id']}")
-        p0_ev=new[0]
+        # If P0 produced no SQL, there is legitimately no executable evidence.
+        # Under the frozen protocol this is NO_USABLE_EVIDENCE, not a synthetic
+        # zero and not a shard-level failure. If SQL existed but no capture was
+        # recorded, fail closed because evidence preservation is broken.
+        if not new:
+            p0_trace = env.p0_traces.get((c["db_id"], c["question"]))
+            if p0_trace is None:
+                raise SystemExit(f"FAIL: missing P0 trace: {c['decision_id']}")
+            if p0_trace.generated_sql or p0_trace.execution_ok is True:
+                raise SystemExit(f"FAIL: missing execution capture despite executable P0 trace: {c['decision_id']}")
+            p0_ev={
+                "db_id":c["db_id"],"columns":None,"rows":None,
+                "row_count":None,"column_count":None,
+                "evidence_sha256":None,
+                "capture_reason":"no_sql_generated"
+            }
+        else:
+            p0_ev=new[0]
         if p0_ev["db_id"]!=c["db_id"]: raise SystemExit(f"FAIL: db mismatch: {c['decision_id']}")
         baseline={
             "execution_ok": bool(p0_ev["row_count"] is not None),
