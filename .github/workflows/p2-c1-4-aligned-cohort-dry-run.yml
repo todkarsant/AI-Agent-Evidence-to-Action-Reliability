@@ -28,8 +28,8 @@ jobs:
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
-          git -C external/Enterprise-Analytics-Copilot checkout --quiet 1765680283df63232018bf7b827d1576c81c3a61
-          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "1765680283df63232018bf7b827d1576c81c3a61"
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet ffb4cc5ecf8b762baf03ddb42ecf401c1957e640
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "ffb4cc5ecf8b762baf03ddb42ecf401c1957e640"
 
       - name: Python dependencies
         run: |
@@ -103,7 +103,7 @@ jobs:
       - name: Run aligned-cohort collector on fresh dry-run cases
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
-          PROJECT1_COMMIT: 1765680283df63232018bf7b827d1576c81c3a61
+          PROJECT1_COMMIT: ffb4cc5ecf8b762baf03ddb42ecf401c1957e640
           RUNTIME_MANIFEST_HASH: ${{ github.sha }}
         run: |
           set -euo pipefail
