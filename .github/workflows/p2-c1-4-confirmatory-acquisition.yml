@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: p2-c1-4-confirmatory-acquisition-runtime2
+  group: p2-c1-4-confirmatory-acquisition
   cancel-in-progress: true
 env:
   PROJECT1_COMMIT: 7c1864a5619af7118c690f8de72eab57dc0cdc93
