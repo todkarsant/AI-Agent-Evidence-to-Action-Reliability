@@ -57,7 +57,9 @@ jobs:
           test -s data/train_spider.json
           test -s data/train_others.json
           test -d data/database
-          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \\;
+          TABLES=$(find data/spider_unpacked -name tables.json | head -n 1)
+          test -n "$TABLES"
+          cp "$TABLES" data/tables.json
           test -s data/tables.json
           python - <<'PY'
           import json
