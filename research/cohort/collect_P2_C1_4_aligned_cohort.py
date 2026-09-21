@@ -199,7 +199,7 @@ def main():
         p0_correct=bool(p0.get("official_execution_correct"))
         final_correct=bool(final.get("official_execution_correct"))
         y_h=int(p0_correct and replacement and not final_correct)
-        outcome={"decision_id":did,"replacement_occurred":replacement,
+        outcome={"replacement_occurred":replacement,
                  "p0_correct":p0_correct,"final_correct":final_correct,
                  "y_h":y_h,"locked_after_evidence":True}
         outcomes.append(outcome)
@@ -208,8 +208,11 @@ def main():
                         "baseline":e["baseline"],
                         "decision_time_evidence":e["decision_time_evidence"],
                         "intervention_outcome":outcome,
-                        "provenance":{**e["provenance"],
-                          "decision_time_evidence_artifact_sha256":evidence_hash,
+                        "provenance":{
+                          "manifest_hash":e["provenance"]["manifest_hash"],
+                          "code_version":os.environ.get("PROJECT1_COMMIT","unknown"),
+                          "runtime_manifest_hash":e["provenance"]["runtime_manifest_hash"],
+                          "baseline_hash":sha256_json(e["baseline"]),
                           "outcome_record_hash":sha256_json(outcome)}})
 
     (args.outdir/"outcomes.json").write_text(json.dumps({
