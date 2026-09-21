@@ -141,3 +141,15 @@ The Project 1 runtime was made self-contained at commit `7c1864a5619af7118c690f8
 Dry-run #40 (`35600493253`) is therefore retained as a forensic failure. Dry-run #41 (`35600859473`) is the first run using the corrected Project 1 checkout and namespace ordering and is currently queued.
 
 No confirmatory cohort from any of these failed/queued attempts is accepted. X_W annotation remains blocked.
+
+## Runtime #41 forensic result — 2026-09-21
+
+Dry-run #41 (35600859473, head eef190fafe49dd402c63c2a2e84fe0bb14cd0e14) successfully reached the pinned Project 1 Spider official evaluator after the earlier checkout/namespace corrections. It then failed at the evaluator import boundary because the pinned Spider process_sql.py imports nltk.word_tokenize and the pinned Project 1 requirements.txt does not install NLTK.
+
+Observed failure: ModuleNotFoundError: No module named 'nltk'.
+
+This is a runtime dependency defect. No cohort record was accepted, no outcome was used for scientific inference, and no X_W annotation was performed.
+
+A Runtime2 amendment was therefore recorded. The dry-run and confirmatory workflows now explicitly install nltk==3.9.4, install the required punkt_tab tokenizer data, and execute a tokenizer smoke test before collection. The confirmatory authorization identifier is advanced to P2-C1.4-CONFIRMATORY-V1-RUNTIME2-2026-09-21. Runtime2 requires a fresh end-to-end non-confirmatory dry-run PASS before confirmatory acquisition can be accepted.
+
+The pending Runtime1 confirmatory runs are not evidence for the confirmatory cohort and must not be accepted if they execute under the superseded authorization.
