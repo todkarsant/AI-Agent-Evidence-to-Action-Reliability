@@ -1,46 +1,85 @@
-# Current Research State — P2-C1.2
+# Current Research State — P2-C1.3
 
-**State:** `BLOCKED_EXTERNAL_HUMAN_VALIDATION`
+**State:** `BLOCKED_SCIENTIFIC_COHORT_ALIGNMENT`
 
-**As of:** 2026-09-19
+**As of:** 2026-09-21
 
-## Evidence-gate status
+## Current gate status
 
-- **C.4.2.3-C:** targeted exact-path qualification succeeded for the frozen `behavior_monitoring` case, but this does **not** establish global P0 determinism.
-- **C.4.2.3-D:** observational evidence capture qualification succeeded on current `main` under the targeted qualification scope.
-- **C.4.2.4-A:** blocked pending two genuinely independent human annotation passes.
-- **P2-C1.2:** confirmatory predictive/incremental-validity analysis has **not** started.
+- **C.4.2.3-C:** global P0 determinism remains unestablished; targeted exact-path qualification is not a global guarantee.
+- **C.4.2.3-D:** fresh observational evidence capture was qualified under the documented targeted scope.
+- **C.4.2.4-A:** **RESOLVED** after independent-rater attestation, mechanical validation, packet reconciliation, and frozen UNCLEAR operational rule.
+- **P2-C1.2 methodological attack:** **COMPLETED**.
+- **P2-C1.3 aligned outcome-bearing cohort reconstruction:** **COMPLETED — historical reconstruction rejected**.
+- **P2-C1.2 confirmatory modeling:** **BLOCKED** pending an aligned outcome-bearing cohort.
 
-## Audited C.4.2.3-D run
+## Decisive scientific blocker
 
-Run: [35367903444](https://github.com/todkarsant/AI-Agent-Evidence-to-Action-Reliability/actions/runs/35367903444)
+The current W1-W7 X_W measurement cohort contains 12 fresh cases, while the historical P1/P6 outcome summaries contain 330 eligible development cases and 91 held-out cases.
 
-The completed workflow asserted all of the following:
+The current 12-case X_W cohort was intentionally non-overlapping with the historical P1/P6 schemas/questions.
 
-- exact SQL agreement across the two repeats for all 12 pilot cases;
-- exact execution-status agreement;
-- exact captured-evidence agreement;
-- trace row/column counts equal captured counts;
-- observational capture only;
-- gold SQL excluded from the provider prompt.
+The historical Project 1 repository preserves experiment code, protocol, analysis logic, and GitHub Actions provenance. Historical P6 runs also produced machine trace artifacts. However, the preserved scientific record does not establish preservation of the decision-time evidence in a form that supports independent W1-W7 annotation across the historical outcome-bearing units.
 
-Artifact: `c4-2-3-evidence-capture12`, artifact ID `10557028043`, SHA-256 `263189690377c6e38dad655b95a18a68dd6496e0dbc93cc9d9d7b00c351f7a45`.
+Therefore the required row-level structure:
 
-## Human-validation block
+[
+(B_i,E_i^{decision-time},X_{W,i},Y_{H,i})
+]
 
-The remaining measurement claim cannot be established by another model run or by duplicate annotation from the same rater.
+does not currently exist for the same decision units.
 
-Required before advancing:
+## What is now established
 
-1. Two genuinely independent raters complete the frozen annotation packets.
-2. Raters remain blinded to gold SQL/answer, correctness, replacement/intervention outcomes, and downstream outcomes.
-3. Raw annotation sets are locked unchanged.
-4. Obligation-level agreement is calculated, including contingency tables and agreement statistics.
-5. Predefined disagreement/codebook-failure audit is performed.
-6. Any codebook revision creates a new version/cohort rather than silently modifying the existing cohort.
+### Measurement
 
-## Scientific safety boundary
+- W1-W7 witness construct is frozen.
+- Human response artifacts are preserved.
+- Applicability: 49/49 descriptive agreement; Cohen kappa 1.00.
+- Binary witness labels: 27/27 descriptive agreement; Cohen kappa 1.00; Gwet AC1 1.00.
+- Independent-rater provenance is supported by explicit attestation.
+- UNCLEAR handling is frozen as a pre-outcome methodological amendment.
 
-No confirmatory P2-C1.2 model fitting, feature selection, outcome-conditioned codebook changes, or claims of human measurement reliability are permitted while this state remains active.
+### Predictive-validity design
 
-The model-only pilot agreement (86.96% raw agreement; Cohen's kappa 0.721; Gwet AC1 0.756 over 23 binary comparisons) remains **non-confirmatory** and is not a substitute for independent human raters.
+The following requirements remain before confirmatory modeling:
+
+1. common decision unit;
+2. preserved decision-time evidence;
+3. B/X_W/Y_H linkage;
+4. predefined missing-X_W handling;
+5. frozen model family/regularization/preprocessing;
+6. frozen primary proper scoring metric;
+7. frozen outer resampling and dependence structure.
+
+## Prohibited shortcuts
+
+Do not:
+
+- retrofit 12 X_W values onto the historical 330/91 outcome units;
+- infer X_W from row/column counts or hidden SQL;
+- convert NO_USABLE_EVIDENCE to X_W=0;
+- call the historical 91-case holdout external validation for X_W;
+- fit M0/M1 before aligned data exist.
+
+## Next gate
+
+**P2-C1.4 — Aligned Outcome-Bearing Cohort Design and Evidence-Preservation Protocol**
+
+The new cohort must preserve, for each eligible decision instance:
+
+[
+(id,B,E_{decision-time},intervention,final correctness,Y_H)
+]
+
+and permit independent outcome-blinded W1-W7 annotation.
+
+## Publication record
+
+The complete methodological development path is now documented in:
+
+- `research/P2_RESEARCH_DEVELOPMENT_JOURNEY.md`
+- `research/methodological_gates/P2_C1_3_ALIGNED_COHORT_RECONSTRUCTION_AUDIT_2026-09-21.md`
+- `paper/PROJECT2_LIVING_RESEARCH_DRAFT.md`
+
+No confirmatory predictive model, p-value, AUC, Brier score, log-loss difference, or incremental-validity result exists.
