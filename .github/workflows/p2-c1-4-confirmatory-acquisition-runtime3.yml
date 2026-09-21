@@ -1,0 +1,316 @@
+name: p2-c1-4-confirmatory-acquisition-runtime3
+# Runtime3 requalification: transport timeout expansion only; see Runtime Amendment 3.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/methodological_gates/P2_C1_4_CONFIRMATORY_PROTOCOL_FREEZE_V1_2026-09-21.md"
+      - "research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V2.json"
+      - "research/methodological_gates/P2_C1_4_RUNTIME_AMENDMENT2_NLTK_2026-09-21.md"
+      - "research/methodological_gates/P2_C1_4_RUNTIME_AMENDMENT3_TIMEOUT_2026-09-21.md"
+      - "research/cohort/collect_P2_C1_4_aligned_cohort.py"
+      - "research/cohort/prepare_P2_C1_4_confirmatory_manifest.py"
+      - ".github/workflows/p2-c1-4-confirmatory-acquisition-runtime3.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+
+concurrency:
+  group: p2-c1-4-confirmatory-acquisition-runtime3
+  cancel-in-progress: true
+env:
+  PROJECT1_COMMIT: 7c1864a5619af7118c690f8de72eab57dc0cdc93
+  SPIDER_COMMIT: b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
+  SPIDER_ARCHIVE_SHA256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
+  PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
+  OLLAMA_VERSION: 0.33.3
+  OLLAMA_MODEL: llama3.2:1b
+  P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21
+  SHARD_SIZE: 200
+
+jobs:
+  freeze-manifest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout pinned Project 1 and Spider
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet "$PROJECT1_COMMIT"
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "$PROJECT1_COMMIT"
+          git clone --quiet https://github.com/taoyds/spider.git external/spider
+          git -C external/spider checkout --quiet "$SPIDER_COMMIT"
+      - name: Install source tooling
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          python -m pip install --upgrade pip
+          python -m pip install gdown
+      - name: Download and verify Spider 1.0
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("data/train_spider.json").read_text())
+          b=json.loads(Path("data/train_others.json").read_text())
+          Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
+          PY
+          test -s data/train_spider.json
+          test -s data/train_others.json
+      - name: Recover frozen pilot manifest
+        run: |
+          set -euo pipefail
+          mkdir -p data/manifests
+          git clone --quiet --depth 1 https://github.com/todkarsant/AI-Agent-Evidence-to-Action-Reliability.git /tmp/p2-self
+          cp /tmp/p2-self/data/manifests/C4_2_3B_PILOT12_CASES.json data/manifests/C4_2_3B_PILOT12_CASES.json
+          test "$(sha256sum data/manifests/C4_2_3B_PILOT12_CASES.json | cut -d' ' -f1)" = "$PILOT_MANIFEST_SHA256"
+      - name: Generate and freeze confirmatory source-frame manifest
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/manifest
+          python research/cohort/prepare_P2_C1_4_confirmatory_manifest.py             --train data/train_spider.json data/train_others.json             --pilot-manifest data/manifests/C4_2_3B_PILOT12_CASES.json             --output artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          p=Path("artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json")
+          m=json.loads(p.read_text())
+          assert m["confirmatory"] is True
+          assert m["protocol_version"]=="P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21"
+          assert m["case_count"]==len(m["cases"]) and m["case_count"]>0
+          print({"case_count":m["case_count"],"manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest()})
+          PY
+          sha256sum artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json > artifacts/manifest/manifest.sha256
+      - name: Upload frozen manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: artifacts/manifest/
+          retention-days: 90
+
+  acquire:
+    needs: freeze-manifest
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download frozen manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: data/manifests
+      - name: Prepare shard
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          m=json.loads(Path("data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json").read_text())
+          idx=int(os.environ["SHARD_INDEX"]); size=int(os.environ["SHARD_SIZE"])
+          start=idx*size; cases=m["cases"][start:start+size]
+          out={"protocol_version":m["protocol_version"],"confirmatory":True,
+               "parent_manifest_sha256":hashlib.sha256(Path("data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json").read_bytes()).hexdigest(),
+               "shard_index":idx,"start":start,"case_count":len(cases),"cases":cases}
+          Path("data/manifests/shard.json").write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n")
+          print({"shard":idx,"start":start,"case_count":len(cases)})
+          PY
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_SIZE: ${{ env.SHARD_SIZE }}
+      - name: Install dependencies and source data
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          m=json.load(open("data/manifests/shard.json"))
+          open("data/manifests/has_cases","w").write("1" if m["case_count"] else "0")
+          PY
+          if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet "$PROJECT1_COMMIT"
+          git clone --quiet https://github.com/taoyds/spider.git external/spider
+          git -C external/spider checkout --quiet "$SPIDER_COMMIT"
+          sudo apt-get update
+          sudo apt-get install -y zstd unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install "nltk==3.9.4"
+          mkdir -p "$HOME/nltk_data"
+          python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
+          echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
+          NLTK_DATA="$HOME/nltk_data" python - <<'PY'
+          from nltk.tokenize import word_tokenize
+          print({"nltk_tokenizer_smoke": word_tokenize("SELECT 1")})
+          PY
+          python -m pip install gdown jsonschema
+          mkdir -p data
+          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("data/train_spider.json").read_text())
+          b=json.loads(Path("data/train_others.json").read_text())
+          Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
+          PY
+          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
+          cp -R "$DB_DIR" data/database
+          TABLES=$(find data/spider_unpacked -name tables.json | head -n 1)
+          cp "$TABLES" data/tables.json
+      - name: Install pinned Ollama
+        run: |
+          set -euo pipefail
+          if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama-linux-amd64.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          zstd -t /tmp/ollama-linux-amd64.tar.zst
+          mkdir -p "$HOME/ollama-$OLLAMA_VERSION"
+          tar --use-compress-program=unzstd -xf /tmp/ollama-linux-amd64.tar.zst -C "$HOME/ollama-$OLLAMA_VERSION"
+          echo "$HOME/ollama-$OLLAMA_VERSION/bin" >> "$GITHUB_PATH"
+      - name: Start and fingerprint Ollama
+        run: |
+          set -euo pipefail
+          if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
+          mkdir -p artifacts
+          nohup "$HOME/ollama-$OLLAMA_VERSION/bin/ollama" serve > artifacts/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
+          test "$(curl -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
+      - name: Run frozen confirmatory aligned collector
+        env:
+          PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
+          RUNTIME_MANIFEST_HASH: ${{ github.sha }}
+          LLM_PROVIDER: ollama
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_MODEL: llama3.2:1b
+          OLLAMA_TIMEOUT_SECONDS: 900
+        run: |
+          set -euo pipefail
+          if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
+          mkdir -p artifacts/cohort
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/confirmatory_questions_source.json             --database-dir data/database             --manifest data/manifests/shard.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort             --confirmatory
+      - name: Validate shard
+        run: |
+          set -euo pipefail
+          if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
+          python research/cohort/validate_P2_C1_4_aligned_records.py artifacts/cohort/aligned_records.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path("data/manifests/shard.json").read_text())
+          r=json.loads(Path("artifacts/cohort/aligned_records.json").read_text())
+          assert len(r["records"])==m["case_count"]
+          assert r["protocol_version"]=="P2-C1.4-ALIGNED-V2"
+          print({"validated_records":len(r["records"]),"shard":m["shard_index"]})
+          PY
+      - name: Rename shard artifacts
+        run: |
+          set -euo pipefail
+          if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
+          idx=$(python -c 'import json; print(json.load(open("data/manifests/shard.json"))["shard_index"])')
+          mv artifacts/cohort/aligned_records.json "artifacts/aligned_records_shard_$idx.json"
+          mv artifacts/cohort/outcomes.json "artifacts/outcomes_shard_$idx.json"
+          mv artifacts/cohort/decision_time_evidence.json "artifacts/decision_time_evidence_shard_$idx.json"
+          cp data/manifests/shard.json "artifacts/manifest_shard_$idx.json"
+      - name: Upload immutable shard artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-shard-${{ matrix.shard }}
+          path: artifacts/
+          retention-days: 90
+
+  consolidate:
+    needs: acquire
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download frozen source manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: frozen_manifest
+      - name: Download all shard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: p2-c1-4-confirmatory-shard-*
+          path: shards
+          merge-multiple: true
+      - name: Consolidate and verify complete coverage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob,hashlib,json,math,re
+          from pathlib import Path
+          manifest_path=Path("frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json")
+          manifest=json.loads(manifest_path.read_text())
+          expected_cases=manifest["case_count"]
+          shard_size=int(__import__("os").environ["SHARD_SIZE"])
+          expected_shards=math.ceil(expected_cases/shard_size)
+          files=sorted(glob.glob("shards/aligned_records_shard_*.json"))
+          found={}
+          for p in files:
+              m=re.search(r"aligned_records_shard_(\d+)\.json$",p)
+              if not m: raise SystemExit(f"FAIL: malformed shard filename: {p}")
+              found[int(m.group(1))]=p
+          expected=set(range(expected_shards))
+          if set(found)!=expected:
+              raise SystemExit(f"FAIL: incomplete shard coverage: expected {sorted(expected)}, found {sorted(found)}")
+          all_records=[]
+          for idx in sorted(found):
+              p=Path(found[idx]); d=json.loads(p.read_text())
+              start=idx*shard_size
+              expected_count=min(shard_size,expected_cases-start)
+              if len(d["records"])!=expected_count:
+                  raise SystemExit(f"FAIL: shard {idx} record count {len(d['records'])} != expected {expected_count}")
+              all_records.extend(d["records"])
+          ids=[r["decision_id"] for r in all_records]
+          expected_ids=[c["decision_id"] for c in manifest["cases"]]
+          if ids!=expected_ids:
+              raise SystemExit("FAIL: consolidated decision_id order does not exactly match frozen manifest")
+          if len(ids)!=len(set(ids)):
+              raise SystemExit("FAIL: duplicate decision_id across shards")
+          out={"protocol_version":"P2-C1.4-ALIGNED-V2","record_count":len(all_records),"records":all_records}
+          Path("consolidated").mkdir()
+          p=Path("consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json")
+          p.write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n")
+          digest=hashlib.sha256(p.read_bytes()).hexdigest()
+          Path("consolidated/SHA256SUM.txt").write_text(digest+"  "+p.name+"\n")
+          print({"expected_shards":expected_shards,"successful_shards":len(files),"record_count":len(all_records),"sha256":digest})
+          PY
+          python research/cohort/validate_P2_C1_4_aligned_records.py consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json
+      - name: Forensic audit and immutable cohort lock
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p consolidated/lock
+          python research/cohort/forensic_lock_audit_P2_C1_4.py \
+            --manifest frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json \
+            --cohort consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json \
+            --outdir consolidated/lock
+      - name: Upload consolidated cohort
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-aligned-cohort
+          path: consolidated/
+          retention-days: 90
