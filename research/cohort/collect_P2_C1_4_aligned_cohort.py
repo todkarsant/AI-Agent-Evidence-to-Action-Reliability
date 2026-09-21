@@ -107,15 +107,25 @@ def main():
     provider=OllamaProvider(os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),os.getenv("OLLAMA_MODEL","llama3.2:1b"))
     evaluator=CapturingEvaluator(SecondaryExecutionEvaluator,dataset)
     from research.spider_benchmark import BenchmarkEnvironment
-    env=BenchmarkEnvironment(dataset,evaluator,provider,RuleBasedDeterministicSolver(args.database_dir))
+    class RecordingEnvironment(BenchmarkEnvironment):
+        def __init__(self,*a,**kw):
+            super().__init__(*a,**kw); self.p0_traces={}
+        def run(self, example, policy):
+            trace=super().run(example, policy)
+            if policy=="P0": self.p0_traces[(example.db_id,example.question)]=trace
+            return trace
+    env=RecordingEnvironment(dataset,evaluator,provider,RuleBasedDeterministicSolver(args.database_dir))
 
     evidence_records=[]
-    outcomes=[]
+    selected_traces={}
+    defensibility_records={}
     for c in cases:
         ex=lookup.get((c["db_id"],c["question"]))
         if ex is None: raise SystemExit(f"FAIL: manifest case not found: {c['decision_id']}")
         before=len(evaluator.captures)
         selected, defensibility=run_case(env, ex)
+        selected_traces[c["decision_id"]]=selected
+        defensibility_records[c["decision_id"]]=defensibility
         new=evaluator.captures[before:]
         # P0 is the first execution performed by run_case. It is the only
         # evidence eligible for X_W and must precede intervention logic.
@@ -160,22 +170,66 @@ def main():
     evidence_hash=sha256_bytes(evidence_path.read_bytes())
     scan_forbidden(json.loads(evidence_path.read_text(encoding="utf-8")))
 
-    # Only now perform the official post-hoc correctness evaluation.
+    # Only now perform official post-hoc correctness evaluation. The evidence
+    # artifact has already been serialized, hashed, and leakage-scanned.
     from research.spider_official_eval import evaluate_traces
+    traces=[]
+    trace_to_decision={}
+    for c in cases:
+        did=c["decision_id"]
+        p0=env.p0_traces[(c["db_id"],c["question"])]
+        selected=selected_traces[did]
+        for label,tr in (("P0",p0),("P6-IP",selected)):
+            d=asdict(tr)
+            d["policy"]=label
+            traces.append(d)
+            trace_to_decision[(label,did)]=d
     payload={"dataset_manifest":{"question_file":str(args.questions)},
-             "policies":["P6-IP"],"traces":[]}
-    # Reconstruct minimal traces from a second, non-mutating read of the
-    # selected records is intentionally NOT used for outcome derivation.
-    # The P6 runner trace must be retained separately by a future confirmatory
-    # collector extension. This dry-run collector therefore stops here rather
-    # than fabricating Y_H.
+             "policies":["P0","P6-IP"],"traces":traces}
+    official=evaluate_traces(payload,args.database_dir,args.tables_file,args.spider_eval_dir)
+
+    outcomes=[]
+    aligned=[]
+    for c in cases:
+        did=c["decision_id"]
+        p0=trace_to_decision[("P0",did)]
+        final=trace_to_decision[("P6-IP",did)]
+        d=defensibility_records[did]
+        replacement=bool(d.get("replacement") is True and d.get("decision")=="REPLACE")
+        p0_correct=bool(p0.get("official_execution_correct"))
+        final_correct=bool(final.get("official_execution_correct"))
+        y_h=int(p0_correct and replacement and not final_correct)
+        outcome={"decision_id":did,"replacement_occurred":replacement,
+                 "p0_correct":p0_correct,"final_correct":final_correct,
+                 "y_h":y_h,"locked_after_evidence":True}
+        outcomes.append(outcome)
+        e=next(x for x in evidence_records if x["decision_id"]==did)
+        aligned.append({"decision_id":did,"protocol_version":"P2-C1.4-ALIGNED-V1",
+                        "baseline":e["baseline"],
+                        "decision_time_evidence":e["decision_time_evidence"],
+                        "intervention_outcome":outcome,
+                        "provenance":{**e["provenance"],
+                          "decision_time_evidence_artifact_sha256":evidence_hash,
+                          "outcome_record_hash":sha256_json(outcome)}})
+
+    (args.outdir/"outcomes.json").write_text(json.dumps({
+        "protocol_version":"P2-C1.4-OUTCOME-V1",
+        "evidence_artifact_sha256":evidence_hash,
+        "official_spider_execution":official,"records":outcomes},indent=2)+"\n",encoding="utf-8")
+    (args.outdir/"aligned_records.json").write_text(json.dumps({
+        "protocol_version":"P2-C1.4-ALIGNED-V1","records":aligned},
+        indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+
     metadata={
-        "status":"PASS_EVIDENCE_CAPTURE_ONLY",
+        "status":"PASS_NON_CONFIRMATORY_ALIGNED_DRY_RUN",
         "non_confirmatory":True,
         "decision_count":len(evidence_records),
         "decision_time_evidence_sha256":evidence_hash,
-        "official_outcome_evaluation":"NOT_RUN",
-        "reason":"Current gate validates evidence capture and temporal/leakage boundary before outcome-bearing collection."
+        "official_outcome_evaluation":"RUN_AFTER_EVIDENCE_LOCK",
+        "official_execution":official,
+        "harm_count":sum(x["y_h"] for x in outcomes),
+        "x_w":"NOT_ANNOTATED_IN_COLLECTOR",
+        "reason":"Dry run proves same-unit evidence/outcome linkage and temporal leakage boundary; it is not confirmatory data."
     }
     (args.outdir/"runtime_qualification_manifest.json").write_text(json.dumps(metadata,indent=2)+"\n")
     print(json.dumps(metadata,indent=2))
