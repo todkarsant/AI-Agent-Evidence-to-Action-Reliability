@@ -128,3 +128,16 @@ Only after these conditions pass may the independent blinded X_W annotation stag
 **X_W annotation: BLOCKED pending cohort lock.**  
 **M0/M1 modeling: BLOCKED.**
 
+
+
+## 10. Subsequent CI forensic findings — namespace/runtime checkout mismatch
+
+After the V2/schema corrections, dry-run #37 failed with `ModuleNotFoundError: No module named 'research'`. Dry-run #38 then resolved the local namespace exposure but failed with `No module named 'research.spider_benchmark'`. Dry-run #39 repeated the latter.
+
+Inspection found two distinct CI issues: the workflow's Python path ordering could resolve the reliability repository's local `research` namespace before the pinned Project 1 research modules, and the workflow checkout step still pinned the older Project 1 commit even after the runtime pin had been amended. These were CI/provenance defects, not scientific outcomes.
+
+The Project 1 runtime was made self-contained at commit `7c1864a5619af7118c690f8de72eab57dc0cdc93`, which contains the required pinned research modules and the configurable Ollama transport timeout. Both dry-run and confirmatory workflows now explicitly checkout that commit and put the pinned Project 1 root first on `PYTHONPATH`, with the reliability repository root second.
+
+Dry-run #40 (`35600493253`) is therefore retained as a forensic failure. Dry-run #41 (`35600859473`) is the first run using the corrected Project 1 checkout and namespace ordering and is currently queued.
+
+No confirmatory cohort from any of these failed/queued attempts is accepted. X_W annotation remains blocked.
