@@ -1,0 +1,12 @@
+{
+  "protocol_version": "P2-C1.4-ALIGNED-V1",
+  "confirmatory": false,
+  "purpose": "non-confirmatory runtime qualification dry run only",
+  "cases": [
+    {
+      "decision_id": "DRY-P2C14-001",
+      "db_id": "behavior_monitoring",
+      "question": "What are the names of the publishers that have published the most books?"
+    }
+  ]
+}
