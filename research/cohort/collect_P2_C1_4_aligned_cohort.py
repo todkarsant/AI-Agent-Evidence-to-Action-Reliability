@@ -81,7 +81,7 @@ def main():
         raise SystemExit("REFUSED: specify exactly one of --non-confirmatory or --confirmatory")
 
     if args.confirmatory:
-        if os.getenv("P2_C1_4_PROTOCOL_FROZEN") != "P2-C1.4-CONFIRMATORY-V1-RUNTIME2-2026-09-21":
+        if os.getenv("P2_C1_4_PROTOCOL_FROZEN") != "P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21":
             raise SystemExit("REFUSED: confirmatory collection requires the frozen P2-C1.4 protocol authorization")
     
     p1=Path(os.environ["PROJECT1_ROOT"]).resolve()
