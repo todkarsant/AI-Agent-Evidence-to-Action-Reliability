@@ -1,21 +1,13 @@
 name: p2-c1-4-confirmatory-acquisition
-# Runtime3 requalification: transport timeout expansion only; see Runtime Amendment 3.
+# LEGACY COMPATIBILITY PATH. Runtime3 is the accepted confirmatory path.
+# Keep this workflow manual-only so normal pushes cannot create duplicate confirmatory runs.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "research/methodological_gates/P2_C1_4_CONFIRMATORY_PROTOCOL_FREEZE_V1_2026-09-21.md"
-      - "research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V2.json"
-      - "research/methodological_gates/P2_C1_4_RUNTIME_AMENDMENT2_NLTK_2026-09-21.md"
-      - "research/methodological_gates/P2_C1_4_RUNTIME_AMENDMENT3_TIMEOUT_2026-09-21.md"
-      - "research/cohort/collect_P2_C1_4_aligned_cohort.py"
-      - "research/cohort/prepare_P2_C1_4_confirmatory_manifest.py"
-      - ".github/workflows/p2-c1-4-confirmatory-acquisition.yml"
   workflow_dispatch:
 permissions:
   contents: read
 
 concurrency:
+  # Share the single confirmatory capacity group with Runtime3.
   group: p2-c1-4-confirmatory-acquisition
   cancel-in-progress: true
 env:
@@ -95,15 +87,16 @@ jobs:
         with:
           name: p2-c1-4-confirmatory-frozen-manifest
           path: artifacts/manifest/
-          retention-days: 90
+          retention-days: 14
 
   acquire:
     needs: freeze-manifest
     strategy:
       fail-fast: false
-      max-parallel: 10
+      max-parallel: 6
       matrix:
-        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49]
+        # 8,638 cases at SHARD_SIZE=200 require exactly 44 shards (0-43).
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -313,4 +306,4 @@ jobs:
         with:
           name: p2-c1-4-confirmatory-aligned-cohort
           path: consolidated/
-          retention-days: 90
+          retention-days: 30
