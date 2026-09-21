@@ -1,0 +1,98 @@
+name: P2-C1.4 post-lock preparation and X_W packet generation
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful Runtime3 run ID"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      source_run_id:
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download locked cohort and frozen manifest
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-aligned-cohort
+          path: source_cohort
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download frozen manifest
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: frozen_manifest
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify exact 8,638 / 44 / manifest / forensic lock gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json
+          test -f source_cohort/lock/P2_C1_4_CONFIRMATORY_COHORT_LOCK.json
+          test -f frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json
+          python research/cohort/validate_P2_C1_4_aligned_records.py source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json
+          python - <<'PY'
+          import json,math,re
+          from pathlib import Path
+          m=json.loads(Path("frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json").read_text())
+          c=json.loads(Path("source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json").read_text())
+          lock=json.loads(Path("source_cohort/lock/P2_C1_4_CONFIRMATORY_COHORT_LOCK.json").read_text())
+          assert m["confirmatory"] is True
+          assert m["case_count"]==8638
+          assert len(c["records"])==8638
+          ids=[r["decision_id"] for r in c["records"]]
+          expected=[x["decision_id"] for x in m["cases"]]
+          assert ids==expected
+          assert len(ids)==len(set(ids))
+          assert math.ceil(8638/200)==44
+          assert lock["record_count"]==8638
+          assert lock["status"]=="PASS_IMMUTABLE_COHORT_LOCK"
+          print({"record_count":len(c["records"]),"expected_shards":44,"manifest_reconciled":True,"forensic_lock":True})
+          PY
+
+      - name: Generate two blinded X_W annotation packets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/cohort/generate_P2_C1_4_XW_annotation_packets.py             --cohort source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json             --out annotation_packets             --expected-count 8638
+
+      - name: Upload immutable blinded annotation packets
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-xw-blinded-annotation-packets
+          path: annotation_packets/
+          retention-days: 14
+          compression-level: 6
+
+      - name: Upload machine-readable progression gate
+        shell: bash
+        run: |
+          cat > annotation_packets/P2_C1_4_NEXT_GATE.json <<EOF
+          {
+            "source_runtime3_run_id": "$SOURCE_RUN_ID",
+            "status": "READY_FOR_TWO_INDEPENDENT_OUTCOME_BLINDED_HUMAN_XW_ANNOTATIONS",
+            "record_count": 8638,
+            "required_raters": ["A","B"],
+            "required_post_annotation_gate": "raw annotation lock -> agreement audit -> X_W construction -> same-unit X_W/Y_H merge",
+            "confirmatory_modeling_authorized": false
+          }
+          EOF
