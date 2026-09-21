@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "properties": {
     "decision_id": {"type":"string","minLength":1},
-    "protocol_version": {"type":"string","const":"P2-C1.4-ALIGNED-V1"},
+    "protocol_version": {"type":"string","const":"P2-C1.4-ALIGNED-V2"},
     "baseline": {
       "type":"object","additionalProperties":false,
       "required":["execution_ok","row_count","column_count"],
