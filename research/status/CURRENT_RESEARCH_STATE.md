@@ -77,9 +77,21 @@ Implementation has now started. Added:
 
 The dry-run fixture is synthetic and is not scientific outcome data.
 
+## Latest runtime qualification — 2026-09-21
+
+**P2-C1.4-R = PASS for non-confirmatory runtime scope.**
+
+Successful GitHub Actions run: `35591634277`.
+
+The collector executed four fresh non-confirmatory cases, excluding the frozen 12-case C4.2.3-B pilot, using the pinned Project 1 P6-IP path, Spider 1.0, and Ollama 0.33.3. It captured decision-time evidence, locked and hashed that artifact, then derived official correctness/outcome fields after the evidence lock. The aligned records passed both the mechanical validator and the JSON schema validator.
+
+Three implementation-contract failures and one safety-gating failure occurred before the successful run. All are preserved in `research/methodological_gates/P2_C1_4_RUNTIME_DRY_RUN_AUDIT_2026-09-21.md`.
+
+Important: this is **runtime qualification**, not confirmatory evidence and not predictive-validity evidence.
+
 ## Next gate
 
-**P2-C1.4-R implementation dry run → protocol freeze → fresh aligned outcome-bearing cohort.**
+**Freeze the confirmatory statistical/collection protocol → collect the actual aligned outcome-bearing cohort → independent X_W annotation.**
 
 ## Publication record
 
