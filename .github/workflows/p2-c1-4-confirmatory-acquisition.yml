@@ -148,6 +148,13 @@ jobs:
           unzip -q data/spider_data.zip -d data/spider_unpacked
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
           find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("data/train_spider.json").read_text())
+          b=json.loads(Path("data/train_others.json").read_text())
+          Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
+          PY
           DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
           cp -R "$DB_DIR" data/database
           TABLES=$(find data/spider_unpacked -name tables.json | head -n 1)
@@ -175,6 +182,9 @@ jobs:
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
           RUNTIME_MANIFEST_HASH: ${{ github.sha }}
+          LLM_PROVIDER: ollama
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_MODEL: llama3.2:1b
         run: |
           set -euo pipefail
           if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
