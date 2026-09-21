@@ -49,12 +49,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unzip
           python -m pip install --upgrade pip
-          python -m pip install gdown
       - name: Download and verify Spider 1.0
         run: |
           set -euo pipefail
           mkdir -p data
-          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/spider_data.zip "https://huggingface.co/datasets/HAL-9001/spider-databases/resolve/main/spider_data.zip?download=true"
           test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
           unzip -q data/spider_data.zip -d data/spider_unpacked
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
@@ -68,6 +67,17 @@ jobs:
           PY
           test -s data/train_spider.json
           test -s data/train_others.json
+          test -s data/tables.json || true
+          mkdir -p artifacts/source_bundle
+          cp data/spider_data.zip artifacts/source_bundle/spider_data.zip
+          cp data/train_spider.json data/train_others.json data/confirmatory_questions_source.json artifacts/source_bundle/
+          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
+          test -n "$DB_DIR"
+          cp -R "$DB_DIR" artifacts/source_bundle/database
+          TABLES=$(find data/spider_unpacked -name tables.json | head -n 1)
+          test -n "$TABLES"
+          cp "$TABLES" artifacts/source_bundle/tables.json
+          sha256sum artifacts/source_bundle/spider_data.zip > artifacts/source_bundle/SPIDER_ARCHIVE_SHA256.txt
       - name: Recover frozen pilot manifest
         run: |
           set -euo pipefail
@@ -91,6 +101,13 @@ jobs:
           print({"case_count":m["case_count"],"manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest()})
           PY
           sha256sum artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json > artifacts/manifest/manifest.sha256
+      - name: Upload verified Spider source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-spider-source
+          path: artifacts/source_bundle/
+          retention-days: 14
+
       - name: Upload frozen manifest
         uses: actions/upload-artifact@v4
         with:
@@ -103,8 +120,8 @@ jobs:
     strategy:
       fail-fast: false
       # GitHub Free public repositories have a 20-job standard-hosted concurrency ceiling.
-      # Six acquisition shards leave headroom for the controller and unrelated diagnostics.
-      max-parallel: 6
+      # Two acquisition shards reduce local Ollama CPU contention while preserving parallelism.
+      max-parallel: 2
       matrix:
         # 8,638 cases at SHARD_SIZE=200 require exactly 44 shards (0-43).
         # Empty shards were removed to avoid consuming scheduler slots for no work.
@@ -161,24 +178,25 @@ jobs:
           from nltk.tokenize import word_tokenize
           print({"nltk_tokenizer_smoke": word_tokenize("SELECT 1")})
           PY
-          python -m pip install gdown jsonschema
+          python -m pip install jsonschema
           mkdir -p data
-          gdown "https://drive.google.com/uc?id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J" -O data/spider_data.zip
-          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
-          unzip -q data/spider_data.zip -d data/spider_unpacked
-          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
-          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          a=json.loads(Path("data/train_spider.json").read_text())
-          b=json.loads(Path("data/train_others.json").read_text())
-          Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
-          PY
-          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
-          cp -R "$DB_DIR" data/database
-          TABLES=$(find data/spider_unpacked -name tables.json | head -n 1)
-          cp "$TABLES" data/tables.json
+      - name: Download verified Spider source bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-spider-source
+          path: data/source_bundle
+      - name: Restore verified Spider source data
+        run: |
+          set -euo pipefail
+          test "$(sha256sum data/source_bundle/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
+          cp data/source_bundle/train_spider.json data/train_spider.json
+          cp data/source_bundle/train_others.json data/train_others.json
+          cp data/source_bundle/confirmatory_questions_source.json data/confirmatory_questions_source.json
+          cp data/source_bundle/tables.json data/tables.json
+          cp -R data/source_bundle/database data/database
+          test -s data/confirmatory_questions_source.json
+          test -d data/database
+          test -s data/tables.json
       - name: Install pinned Ollama
         run: |
           set -euo pipefail
