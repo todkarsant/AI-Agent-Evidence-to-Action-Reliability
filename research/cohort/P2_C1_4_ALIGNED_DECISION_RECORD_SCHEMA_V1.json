@@ -24,8 +24,8 @@
         "database_id":{"type":"string","minLength":1},
         "returned_columns":{"type":["array","null"],"items":{"type":"string"}},
         "returned_rows":{"type":["array","null"]},
-        "row_count":{"type":"integer","minimum":0},
-        "column_count":{"type":"integer","minimum":0},
+        "row_count":{"type":["integer","null"],"minimum":0},
+        "column_count":{"type":["integer","null"],"minimum":0},
         "evidence_hash":{"type":["string","null"],"pattern":"^[0-9a-f]{64}$"},
         "captured_before_intervention":{"type":"boolean","const":true}
       }
