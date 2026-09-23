@@ -9,7 +9,7 @@ import sys
 PROJECT1 = Path(__file__).resolve().parents[2] / "external" / "Enterprise-Analytics-Copilot"
 sys.path.insert(0, str(PROJECT1))
 
-from research.runtime3_ollama import Runtime3OllamaProvider
+from runtime3_ollama import Runtime3OllamaProvider
 
 
 class Handler(BaseHTTPRequestHandler):
