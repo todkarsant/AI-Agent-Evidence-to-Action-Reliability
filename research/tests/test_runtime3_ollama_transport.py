@@ -61,7 +61,7 @@ def test_runtime3_streaming_payload_is_bounded():
                 "done_reason": "stop",
                 "prompt_eval_count": 7,
                 "eval_count": 4,
-            }).encode() + b"\\n"
+            }).encode() + b"\n"
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson")
             self.send_header("Content-Length", str(len(body)))
@@ -97,7 +97,7 @@ def test_runtime3_rejects_length_terminated_generation():
                 "done_reason": "length",
                 "prompt_eval_count": 7,
                 "eval_count": 2048,
-            }).encode() + b"\\n"
+            }).encode() + b"\n"
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson")
             self.send_header("Content-Length", str(len(body)))
