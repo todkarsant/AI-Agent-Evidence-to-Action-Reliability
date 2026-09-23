@@ -63,6 +63,7 @@ class Runtime3OllamaProvider(LLMProvider):
         for attempt in range(1, self.max_attempts + 1):
             parts: list[str] = []
             final_data: dict = {}
+            done_seen = False
 
             try:
                 with httpx.Client(timeout=timeout) as client:
@@ -79,9 +80,12 @@ class Runtime3OllamaProvider(LLMProvider):
                                 parts.append(content)
                             if event.get("done"):
                                 final_data = event
+                                done_seen = True
                                 break
 
                 text = "".join(parts)
+                if not done_seen:
+                    raise RuntimeError("Ollama stream ended before the final done event")
                 if not text:
                     raise RuntimeError("Ollama stream completed without assistant content")
 
