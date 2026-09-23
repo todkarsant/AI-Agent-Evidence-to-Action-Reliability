@@ -112,8 +112,8 @@ def main():
     provider_name=os.getenv("LLM_PROVIDER","").lower()
     if provider_name!="ollama":
         raise SystemExit("REFUSED: P2-C1.4 runtime qualification requires pinned Ollama")
-    from app.services.llm import OllamaProvider
-    provider=OllamaProvider(os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),os.getenv("OLLAMA_MODEL","llama3.2:1b"))
+    from runtime3_ollama import Runtime3OllamaProvider
+    provider=Runtime3OllamaProvider(os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),os.getenv("OLLAMA_MODEL","llama3.2:1b"))
     evaluator=CapturingEvaluator(SecondaryExecutionEvaluator,dataset)
     from research.spider_benchmark import BenchmarkEnvironment
     class RecordingEnvironment(BenchmarkEnvironment):

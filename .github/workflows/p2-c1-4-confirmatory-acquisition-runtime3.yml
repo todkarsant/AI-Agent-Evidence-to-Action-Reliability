@@ -19,9 +19,36 @@ env:
   OLLAMA_MODEL: llama3.2:1b
   P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21
   SHARD_SIZE: 200
+  # Runtime3 transport controls only: read timeout is inactivity between streamed chunks.
+  RUNTIME3_OLLAMA_CONNECT_TIMEOUT_SECONDS: 30
+  RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: 600
+  RUNTIME3_OLLAMA_WRITE_TIMEOUT_SECONDS: 30
+  RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: 30
+  RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
+  RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
 
 jobs:
+  runtime3-transport-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout pinned Project 1
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet "$PROJECT1_COMMIT"
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "$PROJECT1_COMMIT"
+      - name: Install transport test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "httpx==0.28.1" "pytest==8.4.1"
+      - name: Run streaming transport regression
+        run: |
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE"             pytest -q research/tests/test_runtime3_ollama_transport.py
+
   freeze-manifest:
+    needs: runtime3-transport-regression
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -214,7 +241,12 @@ jobs:
           LLM_PROVIDER: ollama
           OLLAMA_BASE_URL: http://127.0.0.1:11434
           OLLAMA_MODEL: llama3.2:1b
-          OLLAMA_TIMEOUT_SECONDS: 1800
+          RUNTIME3_OLLAMA_CONNECT_TIMEOUT_SECONDS: ${{ env.RUNTIME3_OLLAMA_CONNECT_TIMEOUT_SECONDS }}
+          RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: ${{ env.RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS }}
+          RUNTIME3_OLLAMA_WRITE_TIMEOUT_SECONDS: ${{ env.RUNTIME3_OLLAMA_WRITE_TIMEOUT_SECONDS }}
+          RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: ${{ env.RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS }}
+          RUNTIME3_OLLAMA_MAX_ATTEMPTS: ${{ env.RUNTIME3_OLLAMA_MAX_ATTEMPTS }}
+          RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: ${{ env.RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS }}
         run: |
           set -euo pipefail
           if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
