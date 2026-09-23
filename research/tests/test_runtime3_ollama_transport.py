@@ -40,7 +40,12 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-def test_runtime3_inherits_pinned_prompt_methods():\n    assert Runtime3OllamaProvider.generate_sql is OllamaProvider.generate_sql\n    assert Runtime3OllamaProvider.summarize is OllamaProvider.summarize\n\n\ndef test_runtime3_streaming_transport():
+def test_runtime3_inherits_pinned_prompt_methods():
+    assert Runtime3OllamaProvider.generate_sql is OllamaProvider.generate_sql
+    assert Runtime3OllamaProvider.summarize is OllamaProvider.summarize
+
+
+def test_runtime3_streaming_transport():
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
