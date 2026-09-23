@@ -56,7 +56,7 @@ def test_runtime3_streaming_payload_is_bounded():
             captured.update(json.loads(self.rfile.read(length)))
             body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{" + "\\"sql\\": \\"SELECT 1\\"}"},
+                "message": {"role": "assistant", "content": json.dumps({"sql": "SELECT 1"})},
                 "done": True,
                 "done_reason": "stop",
                 "prompt_eval_count": 7,
@@ -92,7 +92,7 @@ def test_runtime3_rejects_length_terminated_generation():
             self.rfile.read(length)
             body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{" + "\\"sql\\": \\"SELECT 1\\"}"},
+                "message": {"role": "assistant", "content": json.dumps({"sql": "SELECT 1"})},
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
