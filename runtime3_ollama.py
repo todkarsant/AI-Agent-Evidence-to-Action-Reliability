@@ -31,9 +31,12 @@ class Runtime3OllamaProvider(OllamaProvider):
         self.pool_timeout = float(os.getenv("RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS", "30"))
         self.max_attempts = int(os.getenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", "2"))
         self.retry_backoff_seconds = float(os.getenv("RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS", "2"))
+        self.max_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS", "2048"))
 
         if self.max_attempts < 1:
             raise ValueError("RUNTIME3_OLLAMA_MAX_ATTEMPTS must be >= 1")
+        if self.max_output_tokens < 1:
+            raise ValueError("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS must be >= 1")
 
     def _chat(self, prompt: str) -> LLMResult:
         # This payload intentionally matches the pinned Project 1 provider:
@@ -43,7 +46,10 @@ class Runtime3OllamaProvider(OllamaProvider):
             "messages": [{"role": "user", "content": prompt}],
             "stream": True,
             "format": "json",
-            "options": {"temperature": 0},
+            "options": {
+                "temperature": 0,
+                "num_predict": self.max_output_tokens,
+            },
         }
 
         timeout = httpx.Timeout(
@@ -84,6 +90,17 @@ class Runtime3OllamaProvider(OllamaProvider):
                 text = "".join(parts)
                 if not text:
                     raise RuntimeError("Ollama stream completed without assistant content")
+
+                done_reason = final_data.get("done_reason")
+                if done_reason == "length":
+                    raise RuntimeError(
+                        "Runtime3 Ollama generation stopped at the configured "
+                        "output-token limit before a complete response was produced."
+                    )
+                if done_reason not in (None, "stop"):
+                    raise RuntimeError(
+                        f"Runtime3 Ollama generation ended with unexpected done_reason={done_reason!r}"
+                    )
 
                 return LLMResult(
                     text=text,
