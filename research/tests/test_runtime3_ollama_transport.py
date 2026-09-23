@@ -25,6 +25,7 @@ class Handler(BaseHTTPRequestHandler):
                 "model": "llama3.2:1b",
                 "message": {"role": "assistant", "content": ""},
                 "done": True,
+                "done_reason": "stop",
                 "prompt_eval_count": 7,
                 "eval_count": 4,
             },
@@ -44,6 +45,83 @@ class Handler(BaseHTTPRequestHandler):
 def test_runtime3_inherits_pinned_prompt_methods():
     assert Runtime3OllamaProvider.generate_sql is OllamaProvider.generate_sql
     assert Runtime3OllamaProvider.summarize is OllamaProvider.summarize
+
+
+def test_runtime3_streaming_payload_is_bounded():
+    captured = {}
+
+    class CaptureHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            captured.update(json.loads(self.rfile.read(length)))
+            body = json.dumps({
+                "model": "llama3.2:1b",
+                "message": {"role": "assistant", "content": '{" + "\\"sql\\": \\"SELECT 1\\"}"},
+                "done": True,
+                "done_reason": "stop",
+                "prompt_eval_count": 7,
+                "eval_count": 4,
+            }).encode() + b"\\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), CaptureHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
+        provider._chat("return JSON")
+        assert captured["options"]["temperature"] == 0
+        assert captured["options"]["num_predict"] == 2048
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+
+def test_runtime3_rejects_length_terminated_generation():
+    class LengthHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(length)
+            body = json.dumps({
+                "model": "llama3.2:1b",
+                "message": {"role": "assistant", "content": '{" + "\\"sql\\": \\"SELECT 1\\"}"},
+                "done": True,
+                "done_reason": "length",
+                "prompt_eval_count": 7,
+                "eval_count": 2048,
+            }).encode() + b"\\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), LengthHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
+        try:
+            provider._chat("return JSON")
+        except RuntimeError as exc:
+            assert "output-token limit" in str(exc)
+        else:
+            raise AssertionError("length-terminated generation was accepted")
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
 
 
 def test_runtime3_streaming_transport():
