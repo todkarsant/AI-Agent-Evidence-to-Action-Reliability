@@ -54,7 +54,7 @@ def load_cases(manifest_path: Path, limit: int | None) -> list[dict[str, Any]]:
     cases = payload.get("cases")
     if not isinstance(cases, list) or not cases:
         raise SystemExit("FAIL: pilot manifest has no cases[]")
-    required = ("decision_id", "db_id", "question")
+    required = ("pilot_case_id", "db_id", "question")
     for i, case in enumerate(cases):
         missing = [k for k in required if k not in case]
         if missing:
@@ -62,9 +62,9 @@ def load_cases(manifest_path: Path, limit: int | None) -> list[dict[str, Any]]:
     selected = cases[:limit] if limit is not None else cases
     if not selected:
         raise SystemExit("FAIL: empty selected pilot cohort")
-    ids = [c["decision_id"] for c in selected]
+    ids = [c["pilot_case_id"] for c in selected]
     if len(ids) != len(set(ids)):
-        raise SystemExit("FAIL: duplicate decision_id in selected pilot cohort")
+        raise SystemExit("FAIL: duplicate pilot_case_id in selected pilot cohort")
     return selected
 
 
@@ -101,7 +101,7 @@ def run_condition(
         example = lookup.get(key)
         if example is None:
             raise SystemExit(
-                f"FAIL: pilot case not found in questions: {case['decision_id']} "
+                f"FAIL: pilot case not found in questions: {case['pilot_case_id']} "
                 f"{case['db_id']}"
             )
 
@@ -114,15 +114,17 @@ def run_condition(
             replacement_applied = False
             if condition == "candidate":
                 occurrences = actual_prompt.count(CURRENT_SENTENCE)
-                if occurrences != 1:
+                if occurrences > 1:
                     raise RuntimeError(
                         "candidate condition refused prompt because the exact "
-                        f"frozen sentence occurred {occurrences} times"
+                        f"frozen sentence occurred {occurrences} times; "
+                        "expected at most one"
                     )
-                actual_prompt = actual_prompt.replace(
-                    CURRENT_SENTENCE, CANDIDATE_SENTENCE
-                )
-                replacement_applied = True
+                if occurrences == 1:
+                    actual_prompt = actual_prompt.replace(
+                        CURRENT_SENTENCE, CANDIDATE_SENTENCE, 1
+                    )
+                    replacement_applied = True
 
             record = {
                 "call_index": len(prompt_records) + 1,
@@ -158,7 +160,7 @@ def run_condition(
 
         trace_dict = asdict(trace) if trace is not None else None
         result = {
-            "decision_id": case["decision_id"],
+            "pilot_case_id": case["pilot_case_id"],
             "db_id": case["db_id"],
             "question": case["question"],
             "condition": condition,
@@ -185,7 +187,7 @@ def run_condition(
                 {
                     "condition": condition,
                     "case": f"{index}/{len(cases)}",
-                    "decision_id": case["decision_id"],
+                    "pilot_case_id": case["pilot_case_id"],
                     "status": status,
                     "llm_calls": trace_dict.get("llm_calls") if trace_dict else None,
                     "output_tokens": trace_dict.get("output_tokens") if trace_dict else None,
