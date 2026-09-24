@@ -1,7 +1,7 @@
 from pathlib import Path
 import hashlib, json, sys
 sys.path.insert(0, str((Path("..")/"project1").resolve()))
-from app.services.llm import LLMResult, OllamaProvider
+from app.services.llm import LLMResult, OllamaProvider, _extract_json_object
 from research.spider_benchmark import SpiderDataset
 
 Q=Path("data/confirmatory_questions_source.json"); DB=Path("data/database")
@@ -43,16 +43,13 @@ for name,rules,esc_on in variants:
     prompt=rules+"\nSchema:\n"+schema+"\n"
     if esc_on: prompt+="\n"+ESC+"\n"
     prompt+="Question:\n"+TARGET_Q
-    cap={}
-    def chat(p, cap=cap):
-        cap.update(prompt=p,prompt_sha256=hashlib.sha256(p.encode()).hexdigest(),prompt_chars=len(p))
-        return OllamaProvider._chat(provider,p)
-    provider._chat=chat
     try:
-        result=provider.generate_sql(TARGET_Q,schema)
-        results.append({"variant":name,"status":"PASS","prompt_sha256":cap["prompt_sha256"],"prompt_chars":cap["prompt_chars"],"output_tokens":result.output_tokens,"output_sha256":hashlib.sha256(result.text.encode()).hexdigest(),"sql":result.text})
+        raw=provider._chat(prompt)
+        obj=_extract_json_object(raw.text)
+        sql=obj["sql"]
+        results.append({"variant":name,"status":"PASS","prompt_sha256":hashlib.sha256(prompt.encode()).hexdigest(),"prompt_chars":len(prompt),"input_tokens":raw.input_tokens,"output_tokens":raw.output_tokens,"model":raw.model,"output_sha256":hashlib.sha256(raw.text.encode()).hexdigest(),"sql":sql})
     except Exception as e:
-        results.append({"variant":name,"status":"FAIL","prompt_sha256":cap.get("prompt_sha256"),"prompt_chars":cap.get("prompt_chars"),"exception":type(e).__name__+": "+str(e)})
+        results.append({"variant":name,"status":"FAIL","prompt_sha256":hashlib.sha256(prompt.encode()).hexdigest(),"prompt_chars":len(prompt),"exception":type(e).__name__+": "+str(e)})
 out=Path("artifacts/case46_prompt_variants"); out.mkdir(parents=True,exist_ok=True)
-(out/"case46_prompt_variants.json").write_text(json.dumps({"status":"NON_CONFIRMATORY_PROMPT_VARIANTS","decision_id":"P2C14-CONF-000046","variants":results},indent=2),encoding="utf-8")
+(out/"case46_prompt_variants.json").write_text(json.dumps({"status":"NON_CONFIRMATORY_PROMPT_VARIANTS","decision_id":"P2C14-CONF-000046","db_id":TARGET_DB,"question":TARGET_Q,"variants":results},indent=2),encoding="utf-8")
 print(json.dumps(results,indent=2))
