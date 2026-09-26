@@ -112,8 +112,14 @@ def main():
     provider_name=os.getenv("LLM_PROVIDER","").lower()
     if provider_name!="ollama":
         raise SystemExit("REFUSED: P2-C1.4 runtime qualification requires pinned Ollama")
-    from runtime3_ollama import Runtime3OllamaProvider
-    provider=Runtime3OllamaProvider(os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),os.getenv("OLLAMA_MODEL","llama3.2:1b"))
+    from research.runtime3_confirmatory_prompt_amendment import (
+        AMENDMENT_ID,
+        ConfirmatoryRuntime3OllamaProvider,
+    )
+    provider=ConfirmatoryRuntime3OllamaProvider(
+        os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),
+        os.getenv("OLLAMA_MODEL","llama3.2:1b"),
+    )
     evaluator=CapturingEvaluator(SecondaryExecutionEvaluator,dataset)
     from research.spider_benchmark import BenchmarkEnvironment
     class RecordingEnvironment(BenchmarkEnvironment):
@@ -180,6 +186,7 @@ def main():
                 "manifest_hash":manifest_hash,
                 "project1_commit":os.environ.get("PROJECT1_COMMIT","unknown"),
                 "runtime_manifest_hash":os.environ.get("RUNTIME_MANIFEST_HASH","unknown"),
+                "runtime3_implementation_amendment":AMENDMENT_ID,
             }
         }
         scan_forbidden(record)
@@ -238,6 +245,7 @@ def main():
                           "manifest_hash":e["provenance"]["manifest_hash"],
                           "code_version":os.environ.get("PROJECT1_COMMIT","unknown"),
                           "runtime_manifest_hash":e["provenance"]["runtime_manifest_hash"],
+                          "runtime3_implementation_amendment":e["provenance"]["runtime3_implementation_amendment"],
                           "baseline_hash":sha256_json(e["baseline"]),
                           "outcome_record_hash":sha256_json(outcome)}})
 
@@ -259,6 +267,7 @@ def main():
         "official_execution":official,
         "harm_count":sum(x["y_h"] for x in outcomes),
         "x_w":"NOT_ANNOTATED_IN_COLLECTOR",
+        "runtime3_implementation_amendment":AMENDMENT_ID,
         "reason":("Confirmatory aligned outcome-bearing acquisition under frozen protocol."
                   if args.confirmatory else
                   "Dry run proves same-unit evidence/outcome linkage and temporal leakage boundary; it is not confirmatory data.")
