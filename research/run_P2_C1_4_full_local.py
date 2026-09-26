@@ -31,8 +31,9 @@ PARENT_MANIFEST_SHA256 = (
     "f17c30d7aa7c46220febfbbd81b6ac8c0e5b9546e6fc2693eac4c953e04e1894"
 )
 
-ROOT = Path(__file__).resolve().parent
-PYTHON = ROOT.parent / ".venv312" / "Scripts" / "python.exe"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "research"
+PYTHON = REPO_ROOT / ".venv312" / "Scripts" / "python.exe"
 
 QUESTIONS = ROOT / "data" / "confirmatory_questions_source.json"
 DATABASE_DIR = ROOT / "data" / "database"
