@@ -115,7 +115,11 @@ def main():
     from research.runtime3_confirmatory_prompt_amendment import (
         AMENDMENT_ID,
         ConfirmatoryRuntime3OllamaProvider,
-    )\n    provider=ConfirmatoryRuntime3OllamaProvider(\n        os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),\n        os.getenv("OLLAMA_MODEL","llama3.2:1b"),\n    )
+    )
+    provider=ConfirmatoryRuntime3OllamaProvider(
+        os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),
+        os.getenv("OLLAMA_MODEL","llama3.2:1b"),
+    )
     evaluator=CapturingEvaluator(SecondaryExecutionEvaluator,dataset)
     from research.spider_benchmark import BenchmarkEnvironment
     class RecordingEnvironment(BenchmarkEnvironment):
