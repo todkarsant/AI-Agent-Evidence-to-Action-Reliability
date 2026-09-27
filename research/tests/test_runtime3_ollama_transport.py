@@ -77,7 +77,7 @@ def test_runtime3_nonstreaming_payload_is_bounded():
         assert captured["stream"] is False
         assert captured["format"] == {
             "type": "object",
-            "properties": {"sql": {"type": "string"}},
+            "properties": {"sql": {"type": "string", "maxLength": 12000}},
             "required": ["sql"],
             "additionalProperties": False,
         }
