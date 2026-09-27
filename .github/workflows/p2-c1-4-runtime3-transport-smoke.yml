@@ -147,7 +147,7 @@ jobs:
           RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: ${{ env.RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS }}
           RUNTIME3_OLLAMA_MAX_ATTEMPTS: ${{ env.RUNTIME3_OLLAMA_MAX_ATTEMPTS }}
           RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: ${{ env.RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS }}
-          RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: ${{ env.RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS }}
+          # Diagnostic ceiling for frozen pathological case 000091; not the confirmatory runtime setting.\n          RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
         run: |
           set -euo pipefail
           mkdir -p artifacts/cohort
