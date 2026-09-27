@@ -69,7 +69,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python -m pytest -q research/tests/test_runtime3_ollama_transport.py
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot;$GITHUB_WORKSPACE" python -m pytest -q research/tests/test_runtime3_ollama_transport.py
       - name: Download and verify Spider source
         shell: bash
         run: |
@@ -187,7 +187,7 @@ jobs:
           )
           print({"preflight_case":case["decision_id"],"db_id":case["db_id"]})
           PY
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PREFLIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot;$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PREFLIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory
 
       - name: Run sequential 200-case qualification
         shell: bash
@@ -200,7 +200,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/qualification
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot;$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory
 
       - name: Validate qualification artifact
         shell: bash
