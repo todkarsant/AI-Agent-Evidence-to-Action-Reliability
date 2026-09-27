@@ -1,4 +1,5 @@
 name: p2-c1-4-runtime3-transport-smoke
+# CI synchronization marker: normalized Spider DB layout for film_rank smoke
 
 on:
   workflow_dispatch:
