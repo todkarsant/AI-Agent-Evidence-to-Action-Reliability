@@ -166,6 +166,7 @@ jobs:
           "$GITHUB_WORKSPACE/ollama-runtime/ollama.exe" pull "$OLLAMA_MODEL"
           curl.exe -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
       - name: Run frozen pathological-case preflight (000091)
+        shell: bash
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
           RUNTIME_MANIFEST_HASH: ${{ github.sha }}
@@ -189,6 +190,7 @@ jobs:
           PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PREFLIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory
 
       - name: Run sequential 200-case qualification
+        shell: bash
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
           RUNTIME_MANIFEST_HASH: ${{ github.sha }}
