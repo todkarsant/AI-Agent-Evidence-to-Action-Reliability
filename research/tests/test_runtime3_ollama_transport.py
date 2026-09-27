@@ -80,6 +80,12 @@ def test_runtime3_streaming_payload_is_bounded():
         provider._chat("return JSON")
         assert captured["options"]["temperature"] == 0
         assert captured["options"]["num_predict"] == 2048
+        assert captured["format"] == {
+            "type": "object",
+            "properties": {"sql": {"type": "string"}},
+            "required": ["sql"],
+            "additionalProperties": False,
+        }
     finally:
         server.shutdown()
         thread.join(timeout=2)
