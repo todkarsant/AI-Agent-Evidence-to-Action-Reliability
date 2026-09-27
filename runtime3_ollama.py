@@ -42,7 +42,7 @@ class Runtime3OllamaProvider(OllamaProvider):
         # Ollama supports a JSON Schema in format, constraining generation without changing the Project1 prompt.
         self.response_schema = {
             "type": "object",
-            "properties": {"sql": {"type": "string"}},
+            "properties": {"sql": {"type": "string", "maxLength": 12000}},
             "required": ["sql"],
             "additionalProperties": False,
         }
