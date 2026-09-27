@@ -108,10 +108,14 @@ class Runtime3OllamaProvider(OllamaProvider):
                 done_reason = final_data.get("done_reason")
                 if done_reason == "length":
                     if not self._is_complete_json_object(text):
-                        raise RuntimeError(
+                        last_error = RuntimeError(
                             "Runtime3 Ollama generation stopped at the configured "
                             "output-token limit before a complete JSON object was produced."
                         )
+                        if attempt >= self.max_attempts:
+                            break
+                        time.sleep(self.retry_backoff_seconds * attempt)
+                        continue
                     # A complete JSON object is usable even when Ollama reports
                     # that the generation limit was the terminal condition.
                 elif done_reason not in (None, "stop"):
