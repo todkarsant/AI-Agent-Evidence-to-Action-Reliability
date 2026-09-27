@@ -92,12 +92,12 @@ def test_runtime3_accepts_length_terminated_complete_json():
             self.rfile.read(length)
             body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT 1"'},
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1"}'},
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
                 "eval_count": 2048,
-            }).encode() + b"\\n"
+            }).encode() + b"\n"
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson")
             self.send_header("Content-Length", str(len(body)))
@@ -122,14 +122,13 @@ def test_runtime3_accepts_length_terminated_complete_json():
 
 
 def test_runtime3_rejects_length_terminated_incomplete_json():
-
     class LengthHandler(BaseHTTPRequestHandler):
         def do_POST(self):
             length = int(self.headers.get("Content-Length", "0"))
             self.rfile.read(length)
             body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": json.dumps({"sql": "SELECT 1"})},
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1"'},
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
@@ -155,7 +154,7 @@ def test_runtime3_rejects_length_terminated_incomplete_json():
         except RuntimeError as exc:
             assert "complete JSON object" in str(exc)
         else:
-            raise AssertionError("length-terminated generation was accepted")
+            raise AssertionError("length-terminated incomplete generation was accepted")
     finally:
         server.shutdown()
         thread.join(timeout=2)
