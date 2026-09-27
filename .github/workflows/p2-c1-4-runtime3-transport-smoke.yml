@@ -1,7 +1,14 @@
 name: p2-c1-4-runtime3-transport-smoke
+# CI synchronization marker: normalized Spider DB layout for film_rank smoke
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "runtime3_ollama.py"
+      - "research/tests/test_runtime3_ollama_transport.py"
+      - "research/cohort/**"
+      - ".github/workflows/p2-c1-4-runtime3-transport-smoke.yml"
 
 permissions:
   contents: read
@@ -47,6 +54,10 @@ jobs:
           mkdir -p "$HOME/nltk_data"
           python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
           echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
+      - name: Run Runtime3 transport unit tests
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python -m pytest -q research/tests/test_runtime3_ollama_transport.py
       - name: Download and verify Spider source
         run: |
           set -euo pipefail
@@ -57,9 +68,26 @@ jobs:
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
           find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
           find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
-          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
-          test -n "$DB_DIR"
-          cp -R "$DB_DIR" data/database
+          mkdir -p data/database
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          root = Path("data/spider_unpacked")
+          out = Path("data/database")
+          candidates = list(root.rglob("*.sqlite")) + list(root.rglob("*.db"))
+          assert candidates, "No SQLite databases found in verified Spider archive"
+          copied = 0
+          for src in candidates:
+              db_id = src.parent.name
+              if src.stem != db_id:
+                  continue
+              dest_dir = out / db_id
+              dest_dir.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dest_dir / src.name)
+              copied += 1
+          assert (out / "film_rank" / "film_rank.sqlite").exists(), "Verified Spider archive did not expose film_rank/film_rank.sqlite"
+          print({"sqlite_candidates": len(candidates), "copied_databases": copied, "film_rank": str(out / "film_rank" / "film_rank.sqlite")})
+          PY
           python - <<'PY'
           import json
           from pathlib import Path
@@ -82,9 +110,12 @@ jobs:
           m=json.loads(p.read_text())
           assert m["confirmatory"] is True
           assert m["protocol_version"] == "P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21"
-          shard={"protocol_version":m["protocol_version"],"confirmatory":True,"parent_manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"shard_index":0,"start":0,"case_count":1,"cases":m["cases"][:1]}
+          target=[x for x in m["cases"] if x["decision_id"] == "P2C14-CONF-000091"]
+          assert len(target) == 1, "expected frozen case P2C14-CONF-000091"
+          target_index=m["cases"].index(target[0])
+          shard={"protocol_version":m["protocol_version"],"confirmatory":True,"parent_manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"shard_index":0,"start":target_index,"case_count":1,"cases":target}
           Path("data/manifests/shard_smoke.json").write_text(json.dumps(shard,indent=2,ensure_ascii=False)+"\n")
-          print({"decision_id":shard["cases"][0]["decision_id"]})
+          print({"decision_id":shard["cases"][0]["decision_id"],"manifest_position":target_index})
           PY
       - name: Install pinned Ollama
         run: |
@@ -116,7 +147,7 @@ jobs:
           RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: ${{ env.RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS }}
           RUNTIME3_OLLAMA_MAX_ATTEMPTS: ${{ env.RUNTIME3_OLLAMA_MAX_ATTEMPTS }}
           RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: ${{ env.RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS }}
-          RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: ${{ env.RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS }}
+          # Diagnostic ceiling for frozen pathological case 000091; not the confirmatory runtime setting.\n          RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
         run: |
           set -euo pipefail
           mkdir -p artifacts/cohort
