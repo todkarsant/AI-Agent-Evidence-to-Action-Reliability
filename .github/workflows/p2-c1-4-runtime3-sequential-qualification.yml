@@ -16,6 +16,10 @@ on:
       - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
   workflow_dispatch:
 
+concurrency:
+  group: p2-c1-4-runtime3-sequential-qualification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
