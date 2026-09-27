@@ -42,7 +42,7 @@ env:
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04
+    runs-on: windows-latest
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
@@ -55,10 +55,9 @@ jobs:
           git clone --quiet https://github.com/taoyds/spider.git external/spider
           git -C external/spider checkout --quiet "$SPIDER_COMMIT"
       - name: Install dependencies
+        shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y zstd unzip
           python -m pip install --upgrade pip
           python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
           python -m pip install "nltk==3.9.4" jsonschema
@@ -70,15 +69,24 @@ jobs:
           set -euo pipefail
           PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python -m pytest -q research/tests/test_runtime3_ollama_transport.py
       - name: Download and verify Spider source
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p data
-          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/spider_data.zip "https://huggingface.co/datasets/HAL-9001/spider-databases/resolve/main/spider_data.zip?download=true"
-          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
-          unzip -q data/spider_data.zip -d data/spider_unpacked
-          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
-          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
-          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
+          curl.exe -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/spider_data.zip "https://huggingface.co/datasets/HAL-9001/spider-databases/resolve/main/spider_data.zip?download=true"
+          test "$(python -c 'import hashlib; print(hashlib.sha256(open("data/spider_data.zip","rb").read()).hexdigest())')" = "$SPIDER_ARCHIVE_SHA256"
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          z=Path("data/spider_data.zip")
+          out=Path("data/spider_unpacked")
+          with zipfile.ZipFile(z) as archive:
+              archive.extractall(out)
+          for name in ("train_spider.json","train_others.json","tables.json"):
+              matches=list(out.rglob(name))
+              assert matches, f"Missing {name}"
+              Path("data",name).write_bytes(matches[0].read_bytes())
+          PY
           mkdir -p data/database
           python - <<'PY'
           from pathlib import Path
@@ -130,22 +138,30 @@ jobs:
           PY
 
       - name: Install pinned Ollama
+        shell: bash
         run: |
           set -euo pipefail
-          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama-linux-amd64.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
-          zstd -t /tmp/ollama-linux-amd64.tar.zst
-          mkdir -p "$HOME/ollama-$OLLAMA_VERSION"
-          tar --use-compress-program=unzstd -xf /tmp/ollama-linux-amd64.tar.zst -C "$HOME/ollama-$OLLAMA_VERSION"
-          echo "$HOME/ollama-$OLLAMA_VERSION/bin" >> "$GITHUB_PATH"
+          curl.exe -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/ollama-windows-amd64.zip "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-windows-amd64.zip"
+          test "$(python -c 'import hashlib; print(hashlib.sha256(open("data/ollama-windows-amd64.zip","rb").read()).hexdigest())')" = "52cb36a62e7e501f61514f60212dec7117b6c098811357585e02fffe32d2fcd7"
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          out=Path("ollama-runtime")
+          out.mkdir(exist_ok=True)
+          with zipfile.ZipFile("data/ollama-windows-amd64.zip") as archive:
+              archive.extractall(out)
+          PY
+          echo "$GITHUB_WORKSPACE/ollama-runtime" >> "$GITHUB_PATH"
       - name: Start and fingerprint Ollama
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          nohup "$HOME/ollama-$OLLAMA_VERSION/bin/ollama" serve > artifacts/ollama_server.log 2>&1 &
-          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
-          test "$(curl -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
-          ollama pull "$OLLAMA_MODEL"
-          curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
+          nohup "$GITHUB_WORKSPACE/ollama-runtime/ollama.exe" serve > artifacts/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl.exe -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
+          test "$(curl.exe -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          "$GITHUB_WORKSPACE/ollama-runtime/ollama.exe" pull "$OLLAMA_MODEL"
+          curl.exe -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
       - name: Run frozen pathological-case preflight (000091)
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
