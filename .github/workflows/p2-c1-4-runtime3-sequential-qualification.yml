@@ -38,7 +38,7 @@ env:
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
-  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 4096
 
 jobs:
   smoke:
@@ -128,6 +128,29 @@ jobs:
           out.write_text(json.dumps({"protocol_version":m["protocol_version"],"confirmatory":True,"qualification":True,"parent_manifest_sha256":hashlib.sha256(src.read_bytes()).hexdigest(),"cases":cases},indent=2,ensure_ascii=False)+"\n")
           print({"qualification_cases":200,"first":cases[0]["decision_id"],"last":cases[-1]["decision_id"]})
           PY
+
+      - name: Run frozen pathological-case preflight (000091)
+        env:
+          PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
+          RUNTIME_MANIFEST_HASH: ${{ github.sha }}
+          LLM_PROVIDER: ollama
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_MODEL: llama3.2:1b
+        run: |
+          set -euo pipefail
+          mkdir -p data/manifests artifacts/preflight-000091
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path("data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json")
+          m=json.loads(src.read_text())
+          case=next(c for c in m["cases"] if c["decision_id"]=="P2C14-CONF-000091")
+          Path("data/manifests/P2_C1_4_PRELIGHT_000091.json").write_text(
+              json.dumps({k:v for k,v in m.items() if k != "cases"} | {"cases":[case]}, indent=2, ensure_ascii=False) + "\\n"
+          )
+          print({"preflight_case":case["decision_id"],"db_id":case["db_id"]})
+          PY
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PRELIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory
 
       - name: Install pinned Ollama
         run: |
