@@ -112,7 +112,9 @@ class Runtime3OllamaProvider(OllamaProvider):
                             "Runtime3 Ollama generation stopped at the configured "
                             "output-token limit before a complete JSON object was produced."
                         )
-                if done_reason not in (None, "stop"):
+                    # A complete JSON object is usable even when Ollama reports
+                    # that the generation limit was the terminal condition.
+                elif done_reason not in (None, "stop"):
                     raise RuntimeError(
                         f"Runtime3 Ollama generation ended with unexpected done_reason={done_reason!r}"
                     )
