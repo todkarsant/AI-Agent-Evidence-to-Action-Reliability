@@ -8,6 +8,7 @@ overridden.
 
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import time
@@ -17,8 +18,11 @@ import httpx
 from app.services.llm import OllamaProvider, LLMResult
 
 
+_ACTIVE_RESPONSE_SCHEMA = contextvars.ContextVar("runtime3_active_response_schema", default=None)
+
+
 class Runtime3OllamaProvider(OllamaProvider):
-    """Pinned Project 1 OllamaProvider with streaming HTTP transport."""
+    """Pinned Project 1 OllamaProvider with streaming HTTP transport and SQL-schema output control."""
 
     def __init__(self, base_url: str, model: str):
         # Keep the parent constructor for the exact provider identity/URL/model
@@ -61,6 +65,13 @@ class Runtime3OllamaProvider(OllamaProvider):
             return False
         return isinstance(value, dict)
 
+    def generate_sql(self, question: str, schema: str, repair_reason: str | None = None) -> LLMResult:
+        token = _ACTIVE_RESPONSE_SCHEMA.set(self.response_schema)
+        try:
+            return super().generate_sql(question, schema, repair_reason=repair_reason)
+        finally:
+            _ACTIVE_RESPONSE_SCHEMA.reset(token)
+
     def _chat(self, prompt: str) -> LLMResult:
         # This payload intentionally matches the pinned Project 1 provider:
         # same endpoint, model, single user message, JSON mode, and temperature=0.
@@ -68,7 +79,7 @@ class Runtime3OllamaProvider(OllamaProvider):
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": True,
-            "format": self.response_schema,
+            "format": _ACTIVE_RESPONSE_SCHEMA.get() or "json",
             "options": {
                 "temperature": 0,
                 "num_predict": self.max_output_tokens,
