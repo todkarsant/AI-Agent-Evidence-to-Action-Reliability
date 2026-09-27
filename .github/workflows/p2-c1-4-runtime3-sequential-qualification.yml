@@ -163,7 +163,7 @@ jobs:
           m=json.loads(src.read_text())
           case=next(c for c in m["cases"] if c["decision_id"]=="P2C14-CONF-000091")
           Path("data/manifests/P2_C1_4_PREFLIGHT_000091.json").write_text(
-              json.dumps({k:v for k,v in m.items() if k != "cases"} | {"cases":[case]}, indent=2, ensure_ascii=False) + "\\n"
+              json.dumps({k:v for k,v in m.items() if k != "cases"} | {"cases":[case]}, indent=2, ensure_ascii=False) + "\n"
           )
           print({"preflight_case":case["decision_id"],"db_id":case["db_id"]})
           PY
