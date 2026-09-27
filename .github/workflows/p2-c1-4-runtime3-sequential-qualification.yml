@@ -47,6 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Checkout pinned Project 1 and Spider
+        shell: bash
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
@@ -115,6 +116,7 @@ jobs:
           Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
           PY
       - name: Recover frozen pilot and prepare 200-case sequential qualification
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p data/manifests
@@ -198,6 +200,7 @@ jobs:
           PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory
 
       - name: Validate qualification artifact
+        shell: bash
         run: |
           set -euo pipefail
           python research/cohort/validate_P2_C1_4_aligned_records.py artifacts/qualification/aligned_records.json
