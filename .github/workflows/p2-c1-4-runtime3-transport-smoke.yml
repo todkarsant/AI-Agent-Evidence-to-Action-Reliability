@@ -67,9 +67,26 @@ jobs:
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
           find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
           find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
-          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
-          test -n "$DB_DIR"
-          cp -R "$DB_DIR" data/database
+          mkdir -p data/database
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          root = Path("data/spider_unpacked")
+          out = Path("data/database")
+          candidates = list(root.rglob("*.sqlite")) + list(root.rglob("*.db"))
+          assert candidates, "No SQLite databases found in verified Spider archive"
+          copied = 0
+          for src in candidates:
+              db_id = src.parent.name
+              if src.stem != db_id:
+                  continue
+              dest_dir = out / db_id
+              dest_dir.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dest_dir / src.name)
+              copied += 1
+          assert (out / "film_rank" / "film_rank.sqlite").exists(), "Verified Spider archive did not expose film_rank/film_rank.sqlite"
+          print({"sqlite_candidates": len(candidates), "copied_databases": copied, "film_rank": str(out / "film_rank" / "film_rank.sqlite")})
+          PY
           python - <<'PY'
           import json
           from pathlib import Path
