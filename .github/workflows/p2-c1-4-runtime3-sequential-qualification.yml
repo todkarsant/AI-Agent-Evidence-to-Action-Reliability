@@ -129,7 +129,7 @@ jobs:
           import json, hashlib
           from pathlib import Path
           src=Path("data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json")
-          m=json.loads(src.read_text())
+          m=json.loads(src.read_text(encoding="utf-8"))
           assert m["confirmatory"] is True
           cases=m["cases"][:200]
           assert len(cases)==200
