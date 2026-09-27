@@ -109,6 +109,15 @@ def main():
     lookup={(x.db_id,x.question):x for x in dataset.examples}
     manifest_hash=sha256_bytes(args.manifest.read_bytes())
 
+    # Runtime3 is a namespace package in this repository, while the pinned
+    # Project1 checkout contains a regular research package. Ensure the
+    # Runtime3 research directory remains visible after Project1 is inserted
+    # on sys.path; do not modify the pinned Project1 source.
+    import research as research_pkg
+    runtime3_research = Path(__file__).resolve().parents[1]
+    if str(runtime3_research) not in research_pkg.__path__:
+        research_pkg.__path__.append(str(runtime3_research))
+
     provider_name=os.getenv("LLM_PROVIDER","").lower()
     if provider_name!="ollama":
         raise SystemExit("REFUSED: P2-C1.4 runtime qualification requires pinned Ollama")
