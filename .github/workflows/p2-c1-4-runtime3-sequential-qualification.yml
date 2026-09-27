@@ -8,6 +8,12 @@ on:
       - "runtime3_ollama.py"
       - "research/cohort/**"
       - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
+  pull_request:
+    paths:
+      - "runtime3_ollama.py"
+      - "research/cohort/**"
+      - "research/tests/**"
+      - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
   workflow_dispatch:
 
 permissions:
