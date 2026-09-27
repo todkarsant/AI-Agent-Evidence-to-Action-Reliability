@@ -17,26 +17,19 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
         self.rfile.read(length)
-        events = [
-            {"model": "llama3.2:1b", "message": {"role": "assistant", "content": "{\"sql\""}, "done": False},
-            {"model": "llama3.2:1b", "message": {"role": "assistant", "content": ": \"SELECT 1\""}, "done": False},
-            {"model": "llama3.2:1b", "message": {"role": "assistant", "content": "}"}, "done": False},
-            {
-                "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": ""},
-                "done": True,
-                "done_reason": "stop",
-                "prompt_eval_count": 7,
-                "eval_count": 4,
-            },
-        ]
-        body = "".join(json.dumps(e) + "\n" for e in events).encode()
+        body = json.dumps({
+            "model": "llama3.2:1b",
+            "message": {"role": "assistant", "content": '{"sql": "SELECT 1"}'},
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 7,
+            "eval_count": 4,
+        }).encode()
         self.send_response(200)
-        self.send_header("Content-Type", "application/x-ndjson")
+        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-        self.wfile.flush()
 
     def log_message(self, *_):
         pass
@@ -47,7 +40,7 @@ def test_runtime3_inherits_pinned_prompt_methods():
     assert Runtime3OllamaProvider.summarize is OllamaProvider.summarize
 
 
-def test_runtime3_streaming_payload_is_bounded():
+def test_runtime3_nonstreaming_payload_is_bounded():
     captured = {}
 
     class CaptureHandler(BaseHTTPRequestHandler):
@@ -81,6 +74,7 @@ def test_runtime3_streaming_payload_is_bounded():
         assert result.text == "SELECT 1"
         assert captured["options"]["temperature"] == 0
         assert captured["options"]["num_predict"] == 2048
+        assert captured["stream"] is False
         assert captured["format"] == {
             "type": "object",
             "properties": {"sql": {"type": "string"}},
@@ -167,7 +161,7 @@ def test_runtime3_rejects_length_terminated_incomplete_json():
         thread.join(timeout=2)
 
 
-def test_runtime3_streaming_transport():
+def test_runtime3_nonstreaming_transport():
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
