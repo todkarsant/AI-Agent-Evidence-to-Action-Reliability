@@ -38,6 +38,20 @@ class Runtime3OllamaProvider(OllamaProvider):
         if self.max_output_tokens < 1:
             raise ValueError("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS must be >= 1")
 
+    @staticmethod
+    def _is_complete_json_object(text: str) -> bool:
+        """Return True only when the accumulated response is a complete JSON object.
+
+        Ollama can report done_reason="length" even when the streamed content is
+        already a complete JSON object. A token-limit condition is therefore not
+        sufficient by itself to declare the transport response unusable.
+        """
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError:
+            return False
+        return isinstance(value, dict)
+
     def _chat(self, prompt: str) -> LLMResult:
         # This payload intentionally matches the pinned Project 1 provider:
         # same endpoint, model, single user message, JSON mode, and temperature=0.
@@ -93,10 +107,11 @@ class Runtime3OllamaProvider(OllamaProvider):
 
                 done_reason = final_data.get("done_reason")
                 if done_reason == "length":
-                    raise RuntimeError(
-                        "Runtime3 Ollama generation stopped at the configured "
-                        "output-token limit before a complete response was produced."
-                    )
+                    if not self._is_complete_json_object(text):
+                        raise RuntimeError(
+                            "Runtime3 Ollama generation stopped at the configured "
+                            "output-token limit before a complete JSON object was produced."
+                        )
                 if done_reason not in (None, "stop"):
                     raise RuntimeError(
                         f"Runtime3 Ollama generation ended with unexpected done_reason={done_reason!r}"
