@@ -73,12 +73,13 @@ class Runtime3OllamaProvider(OllamaProvider):
             _ACTIVE_RESPONSE_SCHEMA.reset(token)
 
     def _chat(self, prompt: str) -> LLMResult:
-        # This payload intentionally matches the pinned Project 1 provider:
-        # same endpoint, model, single user message, JSON mode, and temperature=0.
+        # Use the same non-streaming Ollama transport semantics as the pinned
+        # Project1 provider. This avoids a separate streaming response-assembly
+        # path while preserving the Runtime3 timeout/retry controls.
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "stream": True,
+            "stream": False,
             "format": _ACTIVE_RESPONSE_SCHEMA.get() or "json",
             "options": {
                 "temperature": 0,
@@ -96,34 +97,18 @@ class Runtime3OllamaProvider(OllamaProvider):
         last_error: Exception | None = None
 
         for attempt in range(1, self.max_attempts + 1):
-            parts: list[str] = []
-            final_data: dict = {}
-            done_seen = False
-
             try:
                 with httpx.Client(timeout=timeout) as client:
-                    with client.stream("POST", self.url, json=payload) as response:
-                        response.raise_for_status()
+                    response = client.post(self.url, json=payload)
+                    response.raise_for_status()
+                    final_data = response.json()
 
-                        for line in response.iter_lines():
-                            if not line:
-                                continue
-                            event = json.loads(line)
-                            message = event.get("message") or {}
-                            content = message.get("content") or ""
-                            if content:
-                                parts.append(content)
-                            if event.get("done"):
-                                final_data = event
-                                done_seen = True
-                                break
-
-                if not done_seen:
-                    raise RuntimeError("Ollama stream ended before the final done event")
-
-                text = "".join(parts)
+                message = final_data.get("message") or {}
+                text = message.get("content") or ""
                 if not text:
-                    raise RuntimeError("Ollama stream completed without assistant content")
+                    raise RuntimeError(
+                        "Ollama response completed without assistant content"
+                    )
 
                 done_reason = final_data.get("done_reason")
                 if done_reason == "length":
@@ -136,8 +121,6 @@ class Runtime3OllamaProvider(OllamaProvider):
                             break
                         time.sleep(self.retry_backoff_seconds * attempt)
                         continue
-                    # A complete JSON object is usable even when Ollama reports
-                    # that the generation limit was the terminal condition.
                 elif done_reason not in (None, "stop"):
                     raise RuntimeError(
                         f"Runtime3 Ollama generation ended with unexpected done_reason={done_reason!r}"
@@ -150,20 +133,16 @@ class Runtime3OllamaProvider(OllamaProvider):
                     model=final_data.get("model", self.model),
                 )
 
-            except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError, json.JSONDecodeError) as exc:
+            except (
+                httpx.TimeoutException,
+                httpx.NetworkError,
+                httpx.RemoteProtocolError,
+                httpx.HTTPStatusError,
+                json.JSONDecodeError,
+            ) as exc:
                 last_error = exc
-
-                # A partially received generation is never replayed. This keeps
-                # retry behavior deterministic at the request boundary.
-                if parts:
-                    raise RuntimeError(
-                        "Runtime3 Ollama stream failed after assistant content was received; "
-                        "request was not retried to avoid ambiguous replay."
-                    ) from exc
-
                 if attempt >= self.max_attempts:
                     break
-
                 time.sleep(self.retry_backoff_seconds * attempt)
 
         raise RuntimeError(
