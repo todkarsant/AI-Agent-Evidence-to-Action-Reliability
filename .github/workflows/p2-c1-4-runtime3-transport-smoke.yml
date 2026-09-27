@@ -94,9 +94,10 @@ jobs:
           assert m["protocol_version"] == "P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21"
           target=[x for x in m["cases"] if x["decision_id"] == "P2C14-CONF-000091"]
           assert len(target) == 1, "expected frozen case P2C14-CONF-000091"
-          shard={"protocol_version":m["protocol_version"],"confirmatory":True,"parent_manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"shard_index":0,"start":target[0]["index"],"case_count":1,"cases":target}
+          target_index=m["cases"].index(target[0])
+          shard={"protocol_version":m["protocol_version"],"confirmatory":True,"parent_manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"shard_index":0,"start":target_index,"case_count":1,"cases":target}
           Path("data/manifests/shard_smoke.json").write_text(json.dumps(shard,indent=2,ensure_ascii=False)+"\n")
-          print({"decision_id":shard["cases"][0]["decision_id"],"index":shard["cases"][0]["index"]})
+          print({"decision_id":shard["cases"][0]["decision_id"],"manifest_position":target_index})
           PY
       - name: Install pinned Ollama
         run: |
