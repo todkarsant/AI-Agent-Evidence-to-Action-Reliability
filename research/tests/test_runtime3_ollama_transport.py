@@ -43,7 +43,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def test_runtime3_inherits_pinned_prompt_methods():
-    assert Runtime3OllamaProvider.generate_sql is OllamaProvider.generate_sql
+    assert Runtime3OllamaProvider.generate_sql is not OllamaProvider.generate_sql
     assert Runtime3OllamaProvider.summarize is OllamaProvider.summarize
 
 
@@ -77,9 +77,16 @@ def test_runtime3_streaming_payload_is_bounded():
     try:
         host, port = server.server_address
         provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
-        provider._chat("return JSON")
+        result = provider.generate_sql("question", "schema")
+        assert result.text == "SELECT 1"
         assert captured["options"]["temperature"] == 0
         assert captured["options"]["num_predict"] == 2048
+        assert captured["format"] == {
+            "type": "object",
+            "properties": {"sql": {"type": "string"}},
+            "required": ["sql"],
+            "additionalProperties": False,
+        }
     finally:
         server.shutdown()
         thread.join(timeout=2)

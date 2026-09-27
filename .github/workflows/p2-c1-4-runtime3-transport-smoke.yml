@@ -2,6 +2,12 @@ name: p2-c1-4-runtime3-transport-smoke
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "runtime3_ollama.py"
+      - "research/tests/test_runtime3_ollama_transport.py"
+      - "research/cohort/**"
+      - ".github/workflows/p2-c1-4-runtime3-transport-smoke.yml"
 
 permissions:
   contents: read
@@ -47,6 +53,10 @@ jobs:
           mkdir -p "$HOME/nltk_data"
           python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
           echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
+      - name: Run Runtime3 transport unit tests
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python -m pytest -q research/tests/test_runtime3_ollama_transport.py
       - name: Download and verify Spider source
         run: |
           set -euo pipefail
@@ -82,9 +92,11 @@ jobs:
           m=json.loads(p.read_text())
           assert m["confirmatory"] is True
           assert m["protocol_version"] == "P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21"
-          shard={"protocol_version":m["protocol_version"],"confirmatory":True,"parent_manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"shard_index":0,"start":0,"case_count":1,"cases":m["cases"][:1]}
+          target=[x for x in m["cases"] if x["decision_id"] == "P2C14-CONF-000091"]
+          assert len(target) == 1, "expected frozen case P2C14-CONF-000091"
+          shard={"protocol_version":m["protocol_version"],"confirmatory":True,"parent_manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"shard_index":0,"start":target[0]["index"],"case_count":1,"cases":target}
           Path("data/manifests/shard_smoke.json").write_text(json.dumps(shard,indent=2,ensure_ascii=False)+"\n")
-          print({"decision_id":shard["cases"][0]["decision_id"]})
+          print({"decision_id":shard["cases"][0]["decision_id"],"index":shard["cases"][0]["index"]})
           PY
       - name: Install pinned Ollama
         run: |
