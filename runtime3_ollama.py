@@ -33,6 +33,15 @@ class Runtime3OllamaProvider(OllamaProvider):
         self.retry_backoff_seconds = float(os.getenv("RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS", "2"))
         self.max_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS", "2048"))
 
+        # Frozen Project1 generate_sql() returns exactly one JSON object with one string field: sql.
+        # Ollama supports a JSON Schema in format, constraining generation without changing the Project1 prompt.
+        self.response_schema = {
+            "type": "object",
+            "properties": {"sql": {"type": "string"}},
+            "required": ["sql"],
+            "additionalProperties": False,
+        }
+
         if self.max_attempts < 1:
             raise ValueError("RUNTIME3_OLLAMA_MAX_ATTEMPTS must be >= 1")
         if self.max_output_tokens < 1:
@@ -59,7 +68,7 @@ class Runtime3OllamaProvider(OllamaProvider):
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": True,
-            "format": "json",
+            "format": self.response_schema,
             "options": {
                 "temperature": 0,
                 "num_predict": self.max_output_tokens,
