@@ -73,7 +73,7 @@ def test_runtime3_nonstreaming_payload_is_bounded():
         result = provider.generate_sql("question", "schema")
         assert result.text == "SELECT 1"
         assert captured["options"]["temperature"] == 0
-        assert captured["options"]["num_predict"] == 2048
+        assert captured["options"]["num_predict"] == provider.max_output_tokens
         assert captured["stream"] is False
         assert captured["format"] == {
             "type": "object",
