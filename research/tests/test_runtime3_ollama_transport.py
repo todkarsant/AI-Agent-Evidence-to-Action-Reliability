@@ -130,7 +130,7 @@ def test_runtime3_rejects_length_terminated_incomplete_json():
             self.rfile.read(length)
             body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT 1"'},
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1'},
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
@@ -182,7 +182,7 @@ def test_runtime3_nonstreaming_transport():
         thread.join(timeout=2)
 
 
-def test_runtime3_retries_incomplete_length_generation_and_accepts_complete_retry():
+def test_runtime3_recovers_complete_sql_without_retry():
     calls = {"count": 0}
 
     class RetryHandler(BaseHTTPRequestHandler):
@@ -196,14 +196,15 @@ def test_runtime3_retries_incomplete_length_generation_and_accepts_complete_retr
             else:
                 content = '{"sql": "SELECT 1"}'
                 reason = "length"
-            body = (json.dumps({
+            body = json.dumps({
                 "model": "llama3.2:1b",
                 "message": {"role": "assistant", "content": content},
                 "done": True,
                 "done_reason": reason,
                 "prompt_eval_count": 7,
                 "eval_count": 2048,
-            }) + "\n").encode()
+            }) + "\n"
+            body = body.encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson")
             self.send_header("Content-Length", str(len(body)))
@@ -221,7 +222,7 @@ def test_runtime3_retries_incomplete_length_generation_and_accepts_complete_retr
         provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
         result = provider._chat("return JSON")
         assert result.text == '{"sql": "SELECT 1"}'
-        assert calls["count"] == 2
+        assert calls["count"] == 1
     finally:
         server.shutdown()
         thread.join(timeout=2)
@@ -234,8 +235,8 @@ def test_runtime3_uses_higher_configured_ceiling_on_retry():
         def do_POST(self):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length))
-            calls.append(payload["options"]["num_predict"])
-            content = '{"sql": "SELECT 1"' if len(calls) == 1 else '{"sql": "SELECT 1"}'
+            calls.append((payload["options"]["num_predict"], payload["format"]))
+            content = '{"sql": "SELECT 1' if len(calls) == 1 else '{"sql": "SELECT 1"}'
             body = (json.dumps({
                 "model": "llama3.2:1b",
                 "message": {"role": "assistant", "content": content},
@@ -263,7 +264,7 @@ def test_runtime3_uses_higher_configured_ceiling_on_retry():
         provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
         result = provider._chat("return JSON")
         assert result.text == '{"sql": "SELECT 1"}'
-        assert calls == [provider.max_output_tokens, 8192]
+        assert calls == [(provider.max_output_tokens, "json"), (8192, "json")]
     finally:
         os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         server.shutdown()
@@ -278,14 +279,15 @@ def test_runtime3_fails_closed_after_bounded_incomplete_length_retries():
             calls["count"] += 1
             length = int(self.headers.get("Content-Length", "0"))
             self.rfile.read(length)
-            body = (json.dumps({
+            body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT 1"'},
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1'},
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
                 "eval_count": 2048,
-            }) + "\n").encode()
+            }) + "\n"
+            body = body.encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson")
             self.send_header("Content-Length", str(len(body)))
@@ -335,3 +337,23 @@ def test_runtime3_rejects_retry_ceiling_above_context_window():
             os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         else:
             os.environ["RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS"] = old_retry
+
+def test_runtime3_recovers_complete_sql_from_truncated_json_envelope():
+    from runtime3_ollama import Runtime3OllamaProvider
+
+    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"'
+    recovered = Runtime3OllamaProvider._recover_complete_sql_object(truncated)
+
+    assert recovered is not None
+    assert json.loads(recovered) == {
+        "sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"
+    }
+
+
+def test_runtime3_does_not_salvage_incomplete_sql_string():
+    from runtime3_ollama import Runtime3OllamaProvider
+
+    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2'
+    assert Runtime3OllamaProvider._recover_complete_sql_object(truncated) is None
+
+

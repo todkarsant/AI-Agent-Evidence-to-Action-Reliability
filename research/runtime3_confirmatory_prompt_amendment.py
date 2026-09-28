@@ -16,6 +16,12 @@ CURRENT_ESCALATION_SENTENCE = (
     "ordering and nested-query semantics before answering."
 )
 
+LEGACY_ESCALATION_SENTENCES = (
+    CURRENT_ESCALATION_SENTENCE,
+    "This is a post-evidence escalation. Re-check the SQL against the schema and question before answering.",
+    "This is a post-evidence escalation. Re-check the joins, filters, grouping, ordering, and nested query semantics before answering.",
+)
+
 AMENDED_ESCALATION_SENTENCE = (
     "This is a post-evidence escalation. Re-check the SQL against the schema "
     "and question before answering."
@@ -29,16 +35,18 @@ def apply_confirmatory_prompt_amendment(prompt: str) -> tuple[str, bool]:
     More than one occurrence fails closed rather than silently changing multiple
     prompt locations.
     """
-    occurrences = prompt.count(CURRENT_ESCALATION_SENTENCE)
-    if occurrences > 1:
+    found = [(s, prompt.count(s)) for s in LEGACY_ESCALATION_SENTENCES if prompt.count(s)]
+    total_occurrences = sum(n for _, n in found)
+    if total_occurrences > 1:
         raise RuntimeError(
             "Confirmatory Runtime3 escalation amendment refused the prompt: "
-            f"expected at most one exact escalation sentence, found {occurrences}."
+            f"expected at most one exact escalation sentence, found {total_occurrences}."
         )
-    if occurrences == 0:
+    if total_occurrences == 0:
         return prompt, False
+    source_sentence = found[0][0]
     return (
-        prompt.replace(CURRENT_ESCALATION_SENTENCE, AMENDED_ESCALATION_SENTENCE, 1),
+        prompt.replace(source_sentence, AMENDED_ESCALATION_SENTENCE, 1),
         True,
     )
 
