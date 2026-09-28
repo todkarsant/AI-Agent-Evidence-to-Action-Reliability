@@ -7,9 +7,18 @@ on:
     paths:
       - "runtime3_ollama.py"
       - "research/cohort/**"
+      - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
+  pull_request:
+    paths:
+      - "runtime3_ollama.py"
+      - "research/cohort/**"
       - "research/tests/**"
       - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
   workflow_dispatch:
+
+concurrency:
+  group: p2-c1-4-runtime3-sequential-qualification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -29,14 +38,16 @@ env:
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04
+    runs-on: windows-latest
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - name: Checkout pinned Project 1 and Spider
+        shell: bash
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
@@ -45,10 +56,9 @@ jobs:
           git clone --quiet https://github.com/taoyds/spider.git external/spider
           git -C external/spider checkout --quiet "$SPIDER_COMMIT"
       - name: Install dependencies
+        shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y zstd unzip
           python -m pip install --upgrade pip
           python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
           python -m pip install "nltk==3.9.4" jsonschema
@@ -56,19 +66,29 @@ jobs:
           python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
           echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
       - name: Run Runtime3 transport unit tests
+        shell: bash
         run: |
           set -euo pipefail
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python -m pytest -q research/tests/test_runtime3_ollama_transport.py
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot;$GITHUB_WORKSPACE" python -m pytest -q research/tests/test_runtime3_ollama_transport.py
       - name: Download and verify Spider source
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p data
-          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/spider_data.zip "https://huggingface.co/datasets/HAL-9001/spider-databases/resolve/main/spider_data.zip?download=true"
-          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
-          unzip -q data/spider_data.zip -d data/spider_unpacked
-          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
-          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
-          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
+          curl.exe -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/spider_data.zip "https://huggingface.co/datasets/HAL-9001/spider-databases/resolve/main/spider_data.zip?download=true"
+          test "$(python -c 'import hashlib; print(hashlib.sha256(open("data/spider_data.zip","rb").read()).hexdigest())')" = "$SPIDER_ARCHIVE_SHA256"
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          z=Path("data/spider_data.zip")
+          out=Path("data/spider_unpacked")
+          with zipfile.ZipFile(z) as archive:
+              archive.extractall(out)
+          for name in ("train_spider.json","train_others.json","tables.json"):
+              matches=list(out.rglob(name))
+              assert matches, f"Missing {name}"
+              Path("data",name).write_bytes(matches[0].read_bytes())
+          PY
           mkdir -p data/database
           python - <<'PY'
           from pathlib import Path
@@ -97,6 +117,7 @@ jobs:
           Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
           PY
       - name: Recover frozen pilot and prepare 200-case sequential qualification
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p data/manifests
@@ -108,7 +129,7 @@ jobs:
           import json, hashlib
           from pathlib import Path
           src=Path("data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json")
-          m=json.loads(src.read_text())
+          m=json.loads(src.read_text(encoding="utf-8"))
           assert m["confirmatory"] is True
           cases=m["cases"][:200]
           assert len(cases)==200
@@ -120,23 +141,56 @@ jobs:
           PY
 
       - name: Install pinned Ollama
+        shell: bash
         run: |
           set -euo pipefail
-          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama-linux-amd64.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
-          zstd -t /tmp/ollama-linux-amd64.tar.zst
-          mkdir -p "$HOME/ollama-$OLLAMA_VERSION"
-          tar --use-compress-program=unzstd -xf /tmp/ollama-linux-amd64.tar.zst -C "$HOME/ollama-$OLLAMA_VERSION"
-          echo "$HOME/ollama-$OLLAMA_VERSION/bin" >> "$GITHUB_PATH"
+          curl.exe -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/ollama-windows-amd64.zip "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-windows-amd64.zip"
+          test "$(python -c 'import hashlib; print(hashlib.sha256(open("data/ollama-windows-amd64.zip","rb").read()).hexdigest())')" = "52cb36a62e7e501f61514f60212dec7117b6c098811357585e02fffe32d2fcd7"
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          out=Path("ollama-runtime")
+          out.mkdir(exist_ok=True)
+          with zipfile.ZipFile("data/ollama-windows-amd64.zip") as archive:
+              archive.extractall(out)
+          PY
+          echo "$GITHUB_WORKSPACE/ollama-runtime" >> "$GITHUB_PATH"
       - name: Start and fingerprint Ollama
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          nohup "$HOME/ollama-$OLLAMA_VERSION/bin/ollama" serve > artifacts/ollama_server.log 2>&1 &
-          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
-          test "$(curl -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
-          ollama pull "$OLLAMA_MODEL"
-          curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
+          nohup "$GITHUB_WORKSPACE/ollama-runtime/ollama.exe" serve > artifacts/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl.exe -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
+          test "$(curl.exe -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          "$GITHUB_WORKSPACE/ollama-runtime/ollama.exe" pull "$OLLAMA_MODEL"
+          curl.exe -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
+      - name: Run frozen pathological-case preflight (000091)
+        shell: bash
+        env:
+          PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
+          RUNTIME_MANIFEST_HASH: ${{ github.sha }}
+          LLM_PROVIDER: ollama
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_MODEL: llama3.2:1b
+        run: |
+          set -euo pipefail
+          mkdir -p data/manifests artifacts/preflight-000091
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path("data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json")
+          m=json.loads(src.read_text())
+          case=next(c for c in m["cases"] if c["decision_id"]=="P2C14-CONF-000091")
+          Path("data/manifests/P2_C1_4_PREFLIGHT_000091.json").write_text(
+              json.dumps({k:v for k,v in m.items() if k != "cases"} | {"cases":[case]}, indent=2, ensure_ascii=False) + "\n"
+          )
+          print({"preflight_case":case["decision_id"],"db_id":case["db_id"]})
+          PY
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot;$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PREFLIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory
+
       - name: Run sequential 200-case qualification
+        shell: bash
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
           RUNTIME_MANIFEST_HASH: ${{ github.sha }}
@@ -146,9 +200,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/qualification
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot;$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory
 
       - name: Validate qualification artifact
+        shell: bash
         run: |
           set -euo pipefail
           python research/cohort/validate_P2_C1_4_aligned_records.py artifacts/qualification/aligned_records.json
@@ -169,3 +224,11 @@ jobs:
           name: p2-c1-4-runtime3-sequential-qualification-200
           path: artifacts/
           retention-days: 14
+
+  confirmatory-acquisition:
+    name: Auto-start confirmatory acquisition after 200/200 qualification
+    needs: smoke
+    if: ${{ needs.smoke.result == 'success' }}
+    uses: ./.github/workflows/p2-c1-4-confirmatory-acquisition-runtime3.yml
+    with:
+      qualified_sha: ${{ github.sha }}
