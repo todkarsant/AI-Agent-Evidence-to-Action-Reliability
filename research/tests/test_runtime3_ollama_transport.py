@@ -130,7 +130,7 @@ def test_runtime3_rejects_length_terminated_incomplete_json():
             self.rfile.read(length)
             body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT 1',
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1'},
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
