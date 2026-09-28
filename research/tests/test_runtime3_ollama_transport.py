@@ -130,7 +130,7 @@ def test_runtime3_rejects_length_terminated_incomplete_json():
             self.rfile.read(length)
             body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT 1"'},
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1',
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
@@ -235,7 +235,7 @@ def test_runtime3_uses_higher_configured_ceiling_on_retry():
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length))
             calls.append(payload["options"]["num_predict"])
-            content = '{"sql": "SELECT 1"' if len(calls) == 1 else '{"sql": "SELECT 1"}'
+            content = '{"sql": "SELECT 1' if len(calls) == 1 else '{"sql": "SELECT 1"}'
             body = (json.dumps({
                 "model": "llama3.2:1b",
                 "message": {"role": "assistant", "content": content},
@@ -280,7 +280,7 @@ def test_runtime3_fails_closed_after_bounded_incomplete_length_retries():
             self.rfile.read(length)
             body = (json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT 1"'},
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1',
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
