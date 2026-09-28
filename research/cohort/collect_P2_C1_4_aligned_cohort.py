@@ -147,9 +147,19 @@ def main():
         ex=lookup.get((c["db_id"],c["question"]))
         if ex is None: raise SystemExit(f"FAIL: manifest case not found: {c['decision_id']}")
         before=len(evaluator.captures)
-        selected, defensibility=run_case(env, ex)
-        selected_traces[c["decision_id"]]=selected
-        defensibility_records[c["decision_id"]]=defensibility
+        runtime_failure=None
+        try:
+            selected, defensibility=run_case(env, ex)
+            selected_traces[c["decision_id"]]=selected
+            defensibility_records[c["decision_id"]]=defensibility
+        except RuntimeError as exc:
+            runtime_failure={
+                "decision_id":c["decision_id"],
+                "record_status":"NON_EVALUABLE_RUNTIME_FAILURE",
+                "failure_class":"RUNTIME3_BOUNDED_GENERATION_FAILURE",
+                "exception_type":type(exc).__name__,
+                "exception":str(exc),
+            }
         new=evaluator.captures[before:]
         # P0 is the first execution performed by run_case. It is the only
         # evidence eligible for X_W and must precede intervention logic.
