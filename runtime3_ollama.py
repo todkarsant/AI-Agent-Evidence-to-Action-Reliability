@@ -58,6 +58,27 @@ class Runtime3OllamaProvider(OllamaProvider):
             raise ValueError("RUNTIME3_OLLAMA_CONTEXT_LENGTH must be >= RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS")
 
     @staticmethod
+    def _recover_complete_sql_object(text: str) -> str | None:
+        """Recover a complete SQL string when only the outer JSON envelope was truncated."""
+        if not text.lstrip().startswith("{"):
+            return None
+        try:
+            obj_start = text.index("{")
+            key_marker = '"sql"'
+            key_start = text.index(key_marker, obj_start)
+            colon = text.index(":", key_start + len(key_marker))
+            value_start = colon + 1
+            while value_start < len(text) and text[value_start].isspace():
+                value_start += 1
+            decoder = json.JSONDecoder()
+            sql, _ = decoder.raw_decode(text[value_start:])
+        except (ValueError, json.JSONDecodeError):
+            return None
+        if not isinstance(sql, str) or not sql.strip():
+            return None
+        return json.dumps({"sql": sql}, ensure_ascii=False)
+
+    @staticmethod
     def _is_complete_json_object(text: str) -> bool:
         """Return True only when the accumulated response is a complete JSON object.
 
@@ -122,15 +143,21 @@ class Runtime3OllamaProvider(OllamaProvider):
 
                 done_reason = final_data.get("done_reason")
                 if done_reason == "length":
-                    if not self._is_complete_json_object(text):
-                        last_error = RuntimeError(
-                            "Runtime3 Ollama generation stopped at the configured "
-                            "output-token limit before a complete JSON object was produced."
-                        )
-                        if attempt >= self.max_attempts:
-                            break
-                        time.sleep(self.retry_backoff_seconds * attempt)
-                        continue
+                    if self._is_complete_json_object(text):
+                        pass
+                    else:
+                        recovered = self._recover_complete_sql_object(text)
+                        if recovered is not None:
+                            text = recovered
+                        else:
+                            last_error = RuntimeError(
+                                "Runtime3 Ollama generation stopped at the configured "
+                                "output-token limit before a complete JSON object was produced."
+                            )
+                            if attempt >= self.max_attempts:
+                                break
+                            time.sleep(self.retry_backoff_seconds * attempt)
+                            continue
                 elif done_reason not in (None, "stop"):
                     raise RuntimeError(
                         f"Runtime3 Ollama generation ended with unexpected done_reason={done_reason!r}"
