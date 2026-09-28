@@ -182,7 +182,7 @@ def test_runtime3_nonstreaming_transport():
         thread.join(timeout=2)
 
 
-def test_runtime3_retries_incomplete_length_generation_and_accepts_complete_retry():
+def test_runtime3_recovers_complete_sql_without_retry():
     calls = {"count": 0}
 
     class RetryHandler(BaseHTTPRequestHandler):
@@ -222,7 +222,7 @@ def test_runtime3_retries_incomplete_length_generation_and_accepts_complete_retr
         provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
         result = provider._chat("return JSON")
         assert result.text == '{"sql": "SELECT 1"}'
-        assert calls["count"] == 2
+        assert calls["count"] == 1
     finally:
         server.shutdown()
         thread.join(timeout=2)
