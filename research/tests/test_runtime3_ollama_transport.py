@@ -235,7 +235,7 @@ def test_runtime3_uses_higher_configured_ceiling_on_retry():
         def do_POST(self):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length))
-            calls.append(payload["options"]["num_predict"])
+            calls.append((payload["options"]["num_predict"], payload["format"]))
             content = '{"sql": "SELECT 1' if len(calls) == 1 else '{"sql": "SELECT 1"}'
             body = (json.dumps({
                 "model": "llama3.2:1b",
@@ -264,7 +264,7 @@ def test_runtime3_uses_higher_configured_ceiling_on_retry():
         provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
         result = provider._chat("return JSON")
         assert result.text == '{"sql": "SELECT 1"}'
-        assert calls == [provider.max_output_tokens, 8192]
+        assert calls == [(provider.max_output_tokens, provider.response_schema), (8192, "json")]
     finally:
         os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         server.shutdown()
