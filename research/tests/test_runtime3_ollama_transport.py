@@ -1,22 +1,3 @@
-def test_runtime3_recovers_complete_sql_from_truncated_json_envelope():
-    from runtime3_ollama import Runtime3OllamaProvider
-
-    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"'
-    recovered = Runtime3OllamaProvider._recover_complete_sql_object(truncated)
-
-    assert recovered is not None
-    assert json.loads(recovered) == {
-        "sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"
-    }
-
-
-def test_runtime3_does_not_salvage_incomplete_sql_string():
-    from runtime3_ollama import Runtime3OllamaProvider
-
-    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2'
-    assert Runtime3OllamaProvider._recover_complete_sql_object(truncated) is None
-
-
 from __future__ import annotations
 
 import json
@@ -354,3 +335,23 @@ def test_runtime3_rejects_retry_ceiling_above_context_window():
             os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         else:
             os.environ["RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS"] = old_retry
+
+def test_runtime3_recovers_complete_sql_from_truncated_json_envelope():
+    from runtime3_ollama import Runtime3OllamaProvider
+
+    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"'
+    recovered = Runtime3OllamaProvider._recover_complete_sql_object(truncated)
+
+    assert recovered is not None
+    assert json.loads(recovered) == {
+        "sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"
+    }
+
+
+def test_runtime3_does_not_salvage_incomplete_sql_string():
+    from runtime3_ollama import Runtime3OllamaProvider
+
+    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2'
+    assert Runtime3OllamaProvider._recover_complete_sql_object(truncated) is None
+
+
