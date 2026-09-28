@@ -40,8 +40,9 @@ env:
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
-  # Run #24 (the last successful 200-case qualification) used 8192 tokens on retry.
-  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
+  # Keep the retry at the validated 4096-token ceiling. Run #30 was not a valid
+  # test of this fix because its effective workflow configuration still used 8192.
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 4096
   RUNTIME3_OLLAMA_CONTEXT_LENGTH: 16384
 
 jobs:
