@@ -196,14 +196,15 @@ def test_runtime3_retries_incomplete_length_generation_and_accepts_complete_retr
             else:
                 content = '{"sql": "SELECT 1"}'
                 reason = "length"
-            body = (json.dumps({
+            body = json.dumps({
                 "model": "llama3.2:1b",
                 "message": {"role": "assistant", "content": content},
                 "done": True,
                 "done_reason": reason,
                 "prompt_eval_count": 7,
                 "eval_count": 2048,
-            }) + "\n").encode()
+            }) + "\n"
+            body = body.encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson")
             self.send_header("Content-Length", str(len(body)))
