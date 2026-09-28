@@ -264,7 +264,7 @@ def test_runtime3_uses_higher_configured_ceiling_on_retry():
         provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
         result = provider._chat("return JSON")
         assert result.text == '{"sql": "SELECT 1"}'
-        assert calls == [(provider.max_output_tokens, provider.response_schema), (8192, "json")]
+        assert calls == [(provider.max_output_tokens, "json"), (8192, "json")]
     finally:
         os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         server.shutdown()
