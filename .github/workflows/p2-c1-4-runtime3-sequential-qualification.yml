@@ -34,15 +34,16 @@ env:
   OLLAMA_MODEL: llama3.2:1b
   P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21
   RUNTIME3_OLLAMA_CONNECT_TIMEOUT_SECONDS: 30
-  RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: 600
+  RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: 1200
   RUNTIME3_OLLAMA_WRITE_TIMEOUT_SECONDS: 30
   RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: 30
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
-  # Keep the retry at the validated 4096-token ceiling. Run #30 was not a valid
-  # test of this fix because its effective workflow configuration still used 8192.
-  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 4096
+  # Frozen 000091 consumes the full 4096-token base ceiling. The validated
+  # recovery path therefore needs the previously proven 8192-token retry, while
+  # the HTTP read timeout must cover its observed generation time.
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
   RUNTIME3_OLLAMA_CONTEXT_LENGTH: 16384
 
 jobs:
