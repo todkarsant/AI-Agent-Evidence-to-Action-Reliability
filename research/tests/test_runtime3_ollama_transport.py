@@ -279,14 +279,15 @@ def test_runtime3_fails_closed_after_bounded_incomplete_length_retries():
             calls["count"] += 1
             length = int(self.headers.get("Content-Length", "0"))
             self.rfile.read(length)
-            body = (json.dumps({
+            body = json.dumps({
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT 1',
+                "message": {"role": "assistant", "content": '{"sql": "SELECT 1'},
                 "done": True,
                 "done_reason": "length",
                 "prompt_eval_count": 7,
                 "eval_count": 2048,
-            }) + "\n").encode()
+            }) + "\n"
+            body = body.encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson")
             self.send_header("Content-Length", str(len(body)))
