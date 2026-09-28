@@ -1,3 +1,22 @@
+def test_runtime3_recovers_complete_sql_from_truncated_json_envelope():
+    from runtime3_ollama import Runtime3OllamaProvider
+
+    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"'
+    recovered = Runtime3OllamaProvider._recover_complete_sql_object(truncated)
+
+    assert recovered is not None
+    assert json.loads(recovered) == {
+        "sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"
+    }
+
+
+def test_runtime3_does_not_salvage_incomplete_sql_string():
+    from runtime3_ollama import Runtime3OllamaProvider
+
+    truncated = '{"sql":"SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2'
+    assert Runtime3OllamaProvider._recover_complete_sql_object(truncated) is None
+
+
 from __future__ import annotations
 
 import json
