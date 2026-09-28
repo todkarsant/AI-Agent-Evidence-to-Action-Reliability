@@ -34,12 +34,15 @@ env:
   OLLAMA_MODEL: llama3.2:1b
   P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21
   RUNTIME3_OLLAMA_CONNECT_TIMEOUT_SECONDS: 30
-  RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: 600
+  RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: 1200
   RUNTIME3_OLLAMA_WRITE_TIMEOUT_SECONDS: 30
   RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: 30
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
+  # Frozen 000091 consumes the full 4096-token base ceiling. The validated
+  # recovery path therefore needs the previously proven 8192-token retry, while
+  # the HTTP read timeout must cover its observed generation time.
   RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
   RUNTIME3_OLLAMA_CONTEXT_LENGTH: 16384
 
@@ -132,7 +135,6 @@ jobs:
           out.write_text(json.dumps({"protocol_version":m["protocol_version"],"confirmatory":True,"qualification":True,"parent_manifest_sha256":hashlib.sha256(src.read_bytes()).hexdigest(),"cases":cases},indent=2,ensure_ascii=False)+"\n")
           print({"qualification_cases":200,"first":cases[0]["decision_id"],"last":cases[-1]["decision_id"]})
           PY
-
       - name: Install pinned Ollama
         run: |
           set -euo pipefail
@@ -181,7 +183,6 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/qualification
           PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory
-
       - name: Validate qualification artifact
         run: |
           set -euo pipefail
@@ -195,7 +196,6 @@ jobs:
           assert d["records"][-1]["decision_id"]=="P2C14-CONF-000200"
           print({"qualification_records":200,"status":"PASS"})
           PY
-
       - name: Upload qualification evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
