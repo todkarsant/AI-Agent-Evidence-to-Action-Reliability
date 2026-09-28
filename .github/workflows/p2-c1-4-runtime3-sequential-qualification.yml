@@ -9,7 +9,17 @@ on:
       - "research/cohort/**"
       - "research/tests/**"
       - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
+  pull_request:
+    paths:
+      - "runtime3_ollama.py"
+      - "research/cohort/**"
+      - "research/tests/**"
+      - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -29,6 +39,7 @@ env:
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
 
 jobs:
   smoke:
@@ -136,6 +147,26 @@ jobs:
           test "$(curl -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
           ollama pull "$OLLAMA_MODEL"
           curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
+      - name: Run frozen pathological-case preflight (000091)
+        env:
+          PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
+          RUNTIME_MANIFEST_HASH: ${{ github.sha }}
+          LLM_PROVIDER: ollama
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_MODEL: llama3.2:1b
+        run: |
+          set -euo pipefail
+          mkdir -p data/manifests artifacts/preflight-000091
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path("data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json")
+          m=json.loads(src.read_text(encoding="utf-8"))
+          case=next(c for c in m["cases"] if c["decision_id"]=="P2C14-CONF-000091")
+          Path("data/manifests/P2_C1_4_PREFLIGHT_000091.json").write_text(json.dumps({k:v for k,v in m.items() if k != "cases"} | {"cases":[case]}, indent=2, ensure_ascii=False) + "\n")
+          print({"preflight_case":case["decision_id"],"db_id":case["db_id"]})
+          PY
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PREFLIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory
       - name: Run sequential 200-case qualification
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot

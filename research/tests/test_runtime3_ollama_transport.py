@@ -77,7 +77,7 @@ def test_runtime3_nonstreaming_payload_is_bounded():
         assert captured["stream"] is False
         assert captured["format"] == {
             "type": "object",
-            "properties": {"sql": {"type": "string"}},
+            "properties": {"sql": {"type": "string", "maxLength": 12000}},
             "required": ["sql"],
             "additionalProperties": False,
         }
@@ -222,6 +222,49 @@ def test_runtime3_retries_incomplete_length_generation_and_accepts_complete_retr
         assert result.text == '{"sql": "SELECT 1"}'
         assert calls["count"] == 2
     finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+
+def test_runtime3_uses_higher_configured_ceiling_on_retry():
+    calls = []
+
+    class CeilingHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length))
+            calls.append(payload["options"]["num_predict"])
+            content = '{"sql": "SELECT 1"' if len(calls) == 1 else '{"sql": "SELECT 1"}'
+            body = (json.dumps({
+                "model": "llama3.2:1b",
+                "message": {"role": "assistant", "content": content},
+                "done": True,
+                "done_reason": "length",
+                "prompt_eval_count": 7,
+                "eval_count": payload["options"]["num_predict"],
+            }) + "\n").encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), CeilingHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        import os
+        os.environ["RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS"] = "8192"
+        provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
+        result = provider._chat("return JSON")
+        assert result.text == '{"sql": "SELECT 1"}'
+        assert calls == [provider.max_output_tokens, 8192]
+    finally:
+        os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         server.shutdown()
         thread.join(timeout=2)
 
