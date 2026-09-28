@@ -200,7 +200,9 @@ def main():
             "decision_id":c["decision_id"],
             "protocol_version":"P2-C1.4-DECISION-TIME-EVIDENCE-V2",
             "question":c["question"],"database_id":c["db_id"],
+            "record_status":"NON_EVALUABLE_RUNTIME_FAILURE" if runtime_failure else "EVALUABLE",
             "baseline":baseline,"decision_time_evidence":evidence,
+            "runtime_failure":runtime_failure,
             "provenance":{
                 "manifest_hash":manifest_hash,
                 "project1_commit":os.environ.get("PROJECT1_COMMIT","unknown"),
@@ -220,22 +222,36 @@ def main():
         "manifest_hash":manifest_hash,"records":evidence_records
     },indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     evidence_hash=sha256_bytes(evidence_path.read_bytes())
-    scan_forbidden(json.loads(evidence_path.read_text(encoding="utf-8")))
+    evidence_payload=json.loads(evidence_path.read_text(encoding="utf-8"))
+    scan_forbidden(evidence_payload)
 
-    # Only now perform official post-hoc correctness evaluation. The evidence
+    runtime_failures=[r["runtime_failure"] for r in evidence_records if r.get("runtime_failure")]
+    (args.outdir/"runtime_failures.json").write_text(
+        json.dumps({
+            "protocol_version":"P2-C1.4-RUNTIME-FAILURE-LEDGER-V1",
+            "manifest_hash":manifest_hash,
+            "records":runtime_failures
+        },indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+
+    # Only now perform official post-hoc correctness evaluation for cases
+    # that actually reached an outcome-bearing trace. Non-evaluable runtime
+    # failures remain represented in the frozen cohort ledger.
     # artifact has already been serialized, hashed, and leakage-scanned.
     from research.spider_official_eval import evaluate_traces
     traces=[]
     trace_to_decision={}
+    evaluable_cases=[]
     for c in cases:
         did=c["decision_id"]
-        p0=env.p0_traces[(c["db_id"],c["question"])]
-        selected=selected_traces[did]
-        for label,tr in (("P0",p0),("P6-IP",selected)):
-            d=asdict(tr)
-            d["policy"]=label
-            traces.append(d)
-            trace_to_decision[(label,did)]=d
+        if did in selected_traces:
+            evaluable_cases.append(c)
+            p0=env.p0_traces[(c["db_id"],c["question"])]
+            selected=selected_traces[did]
+            for label,tr in (("P0",p0),("P6-IP",selected)):
+                d=asdict(tr)
+                d["policy"]=label
+                traces.append(d)
+                trace_to_decision[(label,did)]=d
     payload={"dataset_manifest":{"question_file":str(args.questions)},
              "policies":["P0","P6-IP"],"traces":traces}
     official=evaluate_traces(payload,args.database_dir,args.tables_file,args.spider_eval_dir)
@@ -244,22 +260,31 @@ def main():
     aligned=[]
     for c in cases:
         did=c["decision_id"]
-        p0=trace_to_decision[("P0",did)]
-        final=trace_to_decision[("P6-IP",did)]
-        d=defensibility_records[did]
-        replacement=bool(d.get("replacement") is True and d.get("decision")=="REPLACE")
-        p0_correct=bool(p0.get("official_execution_correct"))
-        final_correct=bool(final.get("official_execution_correct"))
-        y_h=int(p0_correct and replacement and not final_correct)
-        outcome={"replacement_occurred":replacement,
-                 "p0_correct":p0_correct,"final_correct":final_correct,
-                 "y_h":y_h,"locked_after_evidence":True}
-        outcomes.append(outcome)
         e=next(x for x in evidence_records if x["decision_id"]==did)
+        if did not in trace_to_decision:
+            outcome={"decision_id":did,"record_status":"NON_EVALUABLE_RUNTIME_FAILURE",
+                     "replacement_occurred":None,"p0_correct":None,
+                     "final_correct":None,"y_h":None,
+                     "locked_after_evidence":None}
+        else:
+            p0=trace_to_decision[("P0",did)]
+            final=trace_to_decision[("P6-IP",did)]
+            d=defensibility_records[did]
+            replacement=bool(d.get("replacement") is True and d.get("decision")=="REPLACE")
+            p0_correct=bool(p0.get("official_execution_correct"))
+            final_correct=bool(final.get("official_execution_correct"))
+            y_h=int(p0_correct and replacement and not final_correct)
+            outcome={"decision_id":did,"record_status":"EVALUABLE",
+                     "replacement_occurred":replacement,
+                     "p0_correct":p0_correct,"final_correct":final_correct,
+                     "y_h":y_h,"locked_after_evidence":True}
+        outcomes.append(outcome)
         aligned.append({"decision_id":did,"protocol_version":"P2-C1.4-ALIGNED-V2",
+                        "record_status":outcome["record_status"],
                         "baseline":e["baseline"],
                         "decision_time_evidence":e["decision_time_evidence"],
                         "intervention_outcome":outcome,
+                        "runtime_failure":e.get("runtime_failure"),
                         "provenance":{
                           "manifest_hash":e["provenance"]["manifest_hash"],
                           "code_version":os.environ.get("PROJECT1_COMMIT","unknown"),
@@ -281,13 +306,15 @@ def main():
         "confirmatory":bool(args.confirmatory),
         "non_confirmatory":bool(args.non_confirmatory),
         "decision_count":len(evidence_records),
+        "evaluable_decision_count":len(evaluable_cases),
+        "non_evaluable_runtime_failure_count":len(runtime_failures),
         "decision_time_evidence_sha256":evidence_hash,
         "official_outcome_evaluation":"RUN_AFTER_EVIDENCE_LOCK",
         "official_execution":official,
-        "harm_count":sum(x["y_h"] for x in outcomes),
+        "harm_count":sum(x["y_h"] for x in outcomes if x["y_h"] is not None),
         "x_w":"NOT_ANNOTATED_IN_COLLECTOR",
         "runtime3_implementation_amendment":AMENDMENT_ID,
-        "reason":("Confirmatory aligned outcome-bearing acquisition under frozen protocol."
+        "reason":("Confirmatory acquisition under frozen protocol with explicit runtime non-evaluable ledger; no cohort case was removed."
                   if args.confirmatory else
                   "Dry run proves same-unit evidence/outcome linkage and temporal leakage boundary; it is not confirmatory data.")
     }
