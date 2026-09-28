@@ -36,12 +36,13 @@ class Runtime3OllamaProvider(OllamaProvider):
         self.max_attempts = int(os.getenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", "2"))
         self.retry_backoff_seconds = float(os.getenv("RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS", "2"))
         self.max_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS", "2048"))
+        self.retry_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", str(self.max_output_tokens)))
 
         # Frozen Project1 generate_sql() returns exactly one JSON object with one string field: sql.
         # Ollama supports a JSON Schema in format, constraining generation without changing the Project1 prompt.
         self.response_schema = {
             "type": "object",
-            "properties": {"sql": {"type": "string"}},
+            "properties": {"sql": {"type": "string", "maxLength": 12000}},
             "required": ["sql"],
             "additionalProperties": False,
         }
@@ -50,6 +51,8 @@ class Runtime3OllamaProvider(OllamaProvider):
             raise ValueError("RUNTIME3_OLLAMA_MAX_ATTEMPTS must be >= 1")
         if self.max_output_tokens < 1:
             raise ValueError("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS must be >= 1")
+        if self.retry_output_tokens < self.max_output_tokens:
+            raise ValueError("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS must be >= RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS")
 
     @staticmethod
     def _is_complete_json_object(text: str) -> bool:
@@ -76,15 +79,12 @@ class Runtime3OllamaProvider(OllamaProvider):
         # Use the same non-streaming Ollama transport semantics as the pinned
         # Project1 provider. This avoids a separate streaming response-assembly
         # path while preserving the Runtime3 timeout/retry controls.
-        payload = {
+        base_payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "format": _ACTIVE_RESPONSE_SCHEMA.get() or "json",
-            "options": {
-                "temperature": 0,
-                "num_predict": self.max_output_tokens,
-            },
+            "options": {"temperature": 0},
         }
 
         timeout = httpx.Timeout(
@@ -97,6 +97,13 @@ class Runtime3OllamaProvider(OllamaProvider):
         last_error: Exception | None = None
 
         for attempt in range(1, self.max_attempts + 1):
+            payload = {
+                **base_payload,
+                "options": {
+                    **base_payload["options"],
+                    "num_predict": self.max_output_tokens if attempt == 1 else self.retry_output_tokens,
+                },
+            }
             try:
                 with httpx.Client(timeout=timeout) as client:
                     response = client.post(self.url, json=payload)

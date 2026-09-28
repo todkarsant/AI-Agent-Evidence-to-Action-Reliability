@@ -143,9 +143,14 @@ def main():
     evidence_records=[]
     selected_traces={}
     defensibility_records={}
+    progress_path=args.outdir/"qualification_progress.jsonl"
+    args.outdir.mkdir(parents=True,exist_ok=True)
     for c in cases:
         ex=lookup.get((c["db_id"],c["question"]))
         if ex is None: raise SystemExit(f"FAIL: manifest case not found: {c['decision_id']}")
+        with progress_path.open("a",encoding="utf-8") as f:
+            f.write(json.dumps({"event":"CASE_START","decision_id":c["decision_id"],"db_id":c["db_id"]},ensure_ascii=False)+"\n")
+        print(f'RUNTIME3_CASE_START {c["decision_id"]} {c["db_id"]}', flush=True)
         before=len(evaluator.captures)
         selected, defensibility=run_case(env, ex)
         selected_traces[c["decision_id"]]=selected
@@ -200,6 +205,9 @@ def main():
         }
         scan_forbidden(record)
         evidence_records.append(record)
+        with progress_path.open("a",encoding="utf-8") as f:
+            f.write(json.dumps({"event":"CASE_DONE","decision_id":c["decision_id"],"db_id":c["db_id"],"evidence_records":len(evidence_records)},ensure_ascii=False)+"\n")
+        print(f'RUNTIME3_CASE_DONE {c["decision_id"]}', flush=True)
 
         # No correctness/intervention fields are persisted until the entire
         # decision-time evidence artifact is serialized and hashed.
