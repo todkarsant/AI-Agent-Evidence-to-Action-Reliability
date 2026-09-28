@@ -221,6 +221,7 @@ jobs:
           mv artifacts/cohort/aligned_records.json "artifacts/aligned_records_shard_$idx.json"
           mv artifacts/cohort/outcomes.json "artifacts/outcomes_shard_$idx.json"
           mv artifacts/cohort/decision_time_evidence.json "artifacts/decision_time_evidence_shard_$idx.json"
+          mv artifacts/cohort/runtime_failures.json "artifacts/runtime_failures_shard_$idx.json"
           cp data/manifests/shard.json "artifacts/manifest_shard_$idx.json"
       - name: Upload immutable shard artifact
         if: always()
@@ -269,6 +270,7 @@ jobs:
           if set(found)!=expected:
               raise SystemExit(f"FAIL: incomplete shard coverage: expected {sorted(expected)}, found {sorted(found)}")
           all_records=[]
+          runtime_failures=[]
           for idx in sorted(found):
               p=Path(found[idx]); d=json.loads(p.read_text())
               start=idx*shard_size
@@ -276,6 +278,10 @@ jobs:
               if len(d["records"])!=expected_count:
                   raise SystemExit(f"FAIL: shard {idx} record count {len(d['records'])} != expected {expected_count}")
               all_records.extend(d["records"])
+              rf=Path(f"shards/runtime_failures_shard_{idx}.json")
+              if not rf.exists():
+                  raise SystemExit(f"FAIL: missing runtime failure ledger for shard {idx}")
+              runtime_failures.extend(json.loads(rf.read_text())["records"])
           ids=[r["decision_id"] for r in all_records]
           expected_ids=[c["decision_id"] for c in manifest["cases"]]
           if ids!=expected_ids:
@@ -284,6 +290,7 @@ jobs:
               raise SystemExit("FAIL: duplicate decision_id across shards")
           out={"protocol_version":"P2-C1.4-ALIGNED-V2","record_count":len(all_records),"records":all_records}
           Path("consolidated").mkdir()
+          Path("consolidated/P2_C1_4_RUNTIME_FAILURE_LEDGER.json").write_text(json.dumps({"protocol_version":"P2-C1.4-RUNTIME-FAILURE-LEDGER-V1","manifest_sha256":hashlib.sha256(manifest_path.read_bytes()).hexdigest(),"record_count":len(runtime_failures),"records":runtime_failures},indent=2,ensure_ascii=False)+"\n")
           p=Path("consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json")
           p.write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n")
           digest=hashlib.sha256(p.read_bytes()).hexdigest()
