@@ -40,7 +40,9 @@ env:
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
-  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
+  # Keep both bounded attempts at the validated 4096-token ceiling. A higher retry ceiling
+  # was observed to run past the 600s HTTP read timeout on frozen case 000091.
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 4096
   RUNTIME3_OLLAMA_CONTEXT_LENGTH: 16384
 
 jobs:
