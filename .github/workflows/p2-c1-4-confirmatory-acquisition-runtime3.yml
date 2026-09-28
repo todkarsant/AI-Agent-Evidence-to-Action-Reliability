@@ -1,8 +1,21 @@
 name: p2-c1-4-confirmatory-acquisition-runtime3
 # Runtime3 accepted path. Free/public-repo capacity profile: keep the confirmatory fan-out below the 20-job standard-hosted concurrency ceiling and reserve capacity for controller/diagnostic jobs.
 on:
-  # Confirmatory acquisition is manual-only after runtime qualification.
+  # Manual dispatch remains available for controlled operations.
   workflow_dispatch:
+    inputs:
+      qualified_sha:
+        description: "Qualified commit SHA; required to bind a manual acquisition to a reviewed revision."
+        required: true
+        type: string
+  # Normal confirmatory flow calls this workflow only after the 200/200
+  # qualification artifact has validated successfully.
+  workflow_call:
+    inputs:
+      qualified_sha:
+        description: "Exact commit SHA that passed the 200-case qualification."
+        required: true
+        type: string
 permissions:
   contents: read
 
@@ -19,15 +32,16 @@ env:
   OLLAMA_MODEL: llama3.2:1b
   P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21
   SHARD_SIZE: 200
-  # Runtime3 transport controls only: read timeout is inactivity between streamed chunks.
+  # Runtime3 transport controls only: read timeout is HTTP response inactivity.
   RUNTIME3_OLLAMA_CONNECT_TIMEOUT_SECONDS: 30
   RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: 600
   RUNTIME3_OLLAMA_WRITE_TIMEOUT_SECONDS: 30
   RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: 30
   RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
   RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
-  # Runtime-only generation guard; Project 1 prompts/model/cases remain pinned.
-  RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 2048
+  # Runtime-only generation guards; Project 1 prompts/model/cases remain pinned.
+  RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
 
 jobs:
   runtime3-transport-regression:
@@ -45,7 +59,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install "httpx==0.28.1" "pytest==8.4.1"
-      - name: Run streaming transport regression
+      - name: Verify qualification provenance
+        env:
+          QUALIFIED_SHA: ${{ inputs.qualified_sha }}
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFIED_SHA"
+          test "$QUALIFIED_SHA" = "$GITHUB_SHA"
+          echo "Qualification provenance verified: $QUALIFIED_SHA"
+
+      - name: Run Runtime3 transport regression
         run: |
           PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE"             pytest -q research/tests/test_runtime3_ollama_transport.py
 

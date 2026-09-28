@@ -224,3 +224,11 @@ jobs:
           name: p2-c1-4-runtime3-sequential-qualification-200
           path: artifacts/
           retention-days: 14
+
+  confirmatory-acquisition:
+    name: Auto-start confirmatory acquisition after 200/200 qualification
+    needs: smoke
+    if: ${{ needs.smoke.result == 'success' }}
+    uses: ./.github/workflows/p2-c1-4-confirmatory-acquisition-runtime3.yml
+    with:
+      qualified_sha: ${{ github.sha }}
