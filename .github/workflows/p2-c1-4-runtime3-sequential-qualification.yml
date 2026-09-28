@@ -10,6 +10,7 @@ on:
       - "research/tests/**"
       - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     paths:
       - "runtime3_ollama.py"
       - "research/cohort/**"
@@ -44,6 +45,7 @@ env:
 
 jobs:
   smoke:
+    if: ${{ github.event.action != 'closed' || github.event.pull_request.merged == true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
