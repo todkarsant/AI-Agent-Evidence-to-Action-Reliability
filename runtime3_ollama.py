@@ -37,6 +37,7 @@ class Runtime3OllamaProvider(OllamaProvider):
         self.retry_backoff_seconds = float(os.getenv("RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS", "2"))
         self.max_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS", "2048"))
         self.retry_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", str(self.max_output_tokens)))
+        self.context_length = int(os.getenv("RUNTIME3_OLLAMA_CONTEXT_LENGTH", "16384"))
 
         # Frozen Project1 generate_sql() returns exactly one JSON object with one string field: sql.
         # Ollama supports a JSON Schema in format, constraining generation without changing the Project1 prompt.
@@ -53,6 +54,8 @@ class Runtime3OllamaProvider(OllamaProvider):
             raise ValueError("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS must be >= 1")
         if self.retry_output_tokens < self.max_output_tokens:
             raise ValueError("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS must be >= RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS")
+        if self.context_length < self.retry_output_tokens:
+            raise ValueError("RUNTIME3_OLLAMA_CONTEXT_LENGTH must be >= RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS")
 
     @staticmethod
     def _is_complete_json_object(text: str) -> bool:
@@ -84,7 +87,7 @@ class Runtime3OllamaProvider(OllamaProvider):
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "format": _ACTIVE_RESPONSE_SCHEMA.get() or "json",
-            "options": {"temperature": 0},
+            "options": {"temperature": 0, "num_ctx": self.context_length},
         }
 
         timeout = httpx.Timeout(

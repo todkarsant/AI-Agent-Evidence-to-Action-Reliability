@@ -73,6 +73,7 @@ def test_runtime3_nonstreaming_payload_is_bounded():
         result = provider.generate_sql("question", "schema")
         assert result.text == "SELECT 1"
         assert captured["options"]["temperature"] == 0
+        assert captured["options"]["num_ctx"] == provider.context_length
         assert captured["options"]["num_predict"] == provider.max_output_tokens
         assert captured["stream"] is False
         assert captured["format"] == {
@@ -310,3 +311,27 @@ def test_runtime3_fails_closed_after_bounded_incomplete_length_retries():
     finally:
         server.shutdown()
         thread.join(timeout=2)
+
+
+def test_runtime3_rejects_retry_ceiling_above_context_window():
+    import os
+    old_context = os.environ.get("RUNTIME3_OLLAMA_CONTEXT_LENGTH")
+    old_retry = os.environ.get("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS")
+    os.environ["RUNTIME3_OLLAMA_CONTEXT_LENGTH"] = "4096"
+    os.environ["RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS"] = "8192"
+    try:
+        try:
+            Runtime3OllamaProvider("http://127.0.0.1:11434", "llama3.2:1b")
+        except ValueError as exc:
+            assert "CONTEXT_LENGTH" in str(exc)
+        else:
+            raise AssertionError("context window must bound the retry output ceiling")
+    finally:
+        if old_context is None:
+            os.environ.pop("RUNTIME3_OLLAMA_CONTEXT_LENGTH", None)
+        else:
+            os.environ["RUNTIME3_OLLAMA_CONTEXT_LENGTH"] = old_context
+        if old_retry is None:
+            os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
+        else:
+            os.environ["RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS"] = old_retry
