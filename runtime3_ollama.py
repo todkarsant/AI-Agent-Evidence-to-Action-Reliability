@@ -123,6 +123,16 @@ class Runtime3OllamaProvider(OllamaProvider):
         for attempt in range(1, self.max_attempts + 1):
             payload = {
                 **base_payload,
+                # A bounded recovery attempt deliberately falls back from the
+                # SQL JSON Schema grammar to Ollama's JSON mode. The Project1
+                # contract still requires exactly one {"sql": ...} object, but
+                # this avoids repeatedly driving the small pinned model against
+                # the same constrained-generation failure mode.
+                "format": (
+                    _ACTIVE_RESPONSE_SCHEMA.get() or "json"
+                    if attempt == 1
+                    else "json"
+                ),
                 "options": {
                     **base_payload["options"],
                     "num_predict": self.max_output_tokens if attempt == 1 else self.retry_output_tokens,
