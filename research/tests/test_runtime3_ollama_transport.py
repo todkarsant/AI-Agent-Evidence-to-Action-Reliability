@@ -362,7 +362,14 @@ def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkey
     monkeypatch.setenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", "2")
     calls = {"count": 0}
 
-    repeated = "SELECT " + " ".join(["alpha beta gamma delta epsilon zeta eta theta"] * 4)
+    repeated = (
+        "SELECT DISTINCT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+    )
 
     class CandidateHandler(BaseHTTPRequestHandler):
         def do_POST(self):
