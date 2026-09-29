@@ -96,6 +96,16 @@ jobs:
         with:
           ref: ${{ steps.source.outputs.ref }}
 
+      - name: Checkout pinned Project 1 and Spider
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet "$PROJECT1_COMMIT"
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "$PROJECT1_COMMIT"
+          git clone --quiet https://github.com/taoyds/spider.git external/spider
+          git -C external/spider checkout --quiet "$SPIDER_COMMIT"
+
       - name: Install dependencies
         if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         run: |
@@ -108,16 +118,6 @@ jobs:
           mkdir -p "$HOME/nltk_data"
           python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
           echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
-
-      - name: Checkout pinned Project 1 and Spider
-        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
-        run: |
-          set -euo pipefail
-          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
-          git -C external/Enterprise-Analytics-Copilot checkout --quiet "$PROJECT1_COMMIT"
-          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "$PROJECT1_COMMIT"
-          git clone --quiet https://github.com/taoyds/spider.git external/spider
-          git -C external/spider checkout --quiet "$SPIDER_COMMIT"
 
       - name: Download and verify Spider source
         if: ${{ steps.blocker.outputs.has_failures == 'true' }}
