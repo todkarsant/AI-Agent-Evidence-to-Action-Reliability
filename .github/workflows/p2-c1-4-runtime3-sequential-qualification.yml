@@ -10,6 +10,8 @@ on:
       - "research/tests/**"
       - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
   pull_request:
+    branches:
+      - p2-c1-4-runtime3-technical-failure-continuation-2026-09-29
     types: [opened, synchronize, reopened, closed]
     paths:
       - "runtime3_ollama.py"
