@@ -1,6 +1,9 @@
 name: p2-c1-4-runtime3-blocker-diagnostic
 
 on:
+  push:
+    paths:
+      - ".github/workflows/p2-c1-4-runtime3-blocker-diagnostic.yml"
   workflow_run:
     workflows: ["p2-c1-4-runtime3-sequential-qualification"]
     types: [completed]
