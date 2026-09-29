@@ -355,7 +355,6 @@ def test_runtime3_pathological_sql_detector_does_not_flag_normal_group_by():
 
 
 def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkeypatch):
-    import os
     import time
 
     monkeypatch.setenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", "1")
@@ -363,14 +362,7 @@ def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkey
     monkeypatch.setenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", "2")
     calls = {"count": 0}
 
-    pathological = (
-        '{"sql": "SELECT DISTINCT Studio FROM film WHERE Film_ID IN ( '
-        'SELECT Film_ID FROM film WHERE Studio NOT IN ( '
-        'SELECT Studio FROM film WHERE Film_ID IN ( '
-        'SELECT Film_ID FROM film WHERE Studio NOT IN ( '
-        'SELECT Studio FROM film WHERE Film_ID IN ( '
-        'SELECT Film_ID FROM film WHERE Studio NOT IN ( '
-    )
+    repeated = "SELECT " + " ".join(["alpha beta gamma delta epsilon zeta eta theta"] * 4)
 
     class CandidateHandler(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -378,10 +370,10 @@ def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkey
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length))
             if calls["count"] == 1:
-                chunks = [
-                    {"message": {"role": "assistant", "content": pathological}, "done": False},
-                ]
-                body = "".join(json.dumps(c) + "\n" for c in chunks).encode()
+                body = (json.dumps({
+                    "message": {"role": "assistant", "content": repeated},
+                    "done": False,
+                }) + "\n").encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/x-ndjson")
                 self.send_header("Content-Length", str(len(body)))
@@ -395,7 +387,10 @@ def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkey
             assert "CANDIDATE DIAGNOSTIC RECOVERY" in payload["messages"][0]["content"]
             final = {
                 "model": "llama3.2:1b",
-                "message": {"role": "assistant", "content": '{"sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"}'},
+                "message": {
+                    "role": "assistant",
+                    "content": '{"sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"}',
+                },
                 "done": True,
                 "done_reason": "stop",
                 "prompt_eval_count": 7,
@@ -423,10 +418,6 @@ def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkey
     finally:
         server.shutdown()
         thread.join(timeout=2)
-        monkeypatch.delenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", raising=False)
-        monkeypatch.delenv("RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS", raising=False)
-        monkeypatch.delenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", raising=False)
-
 
 def test_runtime3_pathological_repair_is_disabled_by_default(monkeypatch):
     monkeypatch.delenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", raising=False)
