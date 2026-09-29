@@ -165,7 +165,14 @@ class Runtime3OllamaProvider(OllamaProvider):
                         raise RuntimeError("Ollama candidate response completed without assistant content")
 
                     done_reason = (final_data or {}).get("done_reason")
-                    if done_reason == "length" and not self._is_complete_json_object(text):
+                    if done_reason == "length":
+                        if self._is_complete_json_object(text):
+                            return LLMResult(
+                                text=text,
+                                input_tokens=int((final_data or {}).get("prompt_eval_count") or 0),
+                                output_tokens=int((final_data or {}).get("eval_count") or 0),
+                                model=(final_data or {}).get("model", self.model),
+                            )
                         if repair_prompt is None and self._has_pathological_sql_repetition(text):
                             repair_prompt = (
                                 prompt
