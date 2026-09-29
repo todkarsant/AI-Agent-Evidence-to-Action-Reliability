@@ -50,6 +50,7 @@ def main() -> None:
         fail("duplicate decision_id")
 
     no_evidence=0
+    no_evaluable=0
     harms=0
     replacements=0
     p0_correct=0
@@ -59,6 +60,7 @@ def main() -> None:
         did=r["decision_id"]
         if r["protocol_version"]!="P2-C1.4-ALIGNED-V2":
             fail(f"{did}: protocol mismatch")
+        status=r.get("record_status","EVALUABLE")
         e=r["decision_time_evidence"]
         b=r["baseline"]
         o=r["intervention_outcome"]
@@ -94,6 +96,13 @@ def main() -> None:
             })
             if e["evidence_hash"]!=expected_evidence_hash:
                 fail(f"{did}: evidence hash mismatch")
+        if status=="NON_EVALUABLE_RUNTIME_FAILURE":
+            no_evaluable+=1
+            if any(o.get(k) is not None for k in ("replacement_occurred","p0_correct","final_correct","y_h","locked_after_evidence")):
+                fail(f"{did}: non-evaluable runtime failure contains synthetic outcome values")
+            if not isinstance(r.get("runtime_failure"),dict):
+                fail(f"{did}: missing runtime failure record")
+            continue
         expected_yh=int(o["p0_correct"] and o["replacement_occurred"] and not o["final_correct"])
         if o["y_h"]!=expected_yh:
             fail(f"{did}: Y_H formula mismatch")
@@ -111,6 +120,8 @@ def main() -> None:
         "source_manifest_sha256":manifest_hash,
         "consolidated_cohort_sha256":cohort_hash,
         "record_count":len(records),
+        "evaluable_record_count":len(records)-no_evaluable,
+        "non_evaluable_runtime_failure_count":no_evaluable,
         "no_usable_evidence_count":no_evidence,
         "replacement_count":replacements,
         "p0_correct_count":p0_correct,

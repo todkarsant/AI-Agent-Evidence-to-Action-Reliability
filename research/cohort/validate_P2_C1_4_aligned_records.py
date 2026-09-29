@@ -34,6 +34,9 @@ def validate_record(r, seen):
     if r["protocol_version"] != "P2-C1.4-ALIGNED-V2":
         fail(f"{did}: wrong protocol_version")
 
+    status = r.get("record_status", "EVALUABLE")
+    if status not in {"EVALUABLE", "NON_EVALUABLE_RUNTIME_FAILURE"}:
+        fail(f"{did}: invalid record_status {status!r}")
     b = r["baseline"]
     if set(b) != {"execution_ok","row_count","column_count"}:
         fail(f"{did}: baseline schema mismatch")
@@ -68,6 +71,13 @@ def validate_record(r, seen):
             fail(f"{did}: evidence_hash mismatch")
 
     o = r["intervention_outcome"]
+    if status == "NON_EVALUABLE_RUNTIME_FAILURE":
+        if any(o.get(k) is not None for k in ("replacement_occurred","p0_correct","final_correct","y_h","locked_after_evidence")):
+            fail(f"{did}: non-evaluable runtime failure must not contain synthetic outcome values")
+        rf = r.get("runtime_failure")
+        if not isinstance(rf, dict) or rf.get("record_status") != "NON_EVALUABLE_RUNTIME_FAILURE":
+            fail(f"{did}: missing runtime failure ledger entry")
+        return
     for k in ("replacement_occurred","p0_correct","final_correct","y_h","locked_after_evidence"):
         if k not in o:
             fail(f"{did}: missing outcome field {k}")
@@ -103,7 +113,8 @@ def main():
         validate_record(r, seen)
     if args.annotation_packet:
         validate_annotation_packet(json.loads(args.annotation_packet.read_text(encoding="utf-8")))
-    print(f"PASS: {len(records)} aligned records; unique decision_id; evidence/outcome linkage and Y_H formula valid.")
+    non_eval=sum(1 for r in records if r.get("record_status")=="NON_EVALUABLE_RUNTIME_FAILURE")
+    print(f"PASS: {len(records)} aligned records; unique decision_id; evidence linkage valid; {non_eval} explicitly non-evaluable runtime failure(s); Y_H formula valid for evaluable records.")
 
 if __name__ == "__main__":
     main()

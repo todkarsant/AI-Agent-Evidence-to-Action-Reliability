@@ -98,6 +98,10 @@ class Runtime3OllamaProvider(OllamaProvider):
         )
 
         last_error: Exception | None = None
+        last_response_text: str | None = None
+        last_done_reason: str | None = None
+        last_eval_count: int | None = None
+        last_num_predict: int | None = None
 
         for attempt in range(1, self.max_attempts + 1):
             payload = {
@@ -115,12 +119,16 @@ class Runtime3OllamaProvider(OllamaProvider):
 
                 message = final_data.get("message") or {}
                 text = message.get("content") or ""
+                last_response_text = text
+                last_done_reason = final_data.get("done_reason")
+                last_eval_count = int(final_data.get("eval_count") or 0)
+                last_num_predict = payload["options"]["num_predict"]
                 if not text:
                     raise RuntimeError(
                         "Ollama response completed without assistant content"
                     )
 
-                done_reason = final_data.get("done_reason")
+                done_reason = last_done_reason
                 if done_reason == "length":
                     if not self._is_complete_json_object(text):
                         last_error = RuntimeError(
@@ -155,6 +163,13 @@ class Runtime3OllamaProvider(OllamaProvider):
                     break
                 time.sleep(self.retry_backoff_seconds * attempt)
 
+        diagnostic = {
+            "done_reason": last_done_reason,
+            "eval_count": last_eval_count,
+            "num_predict": last_num_predict,
+            "response_content": last_response_text,
+        }
         raise RuntimeError(
-            f"Runtime3 Ollama transport failed after {self.max_attempts} attempt(s): {last_error}"
+            f"Runtime3 Ollama transport failed after {self.max_attempts} attempt(s): "
+            f"{last_error}; diagnostic={json.dumps(diagnostic, ensure_ascii=False)}"
         ) from last_error
