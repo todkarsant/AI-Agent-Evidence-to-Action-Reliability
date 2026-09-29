@@ -10,9 +10,6 @@ on:
         description: "Completed Runtime3 qualification run to diagnose"
         required: true
         type: string
-  push:
-    paths:
-      - ".github/workflows/p2-c1-4-runtime3-blocker-diagnostic.yml"
 
 permissions:
   contents: read
@@ -84,10 +81,9 @@ jobs:
           from pathlib import Path
           files=sorted(Path("qualification").rglob("runtime_failures.json"))
           print({"runtime_failure_ledgers":[str(p) for p in files]})
-          preferred=[p for p in files if "preflight-000091" not in str(p) and p.as_posix().endswith("qualification/runtime_failures.json")]
-          candidates=preferred or [p for p in files if "preflight-000091" not in str(p)]
+          candidates=[p for p in files if p.name=="runtime_failures.json" and p.parent.name=="qualification"]
           if len(candidates)!=1:
-              raise SystemExit(f"Expected one qualification runtime-failure ledger, found {len(candidates)}: {candidates}")
+              raise SystemExit(f"Expected one root qualification/runtime_failures.json ledger, found {len(candidates)}: {candidates}")
           d=json.loads(candidates[0].read_text())
           ids=[r["decision_id"] for r in d.get("records",[])]
           print({"runtime_failure_ids":ids})
@@ -97,6 +93,7 @@ jobs:
           PY
 
       - name: Checkout exact qualification source
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         uses: actions/checkout@v4
         with:
