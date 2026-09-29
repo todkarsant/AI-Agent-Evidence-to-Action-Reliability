@@ -3,7 +3,7 @@
 **Status:** Living manuscript — P2-C1.4 confirmatory protocol frozen; confirmatory cohort/results not yet accepted or analyzed  
 **Manuscript branch:** `paper/p2-c1-4-frozen-state-update-2026-09-26`  
 **Base manuscript commit:** `4c8496d3991dfb6449c34a5468406fa488ae01e2`  
-**Update date:** 2026-09-26
+**Update date:** 2026-09-29
 
 > **Evidence-status rule.** This manuscript distinguishes completed methodological gates, runtime qualification, failed/rejected attempts, frozen protocol elements, and pending confirmatory results. No confirmatory predictive result is reported until the aligned cohort, independent X_W annotation, provenance lock, and prespecified analysis have actually completed.
 
@@ -472,6 +472,20 @@ This correction occurred before acceptance of a complete confirmatory cohort, be
 Runtime3 is therefore treated as a qualified acquisition environment, not as a scientific finding.
 
 The frozen runtime lineage includes the pinned Project 1 commit, pinned Spider evaluator/archive, Ollama 0.33.3, and `llama3.2:1b`. Exact artifact hashes and runtime manifests are retained in the repository.
+
+### 7.5 Runtime3 qualification forensic update — 2026-09-29
+
+The subsequent Runtime3 qualification runs exposed an implementation-level distinction that is retained here as part of the provenance record.
+
+Run #52 (36483450276) completed the 200-case sequential execution path but failed qualification-artifact validation. Forensic inspection showed that the collector's outcome-linkage test treated a trace map keyed by (phase, decision_id) as though it were keyed directly by decision_id. This caused otherwise valid trace pairs to be classified as non-evaluable. The defect was corrected without changing the frozen model, prompt, cohort, outcome definition, or statistical protocol, and a regression test was added for the trace-pair invariant.
+
+Run #55 (36511599232) subsequently passed the corrected software/record-integrity qualification path. Its accepted artifact retained all 200 decision IDs, but the execution contained 199 evaluable records and one explicitly recorded bounded runtime failure, P2C14-CONF-000046. The failure occurred at the configured 8,192-token generation ceiling (done_reason=length). The captured response was itself truncated rather than being a complete SQL object recoverable by the bounded envelope-recovery mechanism. The pathological preflight case P2C14-CONF-000091, which had previously exposed a similar generation-boundary failure, passed its targeted preflight in this corrected run.
+
+These results establish that the continuation/ledger machinery can preserve a bounded runtime failure without fabricating SQL or outcome fields. They do not establish the original 200/200 evaluable qualification criterion. Consequently, the 8,638-case confirmatory acquisition remains gated.
+
+A targeted six-repeat diagnostic for P2C14-CONF-000046 was then added as a diagnostic-only workflow (p2-c1-4-runtime3-000046-diagnostic, run 36519956616). Its purpose is to distinguish a reproducible case-specific generation pathology from a sequential/runtime-state-dependent failure before any further confirmatory acquisition decision is made. No confirmatory scientific result is inferred from this diagnostic.
+
+The runtime incidents are therefore treated as implementation/provenance evidence, not as evidence for or against the predictive-validity hypothesis. The manuscript does not convert the 199/200 result into a confirmatory success and does not report the 000046 failure as a scientific outcome.
 
 ## 8. Confirmatory cohort status
 
