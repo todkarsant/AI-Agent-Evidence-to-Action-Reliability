@@ -82,16 +82,19 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
-          candidates=[p for p in Path("qualification").rglob("runtime_failures.json") if "qualification" in p.parts and "preflight-000091" not in p.parts]
-          if len(candidates) != 1:
-              raise SystemExit(f"Expected exactly one qualification runtime_failures.json, found {len(candidates)}: {candidates}")
-          d=json.loads(candidates[0].read_text())
+          files=sorted(Path("qualification").rglob("runtime_failures.json"))
+          print({"runtime_failure_ledgers": [str(p) for p in files]})
+          qualification=[p for p in files if "preflight-000091" not in str(p)]
+          if len(qualification) != 1:
+              # Run #59 artifact layout places qualification/runtime_failures.json at this level;
+              # fail closed rather than guessing between two ledgers.
+              raise SystemExit(f"Expected exactly one qualification failure ledger, found {len(qualification)}: {qualification}")
+          d=json.loads(qualification[0].read_text())
           ids=[r["decision_id"] for r in d.get("records",[])]
-          print({"source_run_id": "SOURCE_RUN", "runtime_failure_ids": ids})
+          print({"runtime_failure_ids": ids})
           Path("/tmp/runtime_failure_ids.txt").write_text("\n".join(ids)+"\n")
-          Path(os.environ["GITHUB_OUTPUT"]).write_text("has_failures=" + ("true" if ids else "false") + "\n", encoding="utf-8")
-          if not ids:
-              print("No runtime failures; diagnostic is not required.")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as out:
+              out.write("has_failures=" + ("true" if ids else "false") + "\n")
           PY
 
       - name: Checkout exact qualification source
