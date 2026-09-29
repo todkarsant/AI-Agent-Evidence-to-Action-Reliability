@@ -2,17 +2,8 @@ name: p2-c1-4-runtime3-sequential-qualification
 # CI synchronization marker: normalized Spider DB layout for film_rank smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "runtime3_ollama.py"
-      - "research/cohort/**"
-      - "research/tests/**"
-      - ".github/workflows/p2-c1-4-runtime3-sequential-qualification.yml"
   pull_request:
-    branches:
-      - p2-c1-4-runtime3-technical-failure-continuation-2026-09-29
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     paths:
       - "runtime3_ollama.py"
       - "research/cohort/**"
@@ -47,7 +38,7 @@ env:
 
 jobs:
   smoke:
-    if: ${{ github.event.action != 'closed' || github.event.pull_request.merged == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'p2-c1-4-runtime3-technical-failure-continuation-2026-09-29' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
