@@ -44,7 +44,7 @@ jobs:
            github.event.workflow_run.conclusion == 'success' &&
            github.event.workflow_run.head_branch == 'p2-c1-4-runtime3-technical-failure-continuation-2026-09-29') ||
           (github.event_name == 'push' &&
-           contains(github.event.head_commit.message, '[run59-000091-diagnostic]'))
+           contains(github.event.head_commit.message, '[run59-000091-diagnostic]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
