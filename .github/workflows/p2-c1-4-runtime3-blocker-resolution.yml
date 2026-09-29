@@ -1,0 +1,74 @@
+name: p2-c1-4-runtime3-blocker-resolution
+
+on:
+  workflow_run:
+    workflows: ["p2-c1-4-runtime3-blocker-diagnostic"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  resolve:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download diagnostic evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-runtime3-blocker-diagnostic
+          path: diagnostic
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Classify diagnostic outcome
+        id: classify
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=next(Path("diagnostic").rglob("summary.json"), None)
+          if p is None:
+              raise SystemExit("No diagnostic summary artifact found.")
+          rows=json.loads(p.read_text())
+          out=Path(os.environ["GITHUB_OUTPUT"])
+          if not rows:
+              out.write_text("resolution=NO_RUNTIME_FAILURES\n")
+              print("No runtime-failure diagnostic rows: no requalification dispatch required.")
+              raise SystemExit(0)
+          failures=[r for r in rows if r.get("status") != "NO_RUNTIME_FAILURE"]
+          print({"repeat_count":len(rows),"non_passing_rows":len(failures)})
+          if failures:
+              Path("HUMAN_INTERVENTION_REQUIRED.md").write_text(
+                  "# P2-C1.4 human intervention required\n\n"
+                  "The autonomous blocker diagnostic did not establish clean reproducibility "
+                  "across all requested repeats. No protocol/model/prompt/temperature/cohort "
+                  "change was made and no confirmatory acquisition was dispatched.\n\n"
+                  "Diagnostic rows:\n\n" + json.dumps(rows,indent=2) + "\n",
+                  encoding="utf-8",
+              )
+              out.write_text("resolution=HUMAN_INTERVENTION_REQUIRED\n")
+          else:
+              out.write_text("resolution=REQUALIFY\n")
+              print("All diagnostic repeats completed without a runtime failure; requalification may be dispatched.")
+          PY
+
+      - name: Dispatch frozen 200-case requalification
+        if: ${{ steps.classify.outputs.resolution == 'REQUALIFY' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh workflow run p2-c1-4-runtime3-sequential-qualification.yml             --repo "$GITHUB_REPOSITORY"             --ref p2-c1-4-runtime3-technical-failure-continuation-2026-09-29
+
+      - name: Publish human-intervention stop
+        if: ${{ steps.classify.outputs.resolution == 'HUMAN_INTERVENTION_REQUIRED' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-human-intervention-required
+          path: HUMAN_INTERVENTION_REQUIRED.md
+          retention-days: 90
