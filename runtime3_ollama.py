@@ -112,9 +112,17 @@ class Runtime3OllamaProvider(OllamaProvider):
             _ACTIVE_RESPONSE_SCHEMA.reset(token)
 
     def _chat(self, prompt: str) -> LLMResult:
-        # Use the same non-streaming Ollama transport semantics as the pinned
-        # Project1 provider. This avoids a separate streaming response-assembly
-        # path while preserving the Runtime3 timeout/retry controls.
+        # Candidate-only pathology recovery. Disabled unless explicitly enabled
+        # by a non-confirmatory diagnostic workflow.
+        candidate_enabled = os.getenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", "0") == "1"
+        candidate_repair_tokens = int(
+            os.getenv("RUNTIME3_PATHOLOGICAL_REPAIR_OUTPUT_TOKENS", "2048")
+        )
+        if candidate_repair_tokens < 1 or candidate_repair_tokens > self.context_length:
+            raise ValueError(
+                "RUNTIME3_PATHOLOGICAL_REPAIR_OUTPUT_TOKENS must be between 1 and context length"
+            )
+
         base_payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -131,13 +139,22 @@ class Runtime3OllamaProvider(OllamaProvider):
         )
 
         last_error: Exception | None = None
+        repair_prompt: str | None = None
 
         for attempt in range(1, self.max_attempts + 1):
+            if repair_prompt is None:
+                message_content = prompt
+                num_predict = self.max_output_tokens if attempt == 1 else self.retry_output_tokens
+            else:
+                message_content = repair_prompt
+                num_predict = candidate_repair_tokens
+
             payload = {
                 **base_payload,
+                "messages": [{"role": "user", "content": message_content}],
                 "options": {
                     **base_payload["options"],
-                    "num_predict": self.max_output_tokens if attempt == 1 else self.retry_output_tokens,
+                    "num_predict": num_predict,
                 },
             }
             try:
@@ -156,6 +173,20 @@ class Runtime3OllamaProvider(OllamaProvider):
                 done_reason = final_data.get("done_reason")
                 if done_reason == "length":
                     if not self._is_complete_json_object(text):
+                        if (
+                            candidate_enabled
+                            and repair_prompt is None
+                            and self._has_pathological_sql_repetition(text)
+                        ):
+                            repair_prompt = (
+                                prompt
+                                + "\n\nCANDIDATE DIAGNOSTIC RECOVERY: The previous generation "
+                                "was pathologically repetitive. Produce one concise read-only "
+                                "SELECT that directly answers the question using only the supplied "
+                                "schema. Return only the required JSON object."
+                            )
+                            continue
+
                         last_error = RuntimeError(
                             "Runtime3 Ollama generation stopped at the configured "
                             "output-token limit before a complete JSON object was produced."
@@ -187,6 +218,10 @@ class Runtime3OllamaProvider(OllamaProvider):
                 if attempt >= self.max_attempts:
                     break
                 time.sleep(self.retry_backoff_seconds * attempt)
+
+        raise RuntimeError(
+            f"Runtime3 Ollama transport failed after {self.max_attempts} attempt(s): {last_error}"
+        ) from last_error
 
         raise RuntimeError(
             f"Runtime3 Ollama transport failed after {self.max_attempts} attempt(s): {last_error}"
