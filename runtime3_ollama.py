@@ -89,25 +89,7 @@ class Runtime3OllamaProvider(OllamaProvider):
     def generate_sql(self, question: str, schema: str, repair_reason: str | None = None) -> LLMResult:
         token = _ACTIVE_RESPONSE_SCHEMA.set(self.response_schema)
         try:
-            result = super().generate_sql(question, schema, repair_reason=repair_reason)
-            # Candidate-only recovery. It is disabled by default so the frozen
-            # confirmatory runtime is unchanged until this behavior is separately
-            # qualified and authorized.
-            if (
-                os.getenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", "0") == "1"
-                and repair_reason is None
-                and self._has_pathological_sql_repetition(result.text)
-            ):
-                return super().generate_sql(
-                    question,
-                    schema,
-                    repair_reason=(
-                        "The generated SQL contains a repeated nested-query pattern. "
-                        "Produce one concise read-only SELECT that directly answers the "
-                        "question using only the supplied schema."
-                    ),
-                )
-            return result
+            return super().generate_sql(question, schema, repair_reason=repair_reason)
         finally:
             _ACTIVE_RESPONSE_SCHEMA.reset(token)
 
