@@ -1,0 +1,236 @@
+name: p2-c1-4-runtime3-blocker-diagnostic
+
+on:
+  workflow_run:
+    workflows: ["p2-c1-4-runtime3-sequential-qualification"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Completed Runtime3 qualification run to diagnose"
+        required: true
+        type: string
+  push:
+    paths:
+      - ".github/workflows/p2-c1-4-runtime3-blocker-diagnostic.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PROJECT1_COMMIT: 7c1864a5619af7118c690f8de72eab57dc0cdc93
+  SPIDER_COMMIT: b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
+  SPIDER_ARCHIVE_SHA256: 00636695dabed6b5f4b8328a16b13e069a2f16591d5efcce57660669c85b121b
+  PILOT_MANIFEST_SHA256: 079b3e4ea3b89e44f28a7c35a68d3aa23eda0e584cfe5a599a398b571b4eac80
+  OLLAMA_VERSION: 0.33.3
+  OLLAMA_MODEL: llama3.2:1b
+  P2_C1_4_PROTOCOL_FROZEN: P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21
+  RUNTIME3_OLLAMA_CONNECT_TIMEOUT_SECONDS: 30
+  RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS: 600
+  RUNTIME3_OLLAMA_WRITE_TIMEOUT_SECONDS: 30
+  RUNTIME3_OLLAMA_POOL_TIMEOUT_SECONDS: 30
+  RUNTIME3_OLLAMA_MAX_ATTEMPTS: 2
+  RUNTIME3_OLLAMA_RETRY_BACKOFF_SECONDS: 2
+  RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
+  RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
+  RUNTIME3_OLLAMA_CONTEXT_LENGTH: 16384
+
+jobs:
+  diagnostic:
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch') ||
+          (github.event_name == 'workflow_run' &&
+           github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'p2-c1-4-runtime3-technical-failure-continuation-2026-09-29') ||
+          (github.event_name == 'push' &&
+           contains(github.event.head_commit.message, '[run59-000091-diagnostic]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Resolve source qualification run
+        id: source
+        env:
+          MANUAL_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            test -n "$MANUAL_SOURCE_RUN_ID"
+            echo "run_id=$MANUAL_SOURCE_RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "ref=98e630abc456d68c00fefd05a3640829b470734e" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_id=36522954069" >> "$GITHUB_OUTPUT"
+            echo "ref=98e630abc456d68c00fefd05a3640829b470734e" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download qualification artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-runtime3-sequential-qualification-200
+          path: qualification
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.source.outputs.run_id }}
+
+      - name: Inspect blocker manifest
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("qualification/runtime_failures.json").read_text())
+          ids=[r["decision_id"] for r in d.get("records",[])]
+          print({"source_run_id": "SOURCE_RUN", "runtime_failure_ids": ids})
+          Path("/tmp/runtime_failure_ids.txt").write_text("\n".join(ids)+"\n")
+          if not ids:
+              print("No runtime failures; diagnostic is not required.")
+          PY
+
+      - name: Checkout exact qualification source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zstd unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r external/Enterprise-Analytics-Copilot/requirements.txt
+          python -m pip install "nltk==3.9.4" jsonschema
+          mkdir -p "$HOME/nltk_data"
+          python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
+          echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
+
+      - name: Checkout pinned Project 1 and Spider
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
+          git -C external/Enterprise-Analytics-Copilot checkout --quiet "$PROJECT1_COMMIT"
+          test "$(git -C external/Enterprise-Analytics-Copilot rev-parse HEAD)" = "$PROJECT1_COMMIT"
+          git clone --quiet https://github.com/taoyds/spider.git external/spider
+          git -C external/spider checkout --quiet "$SPIDER_COMMIT"
+
+      - name: Download and verify Spider source
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o data/spider_data.zip "https://huggingface.co/datasets/HAL-9001/spider-databases/resolve/main/spider_data.zip?download=true"
+          test "$(sha256sum data/spider_data.zip | cut -d' ' -f1)" = "$SPIDER_ARCHIVE_SHA256"
+          unzip -q data/spider_data.zip -d data/spider_unpacked
+          find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
+          find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
+          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
+          mkdir -p data/database
+          python - <<'PY'
+          import json, shutil
+          from pathlib import Path
+          root=Path("data/spider_unpacked"); out=Path("data/database")
+          a=json.loads(Path("data/train_spider.json").read_text())
+          b=json.loads(Path("data/train_others.json").read_text())
+          Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
+          for src in list(root.rglob("*.sqlite"))+list(root.rglob("*.db")):
+              db_id=src.parent.name
+              if src.stem != db_id: continue
+              d=out/db_id; d.mkdir(parents=True,exist_ok=True); shutil.copy2(src,d/src.name)
+          assert (out/"film_rank"/"film_rank.sqlite").exists()
+          PY
+
+      - name: Prepare frozen blocker manifests
+        run: |
+          set -euo pipefail
+          mkdir -p data/manifests artifacts/diagnostic
+          git clone --quiet --depth 1 https://github.com/todkarsant/AI-Agent-Evidence-to-Action-Reliability.git /tmp/p2-self
+          cp /tmp/p2-self/data/manifests/C4_2_3B_PILOT12_CASES.json data/manifests/C4_2_3B_PILOT12_CASES.json
+          test "$(sha256sum data/manifests/C4_2_3B_PILOT12_CASES.json | cut -d' ' -f1)" = "$PILOT_MANIFEST_SHA256"
+          python research/cohort/prepare_P2_C1_4_confirmatory_manifest.py --train data/train_spider.json data/train_others.json --pilot-manifest data/manifests/C4_2_3B_PILOT12_CASES.json --output data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path("data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json").read_text())
+          failed=[x.strip() for x in Path("/tmp/runtime_failure_ids.txt").read_text().splitlines() if x.strip()]
+          for did in failed:
+              case=next(x for x in m["cases"] if x["decision_id"]==did)
+              out=Path("data/manifests")/f"P2_C1_4_DIAGNOSTIC_{did}.json"
+              out.write_text(json.dumps({k:v for k,v in m.items() if k!="cases"}|{"cases":[case]},indent=2,ensure_ascii=False)+"\n")
+          print({"diagnostic_cases":failed})
+          PY
+
+      - name: Install pinned Ollama
+        run: |
+          set -euo pipefail
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama-linux-amd64.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
+          zstd -t /tmp/ollama-linux-amd64.tar.zst
+          mkdir -p "$HOME/ollama-$OLLAMA_VERSION"
+          tar --use-compress-program=unzstd -xf /tmp/ollama-linux-amd64.tar.zst -C "$HOME/ollama-$OLLAMA_VERSION"
+          echo "$HOME/ollama-$OLLAMA_VERSION/bin" >> "$GITHUB_PATH"
+
+      - name: Start and fingerprint Ollama
+        run: |
+          set -euo pipefail
+          nohup "$HOME/ollama-$OLLAMA_VERSION/bin/ollama" serve > artifacts/diagnostic/ollama_server.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
+          test "$(curl -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
+          ollama pull "$OLLAMA_MODEL"
+          curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/diagnostic/ollama_show.json
+
+      - name: Repeat each frozen blocker case six times
+        env:
+          PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
+          RUNTIME_MANIFEST_HASH: ${{ steps.source.outputs.ref }}
+          LLM_PROVIDER: ollama
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_MODEL: llama3.2:1b
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/diagnostic/repeats
+          while IFS= read -r did; do
+            [ -z "$did" ] && continue
+            for i in 1 2 3 4 5 6; do
+              mkdir -p "artifacts/diagnostic/repeats/$did/$i"
+              set +e
+              PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest "data/manifests/P2_C1_4_DIAGNOSTIC_$did.json" --spider-eval-dir external/spider --tables-file data/tables.json --outdir "artifacts/diagnostic/repeats/$did/$i" --confirmatory
+              rc=$?
+              set -e
+              echo "$rc" > "artifacts/diagnostic/repeats/$did/$i/exit_code.txt"
+            done
+          done < /tmp/runtime_failure_ids.txt
+
+      - name: Summarize diagnostic
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("artifacts/diagnostic/repeats")
+          out=[]
+          if root.exists():
+              for did in sorted(root.iterdir()):
+                  if not did.is_dir(): continue
+                  for p in sorted(did.iterdir()):
+                      if not p.is_dir(): continue
+                      f=p/"runtime_failures.json"
+                      if f.exists():
+                          d=json.loads(f.read_text()); recs=d.get("records",[])
+                          if recs:
+                              r=recs[0]
+                              out.append({"decision_id":did.name,"repeat":p.name,"status":r.get("record_status"),"failure_class":r.get("failure_class"),"exception":r.get("exception","")[:1000]})
+                          else:
+                              out.append({"decision_id":did.name,"repeat":p.name,"status":"NO_RUNTIME_FAILURE","failure_class":None})
+                      else:
+                          out.append({"decision_id":did.name,"repeat":p.name,"status":"NO_RUNTIME_FAILURE_ARTIFACT","failure_class":None})
+          Path("artifacts/diagnostic/summary.json").write_text(json.dumps(out,indent=2))
+          print(json.dumps(out,indent=2))
+          PY
+
+      - name: Upload blocker diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-runtime3-blocker-diagnostic
+          path: artifacts/diagnostic/
+          retention-days: 90
