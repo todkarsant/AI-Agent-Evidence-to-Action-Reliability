@@ -38,7 +38,7 @@ env:
 
 jobs:
   diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'p2-c1-4-runtime3-technical-failure-continuation-2026-09-29') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'p2-c1-4-runtime3-technical-failure-continuation-2026-09-29') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
