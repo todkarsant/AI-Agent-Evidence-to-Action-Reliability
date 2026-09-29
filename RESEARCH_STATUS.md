@@ -68,3 +68,18 @@ See `research/P2_RESEARCH_DEVELOPMENT_JOURNEY.md` and `paper/PROJECT2_LIVING_RES
 - Forensic audit also found that the collector did not preserve the exact decision-time schema required for W1-W7 annotation. This was corrected before accepting any confirmatory cohort; aligned records are now V2 and include schema in the evidence hash.
 - A mechanical forensic lock auditor is now wired into consolidation and will fail closed unless all 8,638 source-frame decision IDs are present in exact order and evidence/outcome invariants pass.
 - Current target acquisition run: `35598330749` (run #12), currently pending GitHub Actions capacity. No cohort is locked; no X_W annotation or M0/M1 analysis has begun.
+
+### P2-C1.4 Runtime3 execution update — 2026-09-29
+
+The Runtime3 qualification path has now been hardened to distinguish software validation from the scientific qualification gate.
+
+- Run #52 exposed and preserved a collector trace-linkage defect; the defect was corrected and regression-tested.
+- Run #55 passed the corrected artifact validator but contained 199 evaluable records and one bounded runtime failure (P2C14-CONF-000046), so it did not satisfy the 200/200 scientific qualification criterion.
+- P2C14-CONF-000091 subsequently passed its targeted preflight.
+- A targeted six-repeat 000046 diagnostic was added. The first harness execution was correctly rejected by the collector's frozen confirmatory authorization guard; the harness was then authorized against the frozen protocol for the diagnostic scope.
+- The qualification progression controller now requires exactly 200/200 evaluable records and zero runtime failures before PR #28 can progress to main.
+- After that gate, the existing Runtime3 acquisition workflow is intended to run automatically.
+- Post-lock preparation is now automatically triggered after a successful acquisition lock and generates the two blinded X_W annotation packets.
+- Confirmatory statistical modeling remains blocked until the independent human annotation gate and subsequent X_W/Y_H alignment gates pass.
+
+No confirmatory predictive-validity result exists yet.
