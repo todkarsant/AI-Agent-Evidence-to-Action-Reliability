@@ -261,7 +261,7 @@ def main():
     for c in cases:
         did=c["decision_id"]
         e=next(x for x in evidence_records if x["decision_id"]==did)
-        if did not in trace_to_decision:
+        if ("P0", did) not in trace_to_decision or ("P6-IP", did) not in trace_to_decision:
             outcome={"decision_id":did,"record_status":"NON_EVALUABLE_RUNTIME_FAILURE",
                      "replacement_occurred":None,"p0_correct":None,
                      "final_correct":None,"y_h":None,
