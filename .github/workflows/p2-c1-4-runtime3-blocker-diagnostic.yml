@@ -82,7 +82,10 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
-          d=json.loads(Path("qualification/runtime_failures.json").read_text())
+          candidates=list(Path("qualification").rglob("runtime_failures.json"))
+          if len(candidates) != 1:
+              raise SystemExit(f"Expected exactly one runtime_failures.json under qualification/, found {len(candidates)}")
+          d=json.loads(candidates[0].read_text())
           ids=[r["decision_id"] for r in d.get("records",[])]
           print({"source_run_id": "SOURCE_RUN", "runtime_failure_ids": ids})
           Path("/tmp/runtime_failure_ids.txt").write_text("\n".join(ids)+"\n")
@@ -92,11 +95,13 @@ jobs:
           PY
 
       - name: Checkout exact qualification source
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.source.outputs.ref }}
 
       - name: Install dependencies
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -109,6 +114,7 @@ jobs:
           echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
 
       - name: Checkout pinned Project 1 and Spider
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/todkarsant/Enterprise-Analytics-Copilot.git external/Enterprise-Analytics-Copilot
@@ -118,6 +124,7 @@ jobs:
           git -C external/spider checkout --quiet "$SPIDER_COMMIT"
 
       - name: Download and verify Spider source
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         run: |
           set -euo pipefail
           mkdir -p data
@@ -143,6 +150,7 @@ jobs:
           PY
 
       - name: Prepare frozen blocker manifests
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         run: |
           set -euo pipefail
           mkdir -p data/manifests artifacts/diagnostic
@@ -163,6 +171,7 @@ jobs:
           PY
 
       - name: Install pinned Ollama
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         run: |
           set -euo pipefail
           curl -fL --retry 8 --retry-all-errors --retry-delay 5 -o /tmp/ollama-linux-amd64.tar.zst "https://github.com/ollama/ollama/releases/download/v$OLLAMA_VERSION/ollama-linux-amd64.tar.zst"
@@ -172,6 +181,7 @@ jobs:
           echo "$HOME/ollama-$OLLAMA_VERSION/bin" >> "$GITHUB_PATH"
 
       - name: Start and fingerprint Ollama
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         run: |
           set -euo pipefail
           nohup "$HOME/ollama-$OLLAMA_VERSION/bin/ollama" serve > artifacts/diagnostic/ollama_server.log 2>&1 &
@@ -181,6 +191,7 @@ jobs:
           curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/diagnostic/ollama_show.json
 
       - name: Repeat each frozen blocker case six times
+        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
           RUNTIME_MANIFEST_HASH: ${{ steps.source.outputs.ref }}
@@ -209,6 +220,8 @@ jobs:
           import json
           from pathlib import Path
           root=Path("artifacts/diagnostic/repeats")
+          root.mkdir(parents=True, exist_ok=True)
+          Path("artifacts/diagnostic").mkdir(parents=True, exist_ok=True)
           out=[]
           if root.exists():
               for did in sorted(root.iterdir()):
