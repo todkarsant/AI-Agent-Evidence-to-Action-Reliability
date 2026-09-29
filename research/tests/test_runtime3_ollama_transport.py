@@ -354,6 +354,80 @@ def test_runtime3_pathological_sql_detector_does_not_flag_normal_group_by():
     assert Runtime3OllamaProvider._has_pathological_sql_repetition(sql) is False
 
 
+def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkeypatch):
+    import os
+    import time
+
+    monkeypatch.setenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", "1")
+    monkeypatch.setenv("RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS", "0.1")
+    monkeypatch.setenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", "2")
+    calls = {"count": 0}
+
+    pathological = (
+        '{"sql": "SELECT DISTINCT Studio FROM film WHERE Film_ID IN ( '
+        'SELECT Film_ID FROM film WHERE Studio NOT IN ( '
+        'SELECT Studio FROM film WHERE Film_ID IN ( '
+        'SELECT Film_ID FROM film WHERE Studio NOT IN ( '
+        'SELECT Studio FROM film WHERE Film_ID IN ( '
+        'SELECT Film_ID FROM film WHERE Studio NOT IN ( '
+    )
+
+    class CandidateHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            calls["count"] += 1
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length))
+            if calls["count"] == 1:
+                chunks = [
+                    {"message": {"role": "assistant", "content": pathological}, "done": False},
+                ]
+                body = "".join(json.dumps(c) + "\n" for c in chunks).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-ndjson")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                self.wfile.flush()
+                time.sleep(0.3)
+                return
+
+            assert payload["stream"] is True
+            assert "CANDIDATE DIAGNOSTIC RECOVERY" in payload["messages"][0]["content"]
+            final = {
+                "model": "llama3.2:1b",
+                "message": {"role": "assistant", "content": '{"sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"}'},
+                "done": True,
+                "done_reason": "stop",
+                "prompt_eval_count": 7,
+                "eval_count": 18,
+            }
+            body = (json.dumps(final) + "\n").encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), CandidateHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
+        result = provider._chat("return JSON")
+        assert "GROUP BY Studio" in result.text
+        assert calls["count"] == 2
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+        monkeypatch.delenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", raising=False)
+        monkeypatch.delenv("RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS", raising=False)
+        monkeypatch.delenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", raising=False)
+
+
 def test_runtime3_pathological_repair_is_disabled_by_default(monkeypatch):
     monkeypatch.delenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", raising=False)
     provider = Runtime3OllamaProvider("http://127.0.0.1:11434", "llama3.2:1b")
