@@ -94,7 +94,6 @@ jobs:
 
       - name: Checkout exact qualification source
         if: ${{ steps.blocker.outputs.has_failures == 'true' }}
-        if: ${{ steps.blocker.outputs.has_failures == 'true' }}
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.source.outputs.ref }}
