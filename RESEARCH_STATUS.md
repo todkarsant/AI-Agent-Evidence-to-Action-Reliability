@@ -1,6 +1,6 @@
 # Research Status
 
-**Last updated:** 2026-09-21
+**Last updated:** 2026-09-29
 
 ## Overall status
 
@@ -71,15 +71,15 @@ See `research/P2_RESEARCH_DEVELOPMENT_JOURNEY.md` and `paper/PROJECT2_LIVING_RES
 
 ### P2-C1.4 Runtime3 execution update — 2026-09-29
 
-The Runtime3 qualification path has now been hardened to distinguish software validation from the scientific qualification gate.
+Run #59 (**36522954069**) completed at the software/artifact level on the continuation branch, but the **scientific qualification gate did not pass**.
 
-- Run #52 exposed and preserved a collector trace-linkage defect; the defect was corrected and regression-tested.
-- Run #55 passed the corrected artifact validator but contained 199 evaluable records and one bounded runtime failure (P2C14-CONF-000046), so it did not satisfy the 200/200 scientific qualification criterion.
-- P2C14-CONF-000091 subsequently passed its targeted preflight.
-- A targeted six-repeat 000046 diagnostic was added. The first harness execution was correctly rejected by the collector's frozen confirmatory authorization guard; the harness was then authorized against the frozen protocol for the diagnostic scope.
-- The qualification progression controller now requires exactly 200/200 evaluable records and zero runtime failures before PR #28 can progress to main.
-- After that gate, the existing Runtime3 acquisition workflow is intended to run automatically.
-- Post-lock preparation is now automatically triggered after a successful acquisition lock and generates the two blinded X_W annotation packets.
-- Confirmatory statistical modeling remains blocked until the independent human annotation gate and subsequent X_W/Y_H alignment gates pass.
+- The qualification artifact contains exactly **200 frozen decision IDs**, **199 evaluable records**, and **1 explicit NON_EVALUABLE_RUNTIME_FAILURE**.
+- The non-evaluable record is **P2C14-CONF-000091**. It is retained in the frozen cohort; no synthetic SQL, outcome, Y_H, or replacement label was generated.
+- The 000091 preflight artifact also records a bounded Runtime3 generation failure. The qualification Ollama server log contains 10-minute HTTP 500 terminations during long generations; the collector's final diagnostic can retain the earlier 4096-token response while a later retry times out, so the existing diagnostic fields are not sufficient to infer the exact second-attempt token ceiling without a targeted diagnostic.
+- Therefore **200/200 evaluable + 0 runtime failures is not established**, PR #28 must not merge, and the 8,638-case confirmatory acquisition remains blocked.
+- An autonomous **Runtime3 blocker diagnostic workflow** has now been added on main. It consumes the failed qualification artifact, identifies the runtime-failure decision IDs, reconstructs the exact frozen one-case manifests, and runs six isolated diagnostic repeats without changing the confirmatory cohort, model, prompt, temperature, or statistical estimand.
+- The current blocker diagnostic was triggered automatically for Run #59 and is running as GitHub Actions run **36541862037**. Its purpose is forensic diagnosis only; its result does not itself authorize confirmatory acquisition.
+- The same diagnostic workflow is wired to future successful qualification runs with runtime failures, so this failure class no longer requires manual discovery before diagnosis.
+- The 200/200 scientific progression gate remains unchanged: only an artifact with exactly 200 evaluable records and zero runtime failures can authorize PR #28 progression and the downstream acquisition chain.
 
 No confirmatory predictive-validity result exists yet.
