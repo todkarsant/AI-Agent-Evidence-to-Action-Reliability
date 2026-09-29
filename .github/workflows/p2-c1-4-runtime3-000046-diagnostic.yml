@@ -55,6 +55,13 @@ jobs:
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
           find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
           find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("data/train_spider.json").read_text())
+          b=json.loads(Path("data/train_others.json").read_text())
+          Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
+          PY
           mkdir -p data/database
           python - <<'PY'
           from pathlib import Path
