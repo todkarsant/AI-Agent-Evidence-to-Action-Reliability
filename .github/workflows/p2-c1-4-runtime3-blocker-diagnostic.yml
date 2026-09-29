@@ -82,9 +82,9 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
-          candidates=list(Path("qualification").rglob("runtime_failures.json"))
+          candidates=[p for p in Path("qualification").rglob("runtime_failures.json") if "qualification" in p.parts and "preflight-000091" not in p.parts]
           if len(candidates) != 1:
-              raise SystemExit(f"Expected exactly one runtime_failures.json under qualification/, found {len(candidates)}")
+              raise SystemExit(f"Expected exactly one qualification runtime_failures.json, found {len(candidates)}: {candidates}")
           d=json.loads(candidates[0].read_text())
           ids=[r["decision_id"] for r in d.get("records",[])]
           print({"source_run_id": "SOURCE_RUN", "runtime_failure_ids": ids})
