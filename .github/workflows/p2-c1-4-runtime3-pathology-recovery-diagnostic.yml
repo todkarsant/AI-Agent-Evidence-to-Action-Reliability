@@ -2,9 +2,10 @@ name: p2-c1-4-runtime3-pathology-recovery-diagnostic
 # Candidate diagnostic also captures partial streamed output before a read timeout.
 
 on:
+  # Deliberately self-start once from main when this diagnostic workflow changes.
+  # The candidate recovery remains non-confirmatory and isolated.
   push:
-    branches:
-      - p2-c1-4-runtime3-pathology-recovery-2026-09-29
+    branches: [main]
     paths:
       - ".github/workflows/p2-c1-4-runtime3-pathology-recovery-diagnostic.yml"
   workflow_dispatch:
