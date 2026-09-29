@@ -487,6 +487,20 @@ A targeted six-repeat diagnostic for P2C14-CONF-000046 was then added as a diagn
 
 The runtime incidents are therefore treated as implementation/provenance evidence, not as evidence for or against the predictive-validity hypothesis. The manuscript does not convert the 199/200 result into a confirmatory success and does not report the 000046 failure as a scientific outcome.
 
+### 7.6 Run #59 blocker and autonomous diagnostic — 2026-09-29
+
+Run #59 (GitHub Actions **36522954069**) completed the corrected Runtime3 collector and artifact-validation path, but the frozen 200/200 scientific qualification gate remained blocked.
+
+The qualification artifact contains exactly 200 frozen decision IDs, 199 evaluable records, and one explicit NON_EVALUABLE_RUNTIME_FAILURE, P2C14-CONF-000091. The failed case remains in the frozen cohort ledger; no synthetic SQL, correctness outcome, Y_H, or replacement label was generated for it.
+
+The 000091 preflight in the same run also recorded a bounded Runtime3 generation failure. The Ollama server log contains two 10-minute HTTP 500 terminations during long generations across the preflight/qualification execution. The collector's final diagnostic can retain the earlier 4,096-token response while a later retry times out, so the current artifact alone is insufficient to characterize the second-attempt generation boundary. This is an implementation/provenance finding, not a scientific outcome.
+
+The scientific progression gate therefore remains unchanged: the confirmatory 8,638-record acquisition is not authorized until the qualification artifact contains exactly 200 evaluable records and zero runtime failures.
+
+To remove the repeated manual-discovery bottleneck, an autonomous blocker-diagnostic workflow was added to the default branch. For a completed qualification run with runtime failures, it downloads the exact qualification artifact, identifies the failed frozen decision IDs, reconstructs one-case frozen manifests, and executes six isolated diagnostic repeats under the pinned Project 1/Spider/Ollama environment. The diagnostic does not alter the cohort, prompt, model, temperature, outcome definition, or statistical estimand and does not authorize acquisition by itself.
+
+The current Run #59 diagnostic is executing as GitHub Actions run **36541862037**. Its result will determine whether the blocker is reproducible under the pinned runtime or requires a narrowly justified implementation/protocol decision. No confirmatory predictive-validity result is inferred from the qualification or diagnostic runs.
+
 ## 8. Confirmatory cohort status
 
 ### 8.1 Intended acquisition
@@ -547,7 +561,7 @@ The following methodological states are established:
 | Sample-size/event-rate attack | Completed |
 | Model/scoring attack | Completed |
 | Confirmatory statistical protocol | Frozen |
-| Runtime3 non-confirmatory qualification | Pass |
+| Runtime3 qualification | **BLOCKED — Run #59 had 199/200 evaluable** |
 | Schema-preservation audit | Corrected before cohort acceptance |
 | First human annotation attempt | Failed forensic protocol audit; preserved |
 | Confirmatory human annotation | Pending |
