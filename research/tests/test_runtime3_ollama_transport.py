@@ -335,3 +335,30 @@ def test_runtime3_rejects_retry_ceiling_above_context_window():
             os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         else:
             os.environ["RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS"] = old_retry
+
+
+def test_runtime3_pathological_sql_detector_flags_repeated_nested_pattern():
+    sql = (
+        "SELECT DISTINCT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+    )
+    assert Runtime3OllamaProvider._has_pathological_sql_repetition(sql) is True
+
+
+def test_runtime3_pathological_sql_detector_does_not_flag_normal_group_by():
+    sql = "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2 ORDER BY Studio"
+    assert Runtime3OllamaProvider._has_pathological_sql_repetition(sql) is False
+
+
+def test_runtime3_pathological_repair_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", raising=False)
+    provider = Runtime3OllamaProvider("http://127.0.0.1:11434", "llama3.2:1b")
+    assert provider._has_pathological_sql_repetition(
+        "SELECT DISTINCT Studio FROM film WHERE Film_ID IN ( SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+    ) is True
