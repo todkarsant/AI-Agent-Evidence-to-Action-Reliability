@@ -22,6 +22,10 @@ def canon(x):
 def sha256_bytes(b): return hashlib.sha256(b).hexdigest()
 def sha256_json(x): return sha256_bytes(canon(x))
 
+def _has_complete_outcome_trace(trace_to_decision, decision_id):
+    """Return whether both official P0 and P6-IP traces exist for a decision."""
+    return ("P0", decision_id) in trace_to_decision and ("P6-IP", decision_id) in trace_to_decision
+
 def scan_forbidden(x, path=""):
     if isinstance(x,dict):
         for k,v in x.items():
@@ -261,7 +265,7 @@ def main():
     for c in cases:
         did=c["decision_id"]
         e=next(x for x in evidence_records if x["decision_id"]==did)
-        if ("P0", did) not in trace_to_decision or ("P6-IP", did) not in trace_to_decision:
+        if not _has_complete_outcome_trace(trace_to_decision, did):
             outcome={"decision_id":did,"record_status":"NON_EVALUABLE_RUNTIME_FAILURE",
                      "replacement_occurred":None,"p0_correct":None,
                      "final_correct":None,"y_h":None,
