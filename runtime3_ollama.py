@@ -71,6 +71,21 @@ class Runtime3OllamaProvider(OllamaProvider):
             return False
         return isinstance(value, dict)
 
+    @staticmethod
+    def _has_pathological_sql_repetition(sql: str) -> bool:
+        """Detect deterministic runaway nested-query repetition without altering valid SQL."""
+        tokens = sql.lower().replace("(", " ( ").replace(")", " ) ").split()
+        if len(tokens) < 24:
+            return False
+        window = 8
+        counts: dict[tuple[str, ...], int] = {}
+        for i in range(len(tokens) - window + 1):
+            gram = tuple(tokens[i:i + window])
+            counts[gram] = counts.get(gram, 0) + 1
+            if counts[gram] >= 3:
+                return True
+        return False
+
     def generate_sql(self, question: str, schema: str, repair_reason: str | None = None) -> LLMResult:
         token = _ACTIVE_RESPONSE_SCHEMA.set(self.response_schema)
         try:
@@ -79,9 +94,17 @@ class Runtime3OllamaProvider(OllamaProvider):
             _ACTIVE_RESPONSE_SCHEMA.reset(token)
 
     def _chat(self, prompt: str) -> LLMResult:
-        # Use the same non-streaming Ollama transport semantics as the pinned
-        # Project1 provider. This avoids a separate streaming response-assembly
-        # path while preserving the Runtime3 timeout/retry controls.
+        # Candidate-only pathology recovery. Disabled unless explicitly enabled
+        # by a non-confirmatory diagnostic workflow.
+        candidate_enabled = os.getenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", "0") == "1"
+        candidate_repair_tokens = int(
+            os.getenv("RUNTIME3_PATHOLOGICAL_REPAIR_OUTPUT_TOKENS", "2048")
+        )
+        if candidate_repair_tokens < 1 or candidate_repair_tokens > self.context_length:
+            raise ValueError(
+                "RUNTIME3_PATHOLOGICAL_REPAIR_OUTPUT_TOKENS must be between 1 and context length"
+            )
+
         base_payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -98,13 +121,122 @@ class Runtime3OllamaProvider(OllamaProvider):
         )
 
         last_error: Exception | None = None
+        repair_prompt: str | None = None
+
+        # Candidate-only diagnostic path: stream partial assistant content so a
+        # read timeout can still be inspected for the known pathological pattern.
+        # This is deliberately not used by the frozen confirmatory runtime.
+        if candidate_enabled:
+            for attempt in range(1, self.max_attempts + 1):
+                if repair_prompt is None:
+                    message_content = prompt
+                    num_predict = self.max_output_tokens if attempt == 1 else self.retry_output_tokens
+                else:
+                    message_content = repair_prompt
+                    num_predict = candidate_repair_tokens
+
+                payload = {
+                    **base_payload,
+                    "messages": [{"role": "user", "content": message_content}],
+                    "stream": True,
+                    "options": {
+                        **base_payload["options"],
+                        "num_predict": num_predict,
+                    },
+                }
+                partial = []
+                final_data = None
+                try:
+                    with httpx.Client(timeout=timeout) as client:
+                        with client.stream("POST", self.url, json=payload) as response:
+                            response.raise_for_status()
+                            for line in response.iter_lines():
+                                if not line:
+                                    continue
+                                event = json.loads(line)
+                                event_text = (event.get("message") or {}).get("content") or ""
+                                partial.append(event_text)
+                                if event.get("done"):
+                                    final_data = event
+                                    break
+
+                    text = "".join(partial)
+                    if not text:
+                        raise RuntimeError("Ollama candidate response completed without assistant content")
+
+                    done_reason = (final_data or {}).get("done_reason")
+                    if done_reason == "length":
+                        if self._is_complete_json_object(text):
+                            return LLMResult(
+                                text=text,
+                                input_tokens=int((final_data or {}).get("prompt_eval_count") or 0),
+                                output_tokens=int((final_data or {}).get("eval_count") or 0),
+                                model=(final_data or {}).get("model", self.model),
+                            )
+                        if repair_prompt is None and self._has_pathological_sql_repetition(text):
+                            repair_prompt = (
+                                prompt
+                                + "\n\nCANDIDATE DIAGNOSTIC RECOVERY: The previous generation "
+                                "was pathologically repetitive. Produce one concise read-only "
+                                "SELECT that directly answers the question using only the supplied "
+                                "schema. Return only the required JSON object."
+                            )
+                            continue
+                        last_error = RuntimeError(
+                            "Runtime3 candidate generation stopped before a complete JSON object was produced."
+                        )
+                    elif done_reason not in (None, "stop"):
+                        last_error = RuntimeError(
+                            f"Runtime3 candidate generation ended with unexpected done_reason={done_reason!r}"
+                        )
+                    elif final_data is not None:
+                        return LLMResult(
+                            text=text,
+                            input_tokens=int(final_data.get("prompt_eval_count") or 0),
+                            output_tokens=int(final_data.get("eval_count") or 0),
+                            model=final_data.get("model", self.model),
+                        )
+                    else:
+                        last_error = RuntimeError("Ollama candidate stream ended without a final event")
+                except (
+                    httpx.TimeoutException,
+                    httpx.NetworkError,
+                    httpx.RemoteProtocolError,
+                    httpx.HTTPStatusError,
+                    json.JSONDecodeError,
+                ) as exc:
+                    last_error = exc
+                    text = "".join(partial)
+                    if repair_prompt is None and self._has_pathological_sql_repetition(text):
+                        repair_prompt = (
+                            prompt
+                            + "\n\nCANDIDATE DIAGNOSTIC RECOVERY: The previous generation "
+                            "was pathologically repetitive. Produce one concise read-only "
+                            "SELECT that directly answers the question using only the supplied "
+                            "schema. Return only the required JSON object."
+                        )
+                        continue
+                if attempt < self.max_attempts:
+                    time.sleep(self.retry_backoff_seconds * attempt)
+
+            raise RuntimeError(
+                f"Runtime3 candidate pathological-SQL recovery failed after {self.max_attempts} attempt(s): {last_error}"
+            ) from last_error
 
         for attempt in range(1, self.max_attempts + 1):
+            if repair_prompt is None:
+                message_content = prompt
+                num_predict = self.max_output_tokens if attempt == 1 else self.retry_output_tokens
+            else:
+                message_content = repair_prompt
+                num_predict = candidate_repair_tokens
+
             payload = {
                 **base_payload,
+                "messages": [{"role": "user", "content": message_content}],
                 "options": {
                     **base_payload["options"],
-                    "num_predict": self.max_output_tokens if attempt == 1 else self.retry_output_tokens,
+                    "num_predict": num_predict,
                 },
             }
             try:
@@ -123,6 +255,20 @@ class Runtime3OllamaProvider(OllamaProvider):
                 done_reason = final_data.get("done_reason")
                 if done_reason == "length":
                     if not self._is_complete_json_object(text):
+                        if (
+                            candidate_enabled
+                            and repair_prompt is None
+                            and self._has_pathological_sql_repetition(text)
+                        ):
+                            repair_prompt = (
+                                prompt
+                                + "\n\nCANDIDATE DIAGNOSTIC RECOVERY: The previous generation "
+                                "was pathologically repetitive. Produce one concise read-only "
+                                "SELECT that directly answers the question using only the supplied "
+                                "schema. Return only the required JSON object."
+                            )
+                            continue
+
                         last_error = RuntimeError(
                             "Runtime3 Ollama generation stopped at the configured "
                             "output-token limit before a complete JSON object was produced."

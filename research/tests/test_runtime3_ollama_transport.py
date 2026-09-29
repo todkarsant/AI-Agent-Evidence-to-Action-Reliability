@@ -335,3 +335,95 @@ def test_runtime3_rejects_retry_ceiling_above_context_window():
             os.environ.pop("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", None)
         else:
             os.environ["RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS"] = old_retry
+
+
+def test_runtime3_pathological_sql_detector_flags_repeated_nested_pattern():
+    sql = (
+        "SELECT DISTINCT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( "
+        "SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+    )
+    assert Runtime3OllamaProvider._has_pathological_sql_repetition(sql) is True
+
+
+def test_runtime3_pathological_sql_detector_does_not_flag_normal_group_by():
+    sql = "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2 ORDER BY Studio"
+    assert Runtime3OllamaProvider._has_pathological_sql_repetition(sql) is False
+
+
+def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkeypatch):
+    import time
+
+    monkeypatch.setenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", "1")
+    monkeypatch.setenv("RUNTIME3_OLLAMA_READ_TIMEOUT_SECONDS", "0.1")
+    monkeypatch.setenv("RUNTIME3_OLLAMA_MAX_ATTEMPTS", "2")
+    calls = {"count": 0}
+
+    repeated = "SELECT " + " ".join(["alpha beta gamma delta epsilon zeta eta theta"] * 4)
+
+    class CandidateHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            calls["count"] += 1
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length))
+            if calls["count"] == 1:
+                body = (json.dumps({
+                    "message": {"role": "assistant", "content": repeated},
+                    "done": False,
+                }) + "\n").encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-ndjson")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                self.wfile.flush()
+                time.sleep(0.3)
+                return
+
+            assert payload["stream"] is True
+            assert "CANDIDATE DIAGNOSTIC RECOVERY" in payload["messages"][0]["content"]
+            final = {
+                "model": "llama3.2:1b",
+                "message": {
+                    "role": "assistant",
+                    "content": '{"sql": "SELECT Studio FROM film GROUP BY Studio HAVING COUNT(*) >= 2"}',
+                },
+                "done": True,
+                "done_reason": "stop",
+                "prompt_eval_count": 7,
+                "eval_count": 18,
+            }
+            body = (json.dumps(final) + "\n").encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), CandidateHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        provider = Runtime3OllamaProvider(f"http://{host}:{port}", "llama3.2:1b")
+        result = provider._chat("return JSON")
+        assert "GROUP BY Studio" in result.text
+        assert calls["count"] == 2
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+def test_runtime3_pathological_repair_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR", raising=False)
+    provider = Runtime3OllamaProvider("http://127.0.0.1:11434", "llama3.2:1b")
+    assert provider._has_pathological_sql_repetition(
+        "SELECT DISTINCT Studio FROM film WHERE Film_ID IN ( SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+        "SELECT Studio FROM film WHERE Film_ID IN ( SELECT Film_ID FROM film WHERE Studio NOT IN ( "
+    ) is True
