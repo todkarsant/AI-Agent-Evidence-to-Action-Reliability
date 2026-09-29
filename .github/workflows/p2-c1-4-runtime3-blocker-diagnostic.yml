@@ -80,13 +80,13 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           d=json.loads(Path("qualification/runtime_failures.json").read_text())
           ids=[r["decision_id"] for r in d.get("records",[])]
           print({"source_run_id": "SOURCE_RUN", "runtime_failure_ids": ids})
           Path("/tmp/runtime_failure_ids.txt").write_text("\n".join(ids)+"\n")
-          Path("$GITHUB_OUTPUT").write_text("has_failures=" + ("true" if ids else "false") + "\n", encoding="utf-8")
+          Path(os.environ["GITHUB_OUTPUT"]).write_text("has_failures=" + ("true" if ids else "false") + "\n", encoding="utf-8")
           if not ids:
               print("No runtime failures; diagnostic is not required.")
           PY
