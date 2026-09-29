@@ -57,6 +57,13 @@ jobs:
           path: qualification/SCIENTIFIC_QUALIFICATION_GATE_PASS.txt
           retention-days: 30
 
+      - name: Synchronize PR #28 with current main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr update-branch 28 --repo "${GITHUB_REPOSITORY}" --rebase
+
       - name: Merge PR #28 after scientific gate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
