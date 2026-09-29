@@ -1,0 +1,75 @@
+name: p2-c1-4-qualification-progression-gate
+
+on:
+  workflow_run:
+    workflows: ["p2-c1-4-runtime3-sequential-qualification"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  scientific-gate:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'p2-c1-4-runtime3-technical-failure-continuation-2026-09-29' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download qualification artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-runtime3-sequential-qualification-200
+          path: qualification
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Enforce 200/200 scientific qualification gate
+        id: gate
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=Path("qualification/runtime_qualification_manifest.json")
+          d=json.loads(p.read_text())
+
+          evaluable=int(d["evaluable_decision_count"])
+          runtime_failures=int(d["non_evaluable_runtime_failure_count"])
+          decisions=int(d["decision_count"])
+
+          print({
+              "decision_count": decisions,
+              "evaluable_decision_count": evaluable,
+              "non_evaluable_runtime_failure_count": runtime_failures
+          })
+
+          if decisions != 200 or evaluable != 200 or runtime_failures != 0:
+              raise SystemExit(
+                  f"SCIENTIFIC GATE BLOCKED: decision_count={decisions}, "
+                  f"evaluable={evaluable}, runtime_failures={runtime_failures}; "
+                  "require exactly 200/200 evaluable and zero runtime failures."
+              )
+
+          Path("qualification/SCIENTIFIC_QUALIFICATION_GATE_PASS.txt").write_text(
+              "P2-C1.4 Runtime3 scientific qualification gate PASS\n"
+              "200/200 evaluable; 0 runtime failures.\n"
+          )
+          PY
+
+      - name: Publish qualification gate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-scientific-qualification-gate
+          path: qualification/SCIENTIFIC_QUALIFICATION_GATE_PASS.txt
+          retention-days: 30
+
+      - name: Merge PR #28 after scientific gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr merge 28 --repo "${GITHUB_REPOSITORY}" --squash --delete-branch
