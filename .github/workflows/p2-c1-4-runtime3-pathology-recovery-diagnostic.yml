@@ -29,8 +29,6 @@ env:
   RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS: 4096
   RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS: 8192
   RUNTIME3_OLLAMA_CONTEXT_LENGTH: 16384
-  RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR: "1"
-  RUNTIME3_PATHOLOGICAL_REPAIR_OUTPUT_TOKENS: 2048
 
 jobs:
   diagnostic:
@@ -135,6 +133,9 @@ jobs:
           curl -fsS http://127.0.0.1:11434/api/show             -H "Content-Type: application/json"             -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
 
       - name: Run candidate recovery on frozen 000091
+        env:
+          RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR: "1"
+          RUNTIME3_PATHOLOGICAL_REPAIR_OUTPUT_TOKENS: 2048
         run: |
           set -euo pipefail
           set +e
