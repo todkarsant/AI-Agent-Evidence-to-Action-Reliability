@@ -64,15 +64,33 @@ jobs:
           unzip -q data/spider_data.zip -d data/spider_unpacked
           find data/spider_unpacked -name train_spider.json -exec cp {} data/train_spider.json \;
           find data/spider_unpacked -name train_others.json -exec cp {} data/train_others.json \;
-          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
-          test -n "$DB_DIR"
-          cp -R "$DB_DIR" data/database
+          # Same database/tables extraction as p2-c1-4-runtime3-sequential-qualification.yml.
+          # The archive contains more than one directory named "database"; taking the
+          # first match could select a set without every training db_id (e.g. flight_1).
+          find data/spider_unpacked -name tables.json -exec cp {} data/tables.json \;
+          mkdir -p data/database
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          root = Path("data/spider_unpacked")
+          out = Path("data/database")
+          candidates = list(root.rglob("*.sqlite")) + list(root.rglob("*.db"))
+          assert candidates, "No SQLite databases found in verified Spider archive"
+          copied = 0
+          for src in candidates:
+              db_id = src.parent.name
+              if src.stem != db_id:
+                  continue
+              dest_dir = out / db_id
+              dest_dir.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dest_dir / src.name)
+              copied += 1
+          for db_id in ("film_rank", "flight_1"):
+              assert (out / db_id / f"{db_id}.sqlite").exists(), f"Verified Spider archive did not expose {db_id}"
+          print({"sqlite_candidates": len(candidates), "copied_databases": copied})
+          PY
           test -s data/train_spider.json
           test -s data/train_others.json
-          test -d data/database
-          TABLES=$(find data/spider_unpacked -name tables.json | head -n 1)
-          test -n "$TABLES"
-          cp "$TABLES" data/tables.json
           test -s data/tables.json
           python - <<'PY'
           import json
