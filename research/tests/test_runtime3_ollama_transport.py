@@ -381,9 +381,10 @@ def test_runtime3_candidate_stream_recovers_pathological_partial_response(monkey
                     "message": {"role": "assistant", "content": repeated},
                     "done": False,
                 }) + "\n").encode()
+                # No Content-Length: the partial stream must stay open so the
+                # client's 0.1s read timeout fires (simulating a stalled run).
                 self.send_response(200)
                 self.send_header("Content-Type", "application/x-ndjson")
-                self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
                 self.wfile.flush()
