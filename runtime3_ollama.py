@@ -9,6 +9,7 @@ overridden.
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import json
 import os
 import time
@@ -17,6 +18,8 @@ import httpx
 
 from app.services.llm import OllamaProvider, LLMResult
 
+
+PATHOLOGY_RECOVERY_AMENDMENT_ID = "P2-C1.4-RUNTIME3-PATHOLOGICAL-SQL-RECOVERY-AMENDMENT-2026-09-30"
 
 _ACTIVE_RESPONSE_SCHEMA = contextvars.ContextVar("runtime3_active_response_schema", default=None)
 
@@ -38,6 +41,9 @@ class Runtime3OllamaProvider(OllamaProvider):
         self.max_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_MAX_OUTPUT_TOKENS", "2048"))
         self.retry_output_tokens = int(os.getenv("RUNTIME3_OLLAMA_RETRY_OUTPUT_TOKENS", str(self.max_output_tokens)))
         self.context_length = int(os.getenv("RUNTIME3_OLLAMA_CONTEXT_LENGTH", "16384"))
+        # Disclosure ledger for the pathological-SQL recovery amendment. One entry
+        # per issued repair; hashes only, never SQL text.
+        self.pathology_recovery_events: list[dict] = []
 
         # Frozen Project1 generate_sql() returns exactly one JSON object with one string field: sql.
         # Ollama supports a JSON Schema in format, constraining generation without changing the Project1 prompt.
@@ -85,6 +91,20 @@ class Runtime3OllamaProvider(OllamaProvider):
             if counts[gram] >= 3:
                 return True
         return False
+
+    def _record_pathology_recovery(self, partial_text: str, trigger: str, repair_output_tokens: int) -> None:
+        self.pathology_recovery_events.append({
+            "amendment_id": PATHOLOGY_RECOVERY_AMENDMENT_ID,
+            "trigger": trigger,
+            "partial_sha256": hashlib.sha256(partial_text.encode("utf-8")).hexdigest(),
+            "partial_chars": len(partial_text),
+            "repair_output_tokens": repair_output_tokens,
+            "repair_completed": False,
+        })
+
+    def _mark_pathology_recovery_completed(self, repair_prompt: str | None) -> None:
+        if repair_prompt is not None and self.pathology_recovery_events:
+            self.pathology_recovery_events[-1]["repair_completed"] = True
 
     def generate_sql(self, question: str, schema: str, repair_reason: str | None = None) -> LLMResult:
         token = _ACTIVE_RESPONSE_SCHEMA.set(self.response_schema)
@@ -167,6 +187,7 @@ class Runtime3OllamaProvider(OllamaProvider):
                     done_reason = (final_data or {}).get("done_reason")
                     if done_reason == "length":
                         if self._is_complete_json_object(text):
+                            self._mark_pathology_recovery_completed(repair_prompt)
                             return LLMResult(
                                 text=text,
                                 input_tokens=int((final_data or {}).get("prompt_eval_count") or 0),
@@ -174,6 +195,7 @@ class Runtime3OllamaProvider(OllamaProvider):
                                 model=(final_data or {}).get("model", self.model),
                             )
                         if repair_prompt is None and self._has_pathological_sql_repetition(text):
+                            self._record_pathology_recovery(text, "length", candidate_repair_tokens)
                             repair_prompt = (
                                 prompt
                                 + "\n\nCANDIDATE DIAGNOSTIC RECOVERY: The previous generation "
@@ -190,6 +212,7 @@ class Runtime3OllamaProvider(OllamaProvider):
                             f"Runtime3 candidate generation ended with unexpected done_reason={done_reason!r}"
                         )
                     elif final_data is not None:
+                        self._mark_pathology_recovery_completed(repair_prompt)
                         return LLMResult(
                             text=text,
                             input_tokens=int(final_data.get("prompt_eval_count") or 0),
@@ -208,6 +231,7 @@ class Runtime3OllamaProvider(OllamaProvider):
                     last_error = exc
                     text = "".join(partial)
                     if repair_prompt is None and self._has_pathological_sql_repetition(text):
+                        self._record_pathology_recovery(text, "transport_error", candidate_repair_tokens)
                         repair_prompt = (
                             prompt
                             + "\n\nCANDIDATE DIAGNOSTIC RECOVERY: The previous generation "
