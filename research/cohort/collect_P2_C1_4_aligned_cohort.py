@@ -125,6 +125,8 @@ def main():
         AMENDMENT_ID,
         ConfirmatoryRuntime3OllamaProvider,
     )
+    from runtime3_ollama import PATHOLOGY_RECOVERY_AMENDMENT_ID
+    recovery_enabled=os.getenv("RUNTIME3_ENABLE_PATHOLOGICAL_SQL_REPAIR","0")=="1"
     provider=ConfirmatoryRuntime3OllamaProvider(
         os.getenv("OLLAMA_BASE_URL","http://127.0.0.1:11434"),
         os.getenv("OLLAMA_MODEL","llama3.2:1b"),
@@ -143,11 +145,14 @@ def main():
     evidence_records=[]
     selected_traces={}
     defensibility_records={}
+    recovery_by_decision={}
     for c in cases:
         ex=lookup.get((c["db_id"],c["question"]))
         if ex is None: raise SystemExit(f"FAIL: manifest case not found: {c['decision_id']}")
         before=len(evaluator.captures)
+        recovery_before=len(provider.pathology_recovery_events)
         selected, defensibility=run_case(env, ex)
+        recovery_by_decision[c["decision_id"]]=list(provider.pathology_recovery_events[recovery_before:])
         selected_traces[c["decision_id"]]=selected
         defensibility_records[c["decision_id"]]=defensibility
         new=evaluator.captures[before:]
@@ -255,6 +260,9 @@ def main():
                           "code_version":os.environ.get("PROJECT1_COMMIT","unknown"),
                           "runtime_manifest_hash":e["provenance"]["runtime_manifest_hash"],
                           "runtime3_implementation_amendment":e["provenance"]["runtime3_implementation_amendment"],
+                          "runtime3_pathology_recovery_enabled":recovery_enabled,
+                          "runtime3_pathology_recovery_amendment":(PATHOLOGY_RECOVERY_AMENDMENT_ID if recovery_enabled else None),
+                          "runtime3_pathology_recovery_applied":bool(recovery_by_decision[did]),
                           "baseline_hash":sha256_json(e["baseline"]),
                           "outcome_record_hash":sha256_json(outcome)}})
 
@@ -265,6 +273,15 @@ def main():
     (args.outdir/"aligned_records.json").write_text(json.dumps({
         "protocol_version":"P2-C1.4-ALIGNED-V2","records":aligned},
         indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+
+    recovered_ids=[c["decision_id"] for c in cases if recovery_by_decision[c["decision_id"]]]
+    (args.outdir/"pathology_recovery_ledger.json").write_text(json.dumps({
+        "amendment_id":PATHOLOGY_RECOVERY_AMENDMENT_ID,
+        "enabled":recovery_enabled,
+        "decision_count":len(cases),
+        "decisions_with_recovery":len(recovered_ids),
+        "records":[{"decision_id":d,"events":recovery_by_decision[d]} for d in recovered_ids],
+    },indent=2)+"\n",encoding="utf-8")
 
     metadata={
         "status":"PASS_CONFIRMATORY_ALIGNED_ACQUISITION" if args.confirmatory else "PASS_NON_CONFIRMATORY_ALIGNED_DRY_RUN",
@@ -277,6 +294,9 @@ def main():
         "harm_count":sum(x["y_h"] for x in outcomes),
         "x_w":"NOT_ANNOTATED_IN_COLLECTOR",
         "runtime3_implementation_amendment":AMENDMENT_ID,
+        "runtime3_pathology_recovery_enabled":recovery_enabled,
+        "runtime3_pathology_recovery_amendment":(PATHOLOGY_RECOVERY_AMENDMENT_ID if recovery_enabled else None),
+        "runtime3_pathology_recovery_decision_count":len(recovered_ids),
         "reason":("Confirmatory aligned outcome-bearing acquisition under frozen protocol."
                   if args.confirmatory else
                   "Dry run proves same-unit evidence/outcome linkage and temporal leakage boundary; it is not confirmatory data.")
