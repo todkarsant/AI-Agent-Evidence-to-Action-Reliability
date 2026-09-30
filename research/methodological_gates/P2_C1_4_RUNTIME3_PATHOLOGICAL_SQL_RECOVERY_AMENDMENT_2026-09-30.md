@@ -151,3 +151,10 @@ Failure of any gate keeps confirmatory acquisition blocked.
 - Real-output fixture: `research/tests/fixtures/p2c14_000091_run59_runaway_4096.txt`
 - Workflows (identical settings): `p2-c1-4-runtime3-sequential-qualification.yml`, `p2-c1-4-confirmatory-acquisition-runtime3.yml`
 - Collector provenance: `research/cohort/collect_P2_C1_4_aligned_cohort.py`
+- Aligned-record schema: `research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V2.json`
+  gains optional provenance properties `runtime3_pathology_recovery_enabled`,
+  `runtime3_pathology_recovery_amendment`, `runtime3_pathology_recovery_applied`,
+  and the previously unlisted `runtime3_implementation_amendment` (emitted since
+  2026-09-26). Required fields, decision-time evidence fields, hashes and the
+  `P2-C1.4-ALIGNED-V2` protocol version are unchanged; unknown fields remain rejected.
+  Records in the PR #28 non-evaluable format remain schema-invalid.
