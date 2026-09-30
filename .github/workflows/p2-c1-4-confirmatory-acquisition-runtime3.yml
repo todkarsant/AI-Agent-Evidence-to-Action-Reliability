@@ -102,12 +102,31 @@ jobs:
           mkdir -p artifacts/source_bundle
           cp data/spider_data.zip artifacts/source_bundle/spider_data.zip
           cp data/train_spider.json data/train_others.json data/confirmatory_questions_source.json artifacts/source_bundle/
-          DB_DIR=$(find data/spider_unpacked -type d -name database | head -n 1)
-          test -n "$DB_DIR"
-          cp -R "$DB_DIR" artifacts/source_bundle/database
-          TABLES=$(find data/spider_unpacked -name tables.json | head -n 1)
-          test -n "$TABLES"
-          cp "$TABLES" artifacts/source_bundle/tables.json
+          # Same database/tables extraction as p2-c1-4-runtime3-sequential-qualification.yml.
+          # The archive contains more than one directory named "database"; the first
+          # match lacked training db_ids such as flight_1 (dry runs #60-#62).
+          find data/spider_unpacked -name tables.json -exec cp {} artifacts/source_bundle/tables.json \;
+          test -s artifacts/source_bundle/tables.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import shutil
+          root = Path("data/spider_unpacked")
+          out = Path("artifacts/source_bundle/database")
+          out.mkdir(parents=True, exist_ok=True)
+          copied = 0
+          for src in list(root.rglob("*.sqlite")) + list(root.rglob("*.db")):
+              db_id = src.parent.name
+              if src.stem != db_id:
+                  continue
+              (out / db_id).mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, out / db_id / src.name)
+              copied += 1
+          needed = sorted({c["db_id"] for c in json.loads(Path("data/confirmatory_questions_source.json").read_text())})
+          missing = [d for d in needed if not (out / d / f"{d}.sqlite").exists()]
+          assert not missing, f"Spider source bundle lacks databases for: {missing}"
+          print({"copied_databases": copied, "question_db_ids": len(needed), "missing": 0})
+          PY
           sha256sum artifacts/source_bundle/spider_data.zip > artifacts/source_bundle/SPIDER_ARCHIVE_SHA256.txt
       - name: Recover frozen pilot manifest
         run: |
@@ -245,7 +264,7 @@ jobs:
           nohup "$HOME/ollama-$OLLAMA_VERSION/bin/ollama" serve > artifacts/ollama_server.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
           test "$(curl -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
-          ollama pull "$OLLAMA_MODEL"
+          for i in 1 2 3 4 5; do ollama pull "$OLLAMA_MODEL" && break; test "$i" -lt 5; sleep $((i*10)); done
           curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
       - name: Run frozen confirmatory aligned collector
         env:
@@ -288,6 +307,8 @@ jobs:
           mv artifacts/cohort/aligned_records.json "artifacts/aligned_records_shard_$idx.json"
           mv artifacts/cohort/outcomes.json "artifacts/outcomes_shard_$idx.json"
           mv artifacts/cohort/decision_time_evidence.json "artifacts/decision_time_evidence_shard_$idx.json"
+          mv artifacts/cohort/pathology_recovery_ledger.json "artifacts/pathology_recovery_ledger_shard_$idx.json"
+          mv artifacts/cohort/runtime_qualification_manifest.json "artifacts/runtime_manifest_shard_$idx.json"
           cp data/manifests/shard.json "artifacts/manifest_shard_$idx.json"
       - name: Upload immutable shard artifact
         if: always()
@@ -351,6 +372,13 @@ jobs:
               raise SystemExit("FAIL: duplicate decision_id across shards")
           out={"protocol_version":"P2-C1.4-ALIGNED-V2","record_count":len(all_records),"records":all_records}
           Path("consolidated").mkdir()
+          recovered=[r["decision_id"] for r in all_records if r["provenance"].get("runtime3_pathology_recovery_applied") is True]
+          Path("consolidated/PATHOLOGY_RECOVERY_SUMMARY.json").write_text(json.dumps({
+              "amendment_id":"P2-C1.4-RUNTIME3-PATHOLOGICAL-SQL-RECOVERY-AMENDMENT-2026-09-30",
+              "record_count":len(all_records),
+              "recovery_enabled_records":sum(1 for r in all_records if r["provenance"].get("runtime3_pathology_recovery_enabled") is True),
+              "decisions_with_recovery":len(recovered),"decision_ids":recovered},indent=2)+"\n")
+          print({"decisions_with_pathology_recovery":len(recovered)})
           p=Path("consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json")
           p.write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n")
           digest=hashlib.sha256(p.read_bytes()).hexdigest()
