@@ -106,6 +106,10 @@ jobs:
           a=json.loads(Path("data/train_spider.json").read_text())
           b=json.loads(Path("data/train_others.json").read_text())
           Path("data/confirmatory_questions_source.json").write_text(json.dumps(a+b),encoding="utf-8")
+          needed=sorted({x["db_id"] for x in a+b})
+          missing=[d for d in needed if not Path(f"data/database/{d}/{d}.sqlite").exists()]
+          assert not missing, f"Spider databases missing for: {missing}"
+          print({"question_db_ids":len(needed),"missing":0})
           PY
       - name: Recover frozen pilot and prepare 200-case sequential qualification
         run: |
@@ -145,7 +149,7 @@ jobs:
           nohup "$HOME/ollama-$OLLAMA_VERSION/bin/ollama" serve > artifacts/ollama_server.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break; sleep 1; done
           test "$(curl -fsS http://127.0.0.1:11434/api/version | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "$OLLAMA_VERSION"
-          ollama pull "$OLLAMA_MODEL"
+          for i in 1 2 3 4 5; do ollama pull "$OLLAMA_MODEL" && break; test "$i" -lt 5; sleep $((i*10)); done
           curl -fsS http://127.0.0.1:11434/api/show -H "Content-Type: application/json" -d '{"name":"llama3.2:1b"}' > artifacts/ollama_show.json
       - name: Run frozen pathological-case preflight (000091)
         env:
