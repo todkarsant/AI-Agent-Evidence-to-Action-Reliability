@@ -50,7 +50,11 @@
         "code_version":{"type":"string","minLength":1},
         "runtime_manifest_hash":{"type":"string","minLength":1},
         "baseline_hash":{"type":"string","minLength":1},
-        "outcome_record_hash":{"type":"string","minLength":1}
+        "outcome_record_hash":{"type":"string","minLength":1},
+        "runtime3_implementation_amendment":{"type":"string","minLength":1},
+        "runtime3_pathology_recovery_enabled":{"type":"boolean"},
+        "runtime3_pathology_recovery_amendment":{"type":["string","null"]},
+        "runtime3_pathology_recovery_applied":{"type":"boolean"}
       }
     }
   }
