@@ -14,6 +14,13 @@ FORBIDDEN_ANNOTATOR_KEYS = {
     "reference_answer", "posthoc_evaluator_labels",
 }
 
+RECORD_STATUSES = {
+    "EVALUABLE",
+    "EXCLUDED_E1_REFERENCE_NOT_SCOREABLE",
+    "NON_EVALUABLE_E2_RUNTIME_FAILURE_PRE_EVIDENCE",
+    "NON_EVALUABLE_E3E4_RUNTIME_FAILURE_POST_EVIDENCE",
+}
+
 def sha256_json(obj):
     raw = json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
     return hashlib.sha256(raw).hexdigest()
@@ -71,11 +78,38 @@ def validate_record(r, seen):
     for k in ("replacement_occurred","p0_correct","final_correct","y_h","locked_after_evidence"):
         if k not in o:
             fail(f"{did}: missing outcome field {k}")
-    expected_yh = int(o["p0_correct"] and o["replacement_occurred"] and not o["final_correct"])
-    if o["y_h"] != expected_yh:
-        fail(f"{did}: y_h formula mismatch")
     if o["locked_after_evidence"] is not True:
         fail(f"{did}: outcome not marked post-evidence lock")
+    # P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01. Records without a
+    # status predate the amendment and are treated as EVALUABLE.
+    status = r.get("record_status", "EVALUABLE")
+    if status not in RECORD_STATUSES:
+        fail(f"{did}: unknown record_status {status!r}")
+    if status == "EVALUABLE":
+        for k in ("replacement_occurred","p0_correct","final_correct"):
+            if not isinstance(o[k], bool):
+                fail(f"{did}: EVALUABLE record has non-boolean {k}")
+        expected_yh = int(o["p0_correct"] and o["replacement_occurred"] and not o["final_correct"])
+        if o["y_h"] != expected_yh:
+            fail(f"{did}: y_h formula mismatch")
+        if o.get("y_h_implied_by_definition") is not None:
+            fail(f"{did}: EVALUABLE record must not carry y_h_implied_by_definition")
+    else:
+        # Never a synthetic outcome on a non-evaluable record.
+        for k in ("replacement_occurred","final_correct","y_h"):
+            if o[k] is not None:
+                fail(f"{did}: {status} must have null {k}")
+        if status == "NON_EVALUABLE_E3E4_RUNTIME_FAILURE_POST_EVIDENCE":
+            if not isinstance(o["p0_correct"], bool):
+                fail(f"{did}: post-evidence failure must carry P0 correctness")
+            implied = 0 if o["p0_correct"] is False else None
+            if o.get("y_h_implied_by_definition") != implied:
+                fail(f"{did}: y_h_implied_by_definition inconsistent with P0 correctness")
+        else:
+            if o["p0_correct"] is not None or o.get("y_h_implied_by_definition") is not None:
+                fail(f"{did}: {status} must have null P0 correctness and implied Y_H")
+            if e["row_count"] is not None:
+                fail(f"{did}: {status} must have no decision-time evidence")
 
 def validate_annotation_packet(packet):
     def walk(x, path=""):
