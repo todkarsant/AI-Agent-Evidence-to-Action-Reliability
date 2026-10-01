@@ -7,7 +7,7 @@ The captured evidence is serialized and hashed before official outcome
 evaluation is invoked. X_W is never generated here.
 """
 from __future__ import annotations
-import argparse, hashlib, json, os, sqlite3, sys
+import argparse, hashlib, json, os, re, sqlite3, sys
 from dataclasses import asdict
 from pathlib import Path
 
@@ -16,6 +16,13 @@ FORBIDDEN = {
     "y_h","generated_sql","gold_sql","reference_sql","reference_answer",
     "posthoc_evaluator_labels","intervention","replacement","downstream_outcome"
 }
+
+STATUS_EVALUABLE="EVALUABLE"
+STATUS_E1="EXCLUDED_E1_REFERENCE_NOT_SCOREABLE"
+STATUS_PRE="NON_EVALUABLE_E2_RUNTIME_FAILURE_PRE_EVIDENCE"
+STATUS_POST="NON_EVALUABLE_E3E4_RUNTIME_FAILURE_POST_EVIDENCE"
+RUNTIME3_ERROR_RE=re.compile(r"^(Runtime3 |Ollama (candidate )?response completed without assistant content)")
+MISSINGNESS_AMENDMENT_ID="P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01"
 
 def canon(x):
     return json.dumps(x, ensure_ascii=False, sort_keys=True, separators=(",",":")).encode()
@@ -75,6 +82,9 @@ def main():
     ap.add_argument("--limit",type=int)
     ap.add_argument("--non-confirmatory",action="store_true")
     ap.add_argument("--confirmatory",action="store_true")
+    # P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01 (E1): outcome-blind
+    # reference-SQL census produced before any model call.
+    ap.add_argument("--e1-census",type=Path)
     args=ap.parse_args()
 
     if args.non_confirmatory == args.confirmatory:
@@ -107,7 +117,20 @@ def main():
 
     dataset=SpiderDataset(args.questions,args.database_dir)
     lookup={(x.db_id,x.question):x for x in dataset.examples}
-    manifest_hash=sha256_bytes(args.manifest.read_bytes())
+    # Shard manifests carry the frozen parent manifest hash; provenance must
+    # reference the frozen manifest so the forensic lock audit can reconcile it.
+    manifest_file_hash=sha256_bytes(args.manifest.read_bytes())
+    manifest_hash=manifest.get("parent_manifest_sha256") or manifest_file_hash
+
+    e1_ids=set()
+    e1_census_sha=None
+    if args.e1_census:
+        census_bytes=args.e1_census.read_bytes()
+        census=json.loads(census_bytes)
+        if census.get("source_manifest_sha256") not in (manifest_hash, manifest_file_hash):
+            raise SystemExit("FAIL: E1 census does not reference this manifest")
+        e1_census_sha=sha256_bytes(census_bytes)
+        e1_ids={x["decision_id"] for x in census["excluded"]}
 
     # Runtime3 is a namespace package in this repository, while the pinned
     # Project1 checkout contains a regular research package. Ensure the
@@ -146,23 +169,75 @@ def main():
     selected_traces={}
     defensibility_records={}
     recovery_by_decision={}
+    status_by_decision={}
+    runtime_failures=[]
     for c in cases:
+        did=c["decision_id"]
         ex=lookup.get((c["db_id"],c["question"]))
-        if ex is None: raise SystemExit(f"FAIL: manifest case not found: {c['decision_id']}")
+        if ex is None: raise SystemExit(f"FAIL: manifest case not found: {did}")
         before=len(evaluator.captures)
         recovery_before=len(provider.pathology_recovery_events)
-        selected, defensibility=run_case(env, ex)
-        recovery_by_decision[c["decision_id"]]=list(provider.pathology_recovery_events[recovery_before:])
-        selected_traces[c["decision_id"]]=selected
-        defensibility_records[c["decision_id"]]=defensibility
+        if did in e1_ids:
+            # E1: reference SQL not scoreable; excluded before any model call.
+            status=STATUS_E1
+        else:
+            try:
+                selected, defensibility=run_case(env, ex)
+                selected_traces[did]=selected
+                defensibility_records[did]=defensibility
+                status=STATUS_EVALUABLE
+            except RuntimeError as exc:
+                # Bounded Runtime3 failure (amendment E2/E3/E4). Never converted
+                # into an outcome; the stage is decided only by whether the P0
+                # (decision-time evidence) trace completed.
+                post=(c["db_id"],c["question"]) in env.p0_traces
+                status=STATUS_POST if post else STATUS_PRE
+                runtime_failures.append({
+                    "decision_id":did,
+                    "record_status":status,
+                    "failure_stage":"POST_EVIDENCE" if post else "PRE_EVIDENCE",
+                    "exception_type":type(exc).__name__,
+                    "exception":str(exc)[:2000],
+                })
+        # Project1's BenchmarkEnvironment.run() swallows every exception inside
+        # P0 and returns a trace with termination_reason="runtime_error". A bounded
+        # Runtime3 failure there would otherwise look like "no SQL generated" and be
+        # scored as P0 incorrect (Y_H=0). Classify it explicitly as E2 instead.
+        p0_trace_done=env.p0_traces.get((c["db_id"],c["question"]))
+        if (status!=STATUS_E1 and p0_trace_done is not None
+                and p0_trace_done.termination_reason=="runtime_error"
+                and RUNTIME3_ERROR_RE.match(p0_trace_done.error or "")):
+            if status==STATUS_POST:
+                runtime_failures.pop()
+            status=STATUS_PRE
+            selected_traces.pop(did,None); defensibility_records.pop(did,None)
+            runtime_failures.append({
+                "decision_id":did,
+                "record_status":status,
+                "failure_stage":"PRE_EVIDENCE",
+                "exception_type":"RuntimeError",
+                "exception":(p0_trace_done.error or "")[:2000],
+            })
+        status_by_decision[did]=status
+        recovery_by_decision[did]=list(provider.pathology_recovery_events[recovery_before:])
         new=evaluator.captures[before:]
+        if status in (STATUS_E1, STATUS_PRE):
+            # No completed P0 answer: no decision-time evidence (NO_USABLE_EVIDENCE shape).
+            new=[]
         # P0 is the first execution performed by run_case. It is the only
         # evidence eligible for X_W and must precede intervention logic.
         # If P0 produced no SQL, there is legitimately no executable evidence.
         # Under the frozen protocol this is NO_USABLE_EVIDENCE, not a synthetic
         # zero and not a shard-level failure. If SQL existed but no capture was
         # recorded, fail closed because evidence preservation is broken.
-        if not new:
+        if not new and status in (STATUS_E1, STATUS_PRE):
+            p0_ev={
+                "db_id":c["db_id"],"columns":None,"rows":None,
+                "row_count":None,"column_count":None,
+                "evidence_sha256":None,
+                "capture_reason":"not_run_e1" if status==STATUS_E1 else "runtime_failure_before_evidence"
+            }
+        elif not new:
             p0_trace = env.p0_traces.get((c["db_id"], c["question"]))
             if p0_trace is None:
                 raise SystemExit(f"FAIL: missing P0 trace: {c['decision_id']}")
@@ -219,39 +294,76 @@ def main():
 
     # Only now perform official post-hoc correctness evaluation. The evidence
     # artifact has already been serialized, hashed, and leakage-scanned.
+    # Runtime-failure ledger (stage + exception + recovery events). Written after
+    # the evidence lock and kept out of the decision-time evidence artifact.
+    for f in runtime_failures:
+        f["pathology_recovery_events"]=recovery_by_decision[f["decision_id"]]
+    (args.outdir/"runtime_failures.json").write_text(json.dumps({
+        "protocol_version":"P2-C1.4-RUNTIME-FAILURE-LEDGER-V2",
+        "amendment_id":MISSINGNESS_AMENDMENT_ID,
+        "manifest_hash":manifest_hash,
+        "records":runtime_failures},indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+
     from research.spider_official_eval import evaluate_traces
     traces=[]
+    post_p0_traces=[]
     trace_to_decision={}
     for c in cases:
         did=c["decision_id"]
-        p0=env.p0_traces[(c["db_id"],c["question"])]
-        selected=selected_traces[did]
-        for label,tr in (("P0",p0),("P6-IP",selected)):
-            d=asdict(tr)
-            d["policy"]=label
-            traces.append(d)
-            trace_to_decision[(label,did)]=d
+        st=status_by_decision[did]
+        if st==STATUS_EVALUABLE:
+            p0=env.p0_traces[(c["db_id"],c["question"])]
+            selected=selected_traces[did]
+            for label,tr in (("P0",p0),("P6-IP",selected)):
+                d=asdict(tr)
+                d["policy"]=label
+                traces.append(d)
+                trace_to_decision[(label,did)]=d
+        elif st==STATUS_POST:
+            # P0 completed before the failure: its correctness is defined.
+            d=asdict(env.p0_traces[(c["db_id"],c["question"])])
+            d["policy"]="P0"
+            post_p0_traces.append(d)
+            trace_to_decision[("P0",did)]=d
     payload={"dataset_manifest":{"question_file":str(args.questions)},
              "policies":["P0","P6-IP"],"traces":traces}
     official=evaluate_traces(payload,args.database_dir,args.tables_file,args.spider_eval_dir)
+    official_post_failure_p0=evaluate_traces(
+        {"dataset_manifest":{"question_file":str(args.questions)},"policies":["P0"],"traces":post_p0_traces},
+        args.database_dir,args.tables_file,args.spider_eval_dir) if post_p0_traces else {"P0":{"n":0,"execution_accuracy":0.0}}
 
     outcomes=[]
     aligned=[]
     for c in cases:
         did=c["decision_id"]
-        p0=trace_to_decision[("P0",did)]
-        final=trace_to_decision[("P6-IP",did)]
-        d=defensibility_records[did]
-        replacement=bool(d.get("replacement") is True and d.get("decision")=="REPLACE")
-        p0_correct=bool(p0.get("official_execution_correct"))
-        final_correct=bool(final.get("official_execution_correct"))
-        y_h=int(p0_correct and replacement and not final_correct)
-        outcome={"replacement_occurred":replacement,
-                 "p0_correct":p0_correct,"final_correct":final_correct,
-                 "y_h":y_h,"locked_after_evidence":True}
+        st=status_by_decision[did]
+        if st==STATUS_EVALUABLE:
+            p0=trace_to_decision[("P0",did)]
+            final=trace_to_decision[("P6-IP",did)]
+            d=defensibility_records[did]
+            replacement=bool(d.get("replacement") is True and d.get("decision")=="REPLACE")
+            p0_correct=bool(p0.get("official_execution_correct"))
+            final_correct=bool(final.get("official_execution_correct"))
+            y_h=int(p0_correct and replacement and not final_correct)
+            outcome={"replacement_occurred":replacement,
+                     "p0_correct":p0_correct,"final_correct":final_correct,
+                     "y_h":y_h,"locked_after_evidence":True}
+        elif st==STATUS_POST:
+            # Y_H is undefined (intervention never completed). Only the value
+            # implied by the Y_H definition when P0 is incorrect is recorded,
+            # separately, for the prespecified sensitivity analysis S1.
+            p0_correct=bool(trace_to_decision[("P0",did)].get("official_execution_correct"))
+            outcome={"replacement_occurred":None,
+                     "p0_correct":p0_correct,"final_correct":None,
+                     "y_h":None,"y_h_implied_by_definition":(0 if not p0_correct else None),
+                     "locked_after_evidence":True}
+        else:
+            outcome={"replacement_occurred":None,"p0_correct":None,"final_correct":None,
+                     "y_h":None,"y_h_implied_by_definition":None,"locked_after_evidence":True}
         outcomes.append(outcome)
         e=next(x for x in evidence_records if x["decision_id"]==did)
         aligned.append({"decision_id":did,"protocol_version":"P2-C1.4-ALIGNED-V2",
+                        "record_status":st,
                         "baseline":e["baseline"],
                         "decision_time_evidence":e["decision_time_evidence"],
                         "intervention_outcome":outcome,
@@ -263,6 +375,9 @@ def main():
                           "runtime3_pathology_recovery_enabled":recovery_enabled,
                           "runtime3_pathology_recovery_amendment":(PATHOLOGY_RECOVERY_AMENDMENT_ID if recovery_enabled else None),
                           "runtime3_pathology_recovery_applied":bool(recovery_by_decision[did]),
+                          "missingness_amendment":MISSINGNESS_AMENDMENT_ID,
+                          "e1_census_sha256":e1_census_sha,
+                          "shard_manifest_hash":manifest_file_hash,
                           "baseline_hash":sha256_json(e["baseline"]),
                           "outcome_record_hash":sha256_json(outcome)}})
 
@@ -291,7 +406,10 @@ def main():
         "decision_time_evidence_sha256":evidence_hash,
         "official_outcome_evaluation":"RUN_AFTER_EVIDENCE_LOCK",
         "official_execution":official,
-        "harm_count":sum(x["y_h"] for x in outcomes),
+        "harm_count":sum(x["y_h"] for x in outcomes if x["y_h"] is not None),
+        "record_status_counts":{k:sum(1 for v in status_by_decision.values() if v==k) for k in (STATUS_EVALUABLE,STATUS_E1,STATUS_PRE,STATUS_POST)},
+        "official_execution_post_failure_p0":official_post_failure_p0,
+        "missingness_amendment":MISSINGNESS_AMENDMENT_ID,
         "x_w":"NOT_ANNOTATED_IN_COLLECTOR",
         "runtime3_implementation_amendment":AMENDMENT_ID,
         "runtime3_pathology_recovery_enabled":recovery_enabled,
