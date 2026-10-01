@@ -80,6 +80,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unzip
           python -m pip install --upgrade pip
+          python -m pip install "nltk==3.9.4"
+          mkdir -p "$HOME/nltk_data"
+          python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
+          echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
       - name: Download and verify Spider 1.0
         run: |
           set -euo pipefail
@@ -151,6 +155,16 @@ jobs:
           print({"case_count":m["case_count"],"manifest_sha256":hashlib.sha256(p.read_bytes()).hexdigest()})
           PY
           sha256sum artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json > artifacts/manifest/manifest.sha256
+      - name: E1 reference-SQL census (outcome-blind, before any model call)
+        run: |
+          set -euo pipefail
+          # P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01 (E1)
+          python research/cohort/census_P2_C1_4_reference_sql.py \
+            --manifest artifacts/manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json \
+            --questions data/confirmatory_questions_source.json \
+            --database-dir artifacts/source_bundle/database \
+            --spider-eval-dir external/spider \
+            --output artifacts/manifest/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json
       - name: Upload verified Spider source bundle
         uses: actions/upload-artifact@v4
         with:
@@ -284,7 +298,7 @@ jobs:
           set -euo pipefail
           if [ "$(cat data/manifests/has_cases)" = "0" ]; then exit 0; fi
           mkdir -p artifacts/cohort
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/confirmatory_questions_source.json             --database-dir data/database             --manifest data/manifests/shard.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort             --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py             --questions data/confirmatory_questions_source.json             --database-dir data/database             --manifest data/manifests/shard.json             --spider-eval-dir external/spider             --tables-file data/tables.json             --outdir artifacts/cohort             --confirmatory             --e1-census data/manifests/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json
       - name: Validate shard
         run: |
           set -euo pipefail
@@ -308,6 +322,7 @@ jobs:
           mv artifacts/cohort/outcomes.json "artifacts/outcomes_shard_$idx.json"
           mv artifacts/cohort/decision_time_evidence.json "artifacts/decision_time_evidence_shard_$idx.json"
           mv artifacts/cohort/pathology_recovery_ledger.json "artifacts/pathology_recovery_ledger_shard_$idx.json"
+          mv artifacts/cohort/runtime_failures.json "artifacts/runtime_failures_shard_$idx.json"
           mv artifacts/cohort/runtime_qualification_manifest.json "artifacts/runtime_manifest_shard_$idx.json"
           cp data/manifests/shard.json "artifacts/manifest_shard_$idx.json"
       - name: Upload immutable shard artifact
@@ -379,6 +394,19 @@ jobs:
               "recovery_enabled_records":sum(1 for r in all_records if r["provenance"].get("runtime3_pathology_recovery_enabled") is True),
               "decisions_with_recovery":len(recovered),"decision_ids":recovered},indent=2)+"\n")
           print({"decisions_with_pathology_recovery":len(recovered)})
+          flow={}
+          for r in all_records:
+              flow[r.get("record_status","EVALUABLE")]=flow.get(r.get("record_status","EVALUABLE"),0)+1
+          failures=[]
+          for idx in sorted(found):
+              fp=Path(f"shards/runtime_failures_shard_{idx}.json")
+              if not fp.exists(): raise SystemExit(f"FAIL: missing runtime failure ledger for shard {idx}")
+              failures.extend(json.loads(fp.read_text())["records"])
+          Path("consolidated/P2_C1_4_RUNTIME_FAILURE_LEDGER.json").write_text(json.dumps({
+              "amendment_id":"P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01",
+              "record_count":len(all_records),"record_status_counts":flow,
+              "runtime_failure_count":len(failures),"records":failures},indent=2,ensure_ascii=False)+"\n")
+          print({"record_status_counts":flow,"runtime_failures":len(failures)})
           p=Path("consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json")
           p.write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n")
           digest=hashlib.sha256(p.read_bytes()).hexdigest()
@@ -395,7 +423,9 @@ jobs:
           python research/cohort/forensic_lock_audit_P2_C1_4.py \
             --manifest frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json \
             --cohort consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json \
-            --outdir consolidated/lock
+            --outdir consolidated/lock \
+            --e1-census frozen_manifest/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json
+          cp frozen_manifest/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json consolidated/
       - name: Upload consolidated cohort
         uses: actions/upload-artifact@v4
         with:
