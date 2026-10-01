@@ -206,8 +206,17 @@ jobs:
           assert d["records"][0]["decision_id"]=="P2C14-CONF-000001"
           assert d["records"][-1]["decision_id"]=="P2C14-CONF-000200"
           m=json.loads(Path("artifacts/qualification/runtime_qualification_manifest.json").read_text())
-          print({"qualification_records":200,"record_status_counts":m["record_status_counts"],"status":"PASS"})
+          print({"qualification_records":200,"record_status_counts":m["record_status_counts"]})
           PY
+          # Amended G3 (P2-C1.4-QUALIFICATION-GATE-G3-AMENDMENT-2026-10-01): integrity checks
+          # fail closed, and runtime failures (E2 + E3/E4) must not exceed 5% (10 of 200).
+          cp data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json artifacts/qualification/
+          python research/cohort/check_P2_C1_4_runtime_failure_gate.py \
+            --records artifacts/qualification/aligned_records.json \
+            --expected-ids data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json \
+            --e1-census artifacts/e1/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json \
+            --label G3_QUALIFICATION_200 \
+            --output artifacts/qualification/G3_GATE_VERDICT.json
 
       - name: Upload qualification evidence
         if: ${{ !cancelled() }}
