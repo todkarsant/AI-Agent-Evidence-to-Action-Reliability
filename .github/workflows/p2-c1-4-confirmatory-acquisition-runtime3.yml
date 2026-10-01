@@ -1,8 +1,13 @@
 name: p2-c1-4-confirmatory-acquisition-runtime3
 # Runtime3 accepted path. Free/public-repo capacity profile: keep the confirmatory fan-out below the 20-job standard-hosted concurrency ceiling and reserve capacity for controller/diagnostic jobs.
 on:
-  # Manual dispatch remains available for a deliberate rerun.
+  # Manual dispatch remains available for a deliberate rerun; it must name the
+  # qualification run that authorises it (amended G3).
   workflow_dispatch:
+    inputs:
+      qualification_run_id:
+        description: "Run ID of a successful p2-c1-4-runtime3-sequential-qualification run on main"
+        required: true
   # Automatically begin confirmatory acquisition only after the Runtime3
   # sequential qualification has passed on main.
   workflow_run:
@@ -10,6 +15,7 @@ on:
     types: [completed]
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   # One active confirmatory acquisition; a newer dispatch supersedes an older one.
@@ -40,8 +46,78 @@ env:
   RUNTIME3_PATHOLOGICAL_REPAIR_OUTPUT_TOKENS: 2048
 
 jobs:
-  runtime3-transport-regression:
+  # P2-C1.4-QUALIFICATION-GATE-G3-AMENDMENT-2026-10-01: acquisition starts only if the
+  # authorising qualification artifact passes the amended G3 gate, and only if the
+  # science code is identical to the code that was qualified.
+  qualification-gate:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      QUAL_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_run_id || github.event.workflow_run.id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify authorising qualification run
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${QUAL_RUN_ID}" > qual_run.json
+          python - <<'PY'
+          import json
+          r=json.load(open("qual_run.json"))
+          assert r["name"]=="p2-c1-4-runtime3-sequential-qualification", r["name"]
+          assert r["conclusion"]=="success", r["conclusion"]
+          assert r["head_branch"]=="main", r["head_branch"]
+          open("qual_sha","w").write(r["head_sha"])
+          print({"qualification_run":r["id"],"head_sha":r["head_sha"],"conclusion":r["conclusion"]})
+          PY
+          QSHA="$(cat qual_sha)"
+          git cat-file -e "$QSHA^{commit}"
+          # Science code must be byte-identical to the qualified commit.
+          git diff --exit-code "$QSHA" HEAD -- \
+            runtime3_ollama.py \
+            research/runtime3_confirmatory_prompt_amendment.py \
+            research/cohort/collect_P2_C1_4_aligned_cohort.py \
+            research/cohort/census_P2_C1_4_reference_sql.py \
+            research/cohort/validate_P2_C1_4_aligned_records.py \
+            research/cohort/P2_C1_4_ALIGNED_DECISION_RECORD_SCHEMA_V2.json
+          echo "science code identical to qualified commit $QSHA"
+      - name: Download qualification artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: p2-c1-4-runtime3-sequential-qualification-200
+          path: qualification
+          run-id: ${{ env.QUAL_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Amended G3 gate on qualification artifact
+        run: |
+          set -euo pipefail
+          ids=qualification/qualification/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json
+          if [ ! -f "$ids" ]; then
+            # Artifacts produced before the gate amendment do not carry the manifest;
+            # the qualification set is the first 200 frozen decisions, in order.
+            python -c 'import json;json.dump({"cases":[{"decision_id":f"P2C14-CONF-{i:06d}"} for i in range(1,201)]},open("qual_ids.json","w"))'
+            ids=qual_ids.json
+          fi
+          python research/cohort/check_P2_C1_4_runtime_failure_gate.py \
+            --records qualification/qualification/aligned_records.json \
+            --expected-ids "$ids" \
+            --e1-census qualification/e1/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json \
+            --label G3_QUALIFICATION_200 \
+            --output G3_GATE_VERDICT.json
+      - name: Upload G3 verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-g3-gate-verdict
+          path: G3_GATE_VERDICT.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  runtime3-transport-regression:
+    needs: qualification-gate
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -414,6 +490,15 @@ jobs:
           print({"expected_shards":expected_shards,"successful_shards":len(files),"record_count":len(all_records),"sha256":digest})
           PY
           python research/cohort/validate_P2_C1_4_aligned_records.py consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json
+      - name: Runtime-failure ceiling before lock (amended G3/G4, 5% of 8,638)
+        run: |
+          set -euo pipefail
+          python research/cohort/check_P2_C1_4_runtime_failure_gate.py \
+            --records consolidated/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json \
+            --expected-ids frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json \
+            --e1-census frozen_manifest/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json \
+            --label G4_COHORT_RUNTIME_FAILURE_CEILING \
+            --output consolidated/G4_RUNTIME_FAILURE_GATE_VERDICT.json
       - name: Forensic audit and immutable cohort lock
         env:
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -433,4 +518,12 @@ jobs:
           path: consolidated/
           # Keep the locked cohort available for immediate forensic/annotation work;
           # long-term preservation belongs in the research evidence archive, not CI storage.
+          retention-days: 30
+      - name: Preserve refused (unlocked) cohort
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-cohort-REFUSED-NOT-LOCKED
+          path: consolidated/
+          if-no-files-found: ignore
           retention-days: 30
