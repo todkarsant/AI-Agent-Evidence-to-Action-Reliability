@@ -7,6 +7,7 @@
   "properties": {
     "decision_id": {"type":"string","minLength":1},
     "protocol_version": {"type":"string","const":"P2-C1.4-ALIGNED-V2"},
+    "record_status": {"type":"string","enum":["EVALUABLE","EXCLUDED_E1_REFERENCE_NOT_SCOREABLE","NON_EVALUABLE_E2_RUNTIME_FAILURE_PRE_EVIDENCE","NON_EVALUABLE_E3E4_RUNTIME_FAILURE_POST_EVIDENCE"]},
     "baseline": {
       "type":"object","additionalProperties":false,
       "required":["execution_ok","row_count","column_count"],
@@ -35,10 +36,11 @@
       "type":"object","additionalProperties":false,
       "required":["replacement_occurred","p0_correct","final_correct","y_h","locked_after_evidence"],
       "properties":{
-        "replacement_occurred":{"type":"boolean"},
-        "p0_correct":{"type":"boolean"},
-        "final_correct":{"type":"boolean"},
-        "y_h":{"type":"integer","enum":[0,1]},
+        "replacement_occurred":{"type":["boolean","null"]},
+        "p0_correct":{"type":["boolean","null"]},
+        "final_correct":{"type":["boolean","null"]},
+        "y_h":{"type":["integer","null"],"enum":[0,1,null]},
+        "y_h_implied_by_definition":{"type":["integer","null"],"enum":[0,null]},
         "locked_after_evidence":{"type":"boolean","const":true}
       }
     },
@@ -54,7 +56,10 @@
         "runtime3_implementation_amendment":{"type":"string","minLength":1},
         "runtime3_pathology_recovery_enabled":{"type":"boolean"},
         "runtime3_pathology_recovery_amendment":{"type":["string","null"]},
-        "runtime3_pathology_recovery_applied":{"type":"boolean"}
+        "runtime3_pathology_recovery_applied":{"type":"boolean"},
+        "missingness_amendment":{"type":"string","minLength":1},
+        "e1_census_sha256":{"type":["string","null"]},
+        "shard_manifest_hash":{"type":"string","minLength":1}
       }
     }
   }
