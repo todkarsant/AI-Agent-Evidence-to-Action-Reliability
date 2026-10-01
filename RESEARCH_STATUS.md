@@ -1,6 +1,6 @@
 # Research Status
 
-**Last updated:** 2026-09-29
+**Last updated:** 2026-10-01
 
 ## Overall status
 
@@ -26,7 +26,7 @@ The repository is the canonical source of truth. The project has completed the c
 | C.4.2.4-A Human X_W validation | **RESOLVED** | 49/49 applicability and 27/27 witness agreement; explicit independence attestation |
 | P2-C1.2 Predictive / Incremental Validity Attack | **COMPLETE** | Confirmatory modeling blocked by alignment/missingness/model-protocol issues |
 | P2-C1.3 Aligned cohort reconstruction | **COMPLETE — FAILED** | Historical outcome/X_W alignment cannot be established |
-| P2-C1.4 New aligned cohort | **RUNTIME QUALIFIED — NON-CONFIRMATORY** | Four fresh dry-run cases passed aligned artifact validation; confirmatory collection still requires protocol freeze |
+| P2-C1.4 New aligned cohort | **CONFIRMATORY ACQUISITION IN PROGRESS (G3 PASSED 2026-10-01)** | Protocol frozen 2026-09-21; amendments through 2026-10-01 (see update below). No cohort locked. |
 | Confirmatory M0 vs M1 | **BLOCKED** | Do not fit until P2-C1.4 is complete |
 
 ## Latest execution progress — 2026-09-21
@@ -81,5 +81,22 @@ Run #59 (**36522954069**) completed at the software/artifact level on the contin
 - The current blocker diagnostic was triggered automatically for Run #59 and is running as GitHub Actions run **36541862037**. Its purpose is forensic diagnosis only; its result does not itself authorize confirmatory acquisition.
 - The same diagnostic workflow is wired to future successful qualification runs with runtime failures, so this failure class no longer requires manual discovery before diagnosis.
 - The 200/200 scientific progression gate remains unchanged: only an artifact with exactly 200 evaluable records and zero runtime failures can authorize PR #28 progression and the downstream acquisition chain.
+
+No confirmatory predictive-validity result exists yet.
+
+### P2-C1.4 update — 2026-10-01
+
+- **Pathological-SQL recovery amendment** (2026-09-30) was implemented. G1 and G2 passed.
+- **Qualification #70** (`36689586772`, cases 000001–000200) recorded 200/200 under the old gate. This cannot be verified as a true 200/200: Project 1 silently scored P0 runtime failures as ordinary incorrect answers (defect found 2026-10-01; see the missingness amendment).
+- **Acquisition `36691960508` failed** after completing 31/44 shards. Shard 3 hit a reference SQL that the evaluator could not execute; 12 shards hit unrecovered post-evidence runtime failures. Only error logs were read; no outcome artifact was opened. The run is discarded and no cohort was locked.
+- **`P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01`** (approved) freezes record statuses EVALUABLE / E1 / E2 / E3E4, the primary population, the S1/S2 sensitivity analyses and a systematic-missingness audit. It also fixes the swallowed P0 failure defect and the shard manifest-hash defect.
+- **`P2-C1.4-QUALIFICATION-GATE-G3-AMENDMENT-2026-10-01`** (approved) replaces the "200/200, 0 runtime failures" gate:
+  - integrity checks fail closed;
+  - runtime failures must not exceed 5% (10/200 for qualification; 431/8,638 before the cohort lock);
+  - acquisition requires science code identical to the qualified commit.
+- **Qualification `36847267797`** (main @ `b3e5eb7`) passed. The E1 census and the 000091 preflight passed.
+- **Amended G3 verdict** on that artifact (acquisition run `36853456589`, `qualification-gate` job): **PASS** — 200 EVALUABLE, 0 runtime failures (ceiling 10), 0 E1. Science code is identical to the qualified commit. Unlike #70, this result includes detection of P0 runtime failures.
+- The old workflow auto-started acquisition run `36852043181`, which was cancelled before any shard completed; none of its artifacts were read.
+- **Gated acquisition `36853456589`** (main @ `87a66ef`) is in progress. The cohort lock requires runtime failures ≤ 431/8,638 in addition to the existing forensic checks.
 
 No confirmatory predictive-validity result exists yet.
