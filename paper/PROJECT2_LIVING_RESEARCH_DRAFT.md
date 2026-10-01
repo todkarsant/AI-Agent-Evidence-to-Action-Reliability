@@ -27,9 +27,11 @@ The safety relevance of an analytical agent is not exhausted by whether an answe
 
 [
 	ext{analytical correctness}
-ightarrow
+
+ightarrow
 	ext{intervention}
-ightarrow
+
+ightarrow
 	ext{replacement consequence}.
 ]
 
@@ -317,6 +319,15 @@ The primary M0-versus-M1 analysis population is restricted to cases for which us
 
 M0 and M1 are evaluated on the same primary analysis observations.
 
+Under amendment `P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01` (adopted after a failed engineering acquisition run and before any outcome analysis), every frozen decision carries exactly one mechanical `record_status`:
+
+- `EVALUABLE` — the pathway completed;
+- `EXCLUDED_E1_REFERENCE_NOT_SCOREABLE` — a pre-acquisition, model-independent census found that the pinned official evaluator cannot parse or execute the reference SQL; the model is never called;
+- `NON_EVALUABLE_E2_RUNTIME_FAILURE_PRE_EVIDENCE` — a bounded runtime failure before decision-time evidence was complete (X_W missing);
+- `NON_EVALUABLE_E3E4_RUNTIME_FAILURE_POST_EVIDENCE` — a bounded runtime failure after evidence capture; P0 correctness is scored, while replacement, final correctness and Y_H are not observed.
+
+The primary population is `EVALUABLE` decisions with usable evidence. No record is removed from the cohort ledger, and no outcome is synthesised for a non-evaluable record.
+
 ### 6.7 Model family
 
 Both models use penalized binary logistic regression with L2/ridge regularization:
@@ -404,6 +415,14 @@ A cluster bootstrap may be used only as a sensitivity analysis and must resample
 
 X_W missingness is handled without recoding `NO_USABLE_EVIDENCE` as zero.
 
+Outcome missingness from runtime failure is handled by the frozen rule in amendment `P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01`, applied identically to M0 and M1:
+
+- **Primary:** `EVALUABLE` decisions with usable evidence.
+- **S1 (prespecified):** adds post-evidence failures with P0 incorrect (E3). For these Y_H = 0 follows from the outcome definition, and it is stored separately as `y_h_implied_by_definition`, not as an observed Y_H.
+- **S2 (prespecified bounds):** adds post-evidence failures with P0 correct (E4), once at Y_H = 0 and once at Y_H = 1.
+- The primary conclusion is called robust only if the sign of Δlog-loss agrees across the primary analysis, S1 and both S2 bounds.
+- A systematic-missingness audit compares non-evaluable and evaluable decisions on pre-outcome characteristics only (database, reference-SQL hardness, nesting depth, question length).
+
 Confirmatory analysis stops if, among other failures:
 
 - evidence is captured after intervention;
@@ -445,7 +464,12 @@ The runtime qualification process identified and corrected several implementatio
 - explicit separation of confirmatory and non-confirmatory collector modes;
 - evidence-hash canonicalization;
 - explicit `NO_USABLE_EVIDENCE` semantics;
-- alignment between collector provenance and record schema.
+- alignment between collector provenance and record schema;
+- a bounded, detector-gated recovery for runaway self-repeating SQL generation (`P2-C1.4-RUNTIME3-PATHOLOGICAL-SQL-RECOVERY-AMENDMENT-2026-09-30`), whose firing count is reported;
+- P0 runtime failures that the pinned Project 1 environment silently converted into empty traces, and that would otherwise have been scored as P0-incorrect with Y_H = 0; these are now classified as E2;
+- a manifest-hash mismatch between sharded records and the frozen manifest that would have made the forensic lock fail on any sharded run.
+
+The first complete 44-shard acquisition attempt (run `36691960508`) finished 31 of 44 shards. One shard failed because the official evaluator could not execute a reference query; twelve failed on post-evidence escalation-call runtime failures. Only job error logs were read; no outcome artifact was opened, and the run was discarded. The missingness amendment in §6.6 and §6.12 was adopted in response, before any outcome analysis. It changes missing-data handling, not only transport, and is reported as such.
 
 The failed attempts remain documented rather than rewritten as successful runs.
 
@@ -488,7 +512,7 @@ The 8,638 records are **not treated as scientific results merely because they we
 Acceptance requires:
 
 1. all expected shards;
-2. exact record counts;
+2. exact record counts (all 8,638 frozen decisions present, each with exactly one `record_status`);
 3. exact manifest reconciliation;
 4. unique decision IDs;
 5. evidence-before-intervention;
@@ -580,6 +604,8 @@ The historical discovery outcome is relatively sparse. The confirmatory protocol
 
 `NO_USABLE_EVIDENCE` is not equivalent to zero witness sufficiency. Treating it as zero would change the construct.
 
+Runtime non-evaluability can be related to case difficulty. The primary population may then under-represent difficult decisions. The S1/S2 analyses and the systematic-missingness audit (§6.12) report how far this could affect the conclusion; they do not remove the limitation.
+
 ### 10.6 Dependence
 
 Nominal record count may exceed the amount of independent information if cases share database/question structure. The frozen outer evaluation therefore preserves the defined dependence grouping.
@@ -598,25 +624,35 @@ The intended evidence chain is:
 
 [
 	ext{research question}
-ightarrow
+
+ightarrow
 	ext{literature/gap}
-ightarrow
+
+ightarrow
 	ext{construct attack}
-ightarrow
+
+ightarrow
 	ext{frozen protocol}
-ightarrow
+
+ightarrow
 	ext{pinned runtime}
-ightarrow
+
+ightarrow
 	ext{decision-time evidence}
-ightarrow
+
+ightarrow
 	ext{immutable cohort}
-ightarrow
+
+ightarrow
 	ext{independent annotation}
-ightarrow
+
+ightarrow
 	ext{out-of-sample predictions}
-ightarrow
+
+ightarrow
 	ext{statistical analysis}
-ightarrow
+
+ightarrow
 	ext{paper claim}.
 ]
 
@@ -662,7 +698,9 @@ That question remains open until the accepted aligned cohort, independent blinde
 
 After the immutable cohort and annotation gates pass, this manuscript should be extended with:
 
-- accepted cohort flow and exclusions;
+- accepted cohort flow and exclusions: source frame → pilot exclusions → 8,638 frozen → E1 → E2 → E3/E4 → other `NO_USABLE_EVIDENCE` → primary population, with counts and decision IDs at each step;
+- runtime-failure rate by stage and pathological-SQL recovery count;
+- S1 and S2 sensitivity results and the systematic-missingness audit;
 - outcome prevalence;
 - independent-rater reliability and provenance;
 - X_W distribution and missingness;
