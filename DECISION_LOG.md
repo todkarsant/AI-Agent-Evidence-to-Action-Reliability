@@ -59,3 +59,31 @@ This file records material methodological and research decisions. Decisions shou
 **Reason:** Every substantive paper claim must remain traceable to a dated methodological artifact, raw evidence/provenance, analysis, and final claim.
 
 **Effect:** The current paper draft explicitly records negative results and the P2-C1.3 reconstruction failure rather than omitting them.
+
+## 2026-09-30 — Runtime3 pathological-SQL recovery
+
+**Decision:** Adopt a bounded, detector-gated single repair for runaway self-repeating SQL generation (`P2-C1.4-RUNTIME3-PATHOLOGICAL-SQL-RECOVERY-AMENDMENT-2026-09-30`).
+
+**Reason:** A provider-boundary runtime pathology (000091) blocked qualification.
+
+**Effect:** Recovery is disclosed per decision and is never used as a predictor, covariate or outcome.
+
+## 2026-10-01 — Missingness and eligibility
+
+**Decision:** Every frozen decision carries one mechanical `record_status` (EVALUABLE / E1 / E2 / E3E4). The primary analysis uses EVALUABLE decisions with usable evidence. The S1/S2 sensitivity analyses and a systematic-missingness audit are mandatory (`P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01`).
+
+**Reason:** Acquisition `36691960508` failed on a reference SQL the evaluator could not execute and on unrecovered runtime failures. Aligned Outcome Cohort Design §9 requires missingness treatment to be frozen before outcome analysis.
+
+**Effect:** No synthetic outcomes. Two implementation defects were fixed: swallowed P0 runtime failures, and the shard manifest hash.
+
+## 2026-10-01 — Qualification gate G3 replaced
+
+**Decision:** Replace "200/200, 0 runtime failures" with integrity checks plus a 5% runtime-failure ceiling: 10/200 for qualification and 431/8,638 before the cohort lock. Acquisition also requires science code identical to the qualified commit (`P2-C1.4-QUALIFICATION-GATE-G3-AMENDMENT-2026-10-01`).
+
+**Reason:**
+- The missingness amendment removed the implicit crash-based enforcement of the old gate.
+- The old gate cannot be verified retrospectively.
+- An unbounded gate would admit a degraded run.
+
+**Effect:** The ceiling was fixed before any status count of qualification `36847267797` was seen. The 5% value is the author's judgement, not part of the original design.
+
