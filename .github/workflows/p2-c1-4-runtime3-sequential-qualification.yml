@@ -134,6 +134,17 @@ jobs:
           print({"qualification_cases":200,"first":cases[0]["decision_id"],"last":cases[-1]["decision_id"]})
           PY
 
+      - name: E1 reference-SQL census (outcome-blind, before any model call)
+        run: |
+          set -euo pipefail
+          # P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01 (E1)
+          mkdir -p artifacts/e1
+          python research/cohort/census_P2_C1_4_reference_sql.py \
+            --manifest data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json \
+            --questions data/confirmatory_questions_source.json \
+            --database-dir data/database \
+            --spider-eval-dir external/spider \
+            --output artifacts/e1/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json
       - name: Install pinned Ollama
         run: |
           set -euo pipefail
@@ -167,10 +178,10 @@ jobs:
           src=Path("data/manifests/P2_C1_4_CONFIRMATORY_MANIFEST.json")
           m=json.loads(src.read_text(encoding="utf-8"))
           case=next(c for c in m["cases"] if c["decision_id"]=="P2C14-CONF-000091")
-          Path("data/manifests/P2_C1_4_PREFLIGHT_000091.json").write_text(json.dumps({k:v for k,v in m.items() if k != "cases"} | {"cases":[case]}, indent=2, ensure_ascii=False) + "\n")
+          Path("data/manifests/P2_C1_4_PREFLIGHT_000091.json").write_text(json.dumps({k:v for k,v in m.items() if k != "cases"} | {"parent_manifest_sha256":__import__("hashlib").sha256(src.read_bytes()).hexdigest(),"cases":[case]}, indent=2, ensure_ascii=False) + "\n")
           print({"preflight_case":case["decision_id"],"db_id":case["db_id"]})
           PY
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PREFLIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_PREFLIGHT_000091.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/preflight-000091 --confirmatory --e1-census artifacts/e1/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json
       - name: Run sequential 200-case qualification
         env:
           PROJECT1_ROOT: ${{ github.workspace }}/external/Enterprise-Analytics-Copilot
@@ -181,7 +192,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/qualification
-          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory
+          PYTHONPATH="$GITHUB_WORKSPACE/external/Enterprise-Analytics-Copilot:$GITHUB_WORKSPACE" python research/cohort/collect_P2_C1_4_aligned_cohort.py --questions data/confirmatory_questions_source.json --database-dir data/database --manifest data/manifests/P2_C1_4_SEQUENTIAL_QUALIFICATION_200.json --spider-eval-dir external/spider --tables-file data/tables.json --outdir artifacts/qualification --confirmatory --e1-census artifacts/e1/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json
 
       - name: Validate qualification artifact
         run: |
@@ -194,7 +205,8 @@ jobs:
           assert len(d["records"])==200
           assert d["records"][0]["decision_id"]=="P2C14-CONF-000001"
           assert d["records"][-1]["decision_id"]=="P2C14-CONF-000200"
-          print({"qualification_records":200,"status":"PASS"})
+          m=json.loads(Path("artifacts/qualification/runtime_qualification_manifest.json").read_text())
+          print({"qualification_records":200,"record_status_counts":m["record_status_counts"],"status":"PASS"})
           PY
 
       - name: Upload qualification evidence
