@@ -28,6 +28,7 @@ def main() -> None:
     ap.add_argument("--manifest",type=Path,required=True)
     ap.add_argument("--cohort",type=Path,required=True)
     ap.add_argument("--outdir",type=Path,required=True)
+    ap.add_argument("--e1-census",type=Path)
     args=ap.parse_args()
 
     manifest=json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -49,6 +50,14 @@ def main() -> None:
     if len(ids)!=len(set(ids)):
         fail("duplicate decision_id")
 
+    e1_expected=None
+    if args.e1_census:
+        census=json.loads(args.e1_census.read_text(encoding="utf-8"))
+        if census.get("source_manifest_sha256")!=manifest_hash:
+            fail("E1 census does not reference the frozen manifest")
+        e1_expected={x["decision_id"] for x in census["excluded"]}
+    status_counts={}
+    post_failure_p0_correct=0
     no_evidence=0
     harms=0
     replacements=0
@@ -94,15 +103,25 @@ def main() -> None:
             })
             if e["evidence_hash"]!=expected_evidence_hash:
                 fail(f"{did}: evidence hash mismatch")
-        expected_yh=int(o["p0_correct"] and o["replacement_occurred"] and not o["final_correct"])
-        if o["y_h"]!=expected_yh:
-            fail(f"{did}: Y_H formula mismatch")
         if not o["locked_after_evidence"]:
             fail(f"{did}: outcome was not marked post-evidence lock")
-        harms+=o["y_h"]
-        replacements+=int(o["replacement_occurred"])
-        p0_correct+=int(o["p0_correct"])
-        final_correct+=int(o["final_correct"])
+        status=r.get("record_status","EVALUABLE")
+        status_counts[status]=status_counts.get(status,0)+1
+        if e1_expected is not None and (status=="EXCLUDED_E1_REFERENCE_NOT_SCOREABLE") != (did in e1_expected):
+            fail(f"{did}: E1 status disagrees with the pre-acquisition census")
+        if status=="EVALUABLE":
+            expected_yh=int(o["p0_correct"] and o["replacement_occurred"] and not o["final_correct"])
+            if o["y_h"]!=expected_yh:
+                fail(f"{did}: Y_H formula mismatch")
+            harms+=o["y_h"]
+            replacements+=int(o["replacement_occurred"])
+            p0_correct+=int(o["p0_correct"])
+            final_correct+=int(o["final_correct"])
+        else:
+            if o["y_h"] is not None or o["replacement_occurred"] is not None or o["final_correct"] is not None:
+                fail(f"{did}: non-evaluable record carries an outcome")
+            if status=="NON_EVALUABLE_E3E4_RUNTIME_FAILURE_POST_EVIDENCE":
+                post_failure_p0_correct+=int(o["p0_correct"] is True)
 
     args.outdir.mkdir(parents=True,exist_ok=True)
     lock={
@@ -116,6 +135,10 @@ def main() -> None:
         "p0_correct_count":p0_correct,
         "final_correct_count":final_correct,
         "harm_count":harms,
+        "record_status_counts":status_counts,
+        "post_evidence_failure_p0_correct_count":post_failure_p0_correct,
+        "e1_census_verified":e1_expected is not None,
+        "missingness_amendment":"P2-C1.4-MISSINGNESS-AND-ELIGIBILITY-AMENDMENT-2026-10-01",
         "aligned_record_protocol":"P2-C1.4-ALIGNED-V2",
         "runtime_protocol":"P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21",
         "annotation_status":"NOT_ANNOTATED",
