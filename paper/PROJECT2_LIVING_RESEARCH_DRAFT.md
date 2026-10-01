@@ -520,7 +520,8 @@ Acceptance requires:
 7. evidence-hash validation;
 8. aligned-record validation;
 9. forensic integrity audit;
-10. immutable cohort lock.
+10. runtime failures (E2 + E3/E4) at most 5% of the 8,638 frozen decisions (`P2-C1.4-QUALIFICATION-GATE-G3-AMENDMENT-2026-10-01`; the 200-case qualification uses the same 5% ceiling);
+11. immutable cohort lock.
 
 Only after those conditions pass can the cohort be used for independent X_W annotation and the confirmatory analysis sequence.
 
