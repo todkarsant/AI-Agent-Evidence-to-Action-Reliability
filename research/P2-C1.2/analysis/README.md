@@ -2,8 +2,8 @@
 
 This implements the frozen protocol `P2_C1_4_CONFIRMATORY_PROTOCOL_FREEZE_V1_2026-09-21.md` §4–13 and
 `P2_C1_4_MISSINGNESS_AND_ELIGIBILITY_AMENDMENT_2026-10-01.md` §4 (S1/S2) and §5 (missingness audit).
-It has been exercised only on SYNTHETIC data. **The implementation choices listed below need author
-approval before unblinding.**
+It has been exercised only on SYNTHETIC data. The implementation choices listed below were approved by the author on 2026-10-02
+(`P2-C1.4-XW-CONSTRUCTION-AND-ANALYSIS-IMPLEMENTATION-AMENDMENT-2026-10-02`).
 
 ## Files
 - `run_P2_C1_2_confirmatory_analysis.py`: the analysis.
@@ -28,7 +28,7 @@ The run fails closed (exit 2, no results written) when decision_id sets differ, 
 - `summary.md`: a short human-readable summary.
 - `run_metadata.json`: run timestamp, argv, absolute paths and the SHA-256 of results.json. This file is not part of the deterministic output.
 
-Exit codes: 0 = completed, 2 = input invalid, 3 = `FEASIBILITY_STOP`.
+Exit codes: 0 = completed, 2 = input invalid, 3 = `FEASIBILITY_STOP` or `FEASIBILITY_STOP_RILEY`.
 
 ## How to run
 ```bash
@@ -51,12 +51,12 @@ Runtime is about 90 s for 600 synthetic records at the frozen 20 repeats with fo
 - **Primary population.** EVALUABLE ∧ x_w non-null ∧ y_h non-null.
 - **Estimand.** d_i = LL(y,p0) − LL(y,p1), with p clipped to [1e-15, 1−1e-15]. Delta = mean d_i, and positive means M1 is better. The interval is the 2.5/97.5 percentile (linear) of the 20 repeat-level Deltas.
 - **Sensitivity analyses.** S1 = primary + E3 (y = `y_h_implied_by_definition` = 0). S2_low and S2_high = S1 + E4 (p0_correct true) with y = 0 and y = 1. The result is flagged robust only if the sign of Delta agrees across all four analyses.
-- **Riley et al. 2020 planning values.** 4 parameters, shrinkage 0.90, R²_CS = 15% of the maximum at the observed prevalence. Criteria (i) and (iii) are reported, with δ = 0.05 for (iii).
+- **Riley et al. 2020 planning values.** 4 parameters, shrinkage 0.90, R²_CS = 15% of the maximum at the observed prevalence, δ = 0.05 for (iii). Both criteria must be met by the primary population, or the run stops.
 
-## Implementation choices needing author confirmation (the protocol does not state these)
+## Implementation choices (the protocol does not state these; approved by the author 2026-10-02 in the X_W construction and analysis implementation amendment)
 The full list (IC01–IC21) is in `IMPLEMENTATION_CHOICES` in the script and is copied into `results.json`. The main ones:
 1. **Feasibility rule.** The run stops with `FEASIBILITY_STOP` if StratifiedGroupKFold raises, or if any outer or inner training or validation fold, in any of the 20 repeats, lacks events or non-events. This is checked on all partitions before any fit.
-2. **Riley shortfall.** A shortfall gives `FEASIBILITY_WARNING_RILEY` and the analysis still runs. This is an implementation reading of §4 ("inadequate for a stable penalized model"), and **the author must confirm it before unblinding.**
+2. **Riley shortfall: hard stop (author decision, 2026-10-02).** If the primary population fails Riley criterion (i) or (iii), the verdict is `FEASIBILITY_STOP_RILEY` (exit 3) and nothing is fitted for any population.
 3. **Missing counts.** Null row/column counts are allowed only when execution_ok is false. They are coded 0 before log1p, so execution_ok absorbs the structural-missingness level.
 4. **Standardization.** Uses ddof=0; an SD of 0 is replaced by 1. After C is chosen, the model is refit on the full outer training fold.
 5. **Tuning loss.** The unweighted mean of the per-fold mean log losses (the GridSearchCV convention). Ties are exact float ties.
