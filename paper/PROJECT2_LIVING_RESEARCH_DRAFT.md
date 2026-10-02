@@ -542,13 +542,39 @@ Acceptance requires:
 
 Only after those conditions pass can the cohort be used for independent X_W annotation and the confirmatory analysis sequence.
 
-### 8.3 Current manuscript boundary
+### 8.3 Realized acquisition and cohort lock
+
+All acceptance conditions passed in acquisition run `36853456589` (main @ `87a66ef`, completed 2026-10-02). Its authorising qualification run was `36847267797`; amended G3 gave 200 EVALUABLE and 0 runtime failures.
+
+- **Shards:** 44 of 44 succeeded.
+- **Records:** 8,638 in frozen order, exactly reconciled with the frozen manifest.
+- **Consolidated cohort:** SHA-256 `da537c75ce5778af3c36d05d8e59f7cea296aa5b8a4bc0c527b7cf352ebd9b8b`.
+- **Forensic lock:** passed, including the E1 census check.
+
+Cohort flow by record status. These are pre-analysis counts and contain no outcome information.
+
+| Status | n |
+|---|---|
+| Frozen decisions | 8,638 |
+| E1 — reference SQL not scoreable (pre-acquisition census; model never called) | 3 |
+| E2 — runtime failure before decision-time evidence | 23 |
+| E3/E4 — runtime failure after decision-time evidence | 8 |
+| EVALUABLE | 8,604 |
+
+- **Runtime failures:** 31 in total (E2 + E3/E4), 0.36% of the frozen decisions, against the frozen ceiling of 431.
+- **Pathological-SQL recovery:** fired in 227 decisions (2.6%); post-repair SQL was evaluated for those decisions.
+- **Primary analysis population:** EVALUABLE decisions with usable evidence and a defined X_W. Its size is reported after annotation.
+
+The outcome summaries held in the lock artifact were not opened before annotation.
+
+Blinded rater packets A and B were generated in run `37017913823`. The annotation tool, response validator, X_W construction and analysis code were written and tested on synthetic data before annotation began. The X_W combination rule and analysis implementation details are frozen in `P2-C1.4-XW-CONSTRUCTION-AND-ANALYSIS-IMPLEMENTATION-AMENDMENT-2026-10-02`.
+
+### 8.4 Current manuscript boundary
 
 At the time of this manuscript update, no confirmatory M0/M1 predictive result is inserted.
 
 Accordingly, the following remain explicitly pending:
 
-- accepted immutable 8,638-record cohort lock;
 - independent blinded X_W annotation of the accepted cohort;
 - annotation reliability/provenance lock;
 - X_W/Y_H alignment validation;
@@ -578,8 +604,11 @@ The following methodological states are established:
 | Runtime3 non-confirmatory qualification | Pass |
 | Schema-preservation audit | Corrected before cohort acceptance |
 | First human annotation attempt | Failed forensic protocol audit; preserved |
-| Confirmatory human annotation | Pending |
-| Confirmatory cohort immutable lock | Pending unless separately verified by lock artifact |
+| Confirmatory cohort acquisition (8,638 / 44 shards) | Complete; 31 runtime failures (0.36%), within frozen ceiling |
+| Confirmatory cohort immutable lock | Passed (run `36853456589`) |
+| Blinded annotation packets | Generated (run `37017913823`) |
+| Confirmatory human annotation | In progress (two independent raters) |
+| Analysis code | Implemented and tested on synthetic data only |
 | M0/M1 confirmatory model | Not run |
 | Incremental predictive validity | Not established |
 
@@ -599,6 +628,40 @@ In particular, no value for:
 - harm prevalence in the new cohort;
 
 is represented as a Project 2 finding until it is generated from the accepted aligned cohort under the frozen analysis protocol.
+
+### 9.3 Results structure (to be completed after annotation lock)
+
+The following structure is fixed now. Every bracketed value will be filled only from the frozen pipeline outputs, with the output file hash cited.
+
+**9.3.1 Annotation and reliability.** Both raters complete [n] cases.
+
+- **Applicability agreement by dimension:** raw agreement, Cohen's κ and Gwet's AC1, each with a 95% case-bootstrap interval [table].
+- **Witness agreement where both raters judge a dimension applicable:** [table].
+- **Between-rater X_W:** agreement [r, mean absolute difference].
+- **UNCLEAR:** count and reasons [n].
+- **Undefined X_W:** [n].
+
+**9.3.2 Primary population and outcome prevalence.**
+
+- **Primary population:** [n] decisions in [g] (database, question) groups.
+- **Harmful replacements Y_H:** [k], prevalence [p].
+- **Feasibility:** verdict [PASS / FEASIBILITY_WARNING_RILEY / FEASIBILITY_STOP], against Riley criteria (i) and (iii) at the frozen planning values.
+
+**9.3.3 Primary estimand.** Δlog-loss (M0 − M1) = [value], 95% percentile interval over 20 repeats [lo, hi]. Positive values favour M1.
+
+**9.3.4 Secondary measures.** For M0 and M1 [table]:
+
+- Brier score;
+- AUROC and AUPRC;
+- calibration intercept and slope;
+- predicted-probability distribution.
+
+**9.3.5 Sensitivity.**
+
+- Δlog-loss for S1 [value, interval], S2-low [value, interval] and S2-high [value, interval].
+- Robustness flag [ROBUST / NOT_ROBUST / NOT_ASSESSABLE].
+
+**9.3.6 Systematic missingness.** E2 and E3/E4 compared with EVALUABLE on database, question length, reference-SQL hardness and nesting depth [table].
 
 ## 10. Threats to validity
 
