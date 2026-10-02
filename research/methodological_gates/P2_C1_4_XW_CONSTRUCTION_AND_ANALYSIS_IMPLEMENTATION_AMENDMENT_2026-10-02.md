@@ -2,7 +2,7 @@
 
 **Amendment ID:** `P2-C1.4-XW-CONSTRUCTION-AND-ANALYSIS-IMPLEMENTATION-AMENDMENT-2026-10-02`
 **Date:** 2026-10-02
-**Status:** DRAFT for author approval. It must be approved and frozen **before** the raw annotations are locked and before anyone sees an outcome.
+**Status:** APPROVED and FROZEN by the author on 2026-10-02, with A4 changed to a hard stop (see §3). This was before any raw annotation was locked and before any outcome was seen; only the record-status counts had been read.
 **Frozen protocol:** `P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21` (unchanged)
 **Related:** Codebook v2 (2026-09-19), UNCLEAR rule (2026-09-21), Missingness amendment (2026-10-01), G3 amendment (2026-10-01)
 
@@ -30,13 +30,13 @@ The frozen analysis is implemented in `research/P2-C1.2/analysis/run_P2_C1_2_con
 | A1 | C tuning criterion (protocol: "same tuning criterion") | Mean inner-fold log loss; ties go to the smaller C. |
 | A2 | Inner-fold seeds (not stated) | `outer_seed × 10 + outer_fold_index`. |
 | A3 | X_W scaling | Used raw (0–1); only the two count features are log1p-standardized, as frozen. |
-| A4 | Protocol §4 "inadequate outcome count" | The run stops (`FEASIBILITY_STOP`) only if the frozen 5-fold group-stratified partitions cannot be built or any fold lacks events or non-events. A shortfall against Riley et al. (2020) criteria (i) and (iii) at the frozen planning values is reported as `FEASIBILITY_WARNING_RILEY`, and the analysis still runs and is reported with that warning. |
+| A4 | Protocol §4 "inadequate outcome count" | **Hard stop (author decision, 2026-10-02).** Two conditions stop the run, and in either case no model is fitted for any population (primary, S1, S2):<br>• `FEASIBILITY_STOP`: the frozen 5-fold group-stratified partitions cannot be built, or any fold lacks events or non-events.<br>• `FEASIBILITY_STOP_RILEY`: the primary population fails Riley et al. (2020) criterion (i) or (iii) at the frozen planning values (4 parameters, shrinkage 0.90, R²_CS = 15% of the maximum, δ = 0.05), or the criteria cannot be computed.<br>Only descriptives and the shortfall are then reported. The draft's warn-and-continue proposal was rejected. |
 | A5 | Robustness flag (missingness amendment §4) | The sign of Δlog-loss must agree across primary, S1, S2-low and S2-high. Note: sign agreement can occur for a negligible effect; intervals are always reported alongside it. |
 | A6 | Systematic-missingness audit E3 vs E4 split | Not separated, because the split needs `p0_correct`, an outcome field. E2 and E3/E4 combined are compared with EVALUABLE. This is a deviation from amendment §5 wording, in favour of blinding. |
 | A7 | Reference-SQL hardness and nesting depth for the audit | Computed from the frozen source questions by a separate outcome-blind script (to be added). Until then the audit reports `NOT_COMPUTED_INPUT_MISSING` for those two features. |
 | A8 | Pinned analysis environment (protocol: "pinned analysis environment") | Python 3.11, numpy 2.4.4, scipy 1.17.1, scikit-learn 1.8.0, statsmodels 0.15.0. These are recorded in the outputs. |
 
-## 4. Sequence (frozen once approved)
+## 4. Sequence (frozen)
 
 1. Rater A and rater B annotate their own packets with `research/annotation_ui/P2_C1_4_XW_ANNOTATOR.html`, independently, with an independence attestation.
 2. `validate_P2_C1_4_XW_responses.py` must pass for both final exports.
@@ -51,4 +51,15 @@ The question, B, the X_W construct and codebook, the UNCLEAR rule, Y_H, the mode
 
 - Annotator: driven in headless Chromium with a full-size synthetic packet (8,638 cases, 32.5 MB). It loaded and hashed in about 2 s, rendered about 16 ms per click and about 25 ms per case with 500 rows, kept 0.37 MB of autosave, survived a reload, and its export passed the validator.
 - Validator and construction: 18 tests, covering 11 rejection cases, the X_W rules, end-to-end construction, refusal of identical rater IDs and swapped files, and no access to the cohort.
-- Analysis: 22 tests (determinism, fail-closed inputs, a null X_W giving Δ ≈ 0, a signal X_W giving Δ > 0, S1/S2 counts, group separation, feasibility stop, Riley formulas, an outcome-blind audit, calibration).
+- Analysis: 24 tests (determinism, fail-closed inputs, a null X_W giving Δ ≈ 0, a signal X_W giving Δ > 0, S1/S2 counts, group separation, feasibility stop, Riley formulas, a Riley hard stop that fits nothing, an outcome-blind audit, calibration).
+
+## 7. Approval record
+
+The author approved this amendment on 2026-10-02:
+
+- X1 (combining raters): agreed.
+- A4 (Riley): hard stop chosen; the warn-and-continue draft was rejected.
+- A6 (missingness audit approach): agreed.
+- All other items: approved as drafted.
+
+The analysis code was updated to the hard stop in the same change set. No annotation had been locked and no outcome had been examined.
