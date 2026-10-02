@@ -645,7 +645,7 @@ The following structure is fixed now. Every bracketed value will be filled only 
 
 - **Primary population:** [n] decisions in [g] (database, question) groups.
 - **Harmful replacements Y_H:** [k], prevalence [p].
-- **Feasibility:** verdict [PASS / FEASIBILITY_WARNING_RILEY / FEASIBILITY_STOP], against Riley criteria (i) and (iii) at the frozen planning values.
+- **Feasibility:** verdict [ANALYSIS_COMPLETED / FEASIBILITY_STOP_RILEY / FEASIBILITY_STOP]. A Riley shortfall on criterion (i) or (iii) at the frozen planning values is a hard stop: no model is fitted and only descriptives are reported.
 
 **9.3.3 Primary estimand.** Δlog-loss (M0 − M1) = [value], 95% percentile interval over 20 repeats [lo, hi]. Positive values favour M1.
 
