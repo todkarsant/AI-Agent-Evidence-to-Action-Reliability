@@ -1,6 +1,6 @@
 # Research Status
 
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-02
 
 ## Overall status
 
@@ -26,8 +26,18 @@ The repository is the canonical source of truth. The project has completed the c
 | C.4.2.4-A Human X_W validation | **RESOLVED** | 49/49 applicability and 27/27 witness agreement; explicit independence attestation |
 | P2-C1.2 Predictive / Incremental Validity Attack | **COMPLETE** | Confirmatory modeling blocked by alignment/missingness/model-protocol issues |
 | P2-C1.3 Aligned cohort reconstruction | **COMPLETE — FAILED** | Historical outcome/X_W alignment cannot be established |
-| P2-C1.4 New aligned cohort | **CONFIRMATORY ACQUISITION IN PROGRESS (G3 PASSED 2026-10-01)** | Protocol frozen 2026-09-21; amendments through 2026-10-01 (see update below). No cohort locked. |
-| Confirmatory M0 vs M1 | **BLOCKED** | Do not fit until P2-C1.4 is complete |
+| P2-C1.4 New aligned cohort | **COHORT LOCKED 2026-10-02; X_W ANNOTATION IN PROGRESS** | Acquisition `36853456589` (44/44 shards, 8,638 records, lock passed, 31 runtime failures vs ceiling 431). Packets: post-lock run `37017913823`. |
+| Confirmatory M0 vs M1 | **BLOCKED until annotation lock** | Analysis code implemented and tested on synthetic data only; draft implementation amendment awaits author approval |
+
+## Latest execution progress — 2026-10-02
+
+- **Cohort lock.** Confirmatory acquisition run `36853456589` completed: 44/44 shards, 8,638 records in frozen order, forensic lock passed. Cohort SHA-256 `da537c75ce5778af3c36d05d8e59f7cea296aa5b8a4bc0c527b7cf352ebd9b8b`.
+- **Status counts (no outcome information).** EVALUABLE 8,604; E1 3; E2 23; E3/E4 8.
+- **Packets.** Post-lock run `37017913823` generated blinded rater packets A and B.
+- **Blinding.** The outcome summaries in the lock artifact have not been opened.
+- **Annotation.** Two independent human raters, assigned by the author, annotate the full cohort with `research/annotation_ui/P2_C1_4_XW_ANNOTATOR.html` and `P2_C1_4_RATER_INSTRUCTIONS.md`. Raters must not access the GitHub Actions artifacts (the cohort artifact contains outcomes).
+- **Tooling, synthetic tests only.** The response validator, the raw-annotation lock / reliability / X_W construction (18 tests) and the frozen M0 vs M1 analysis (`research/P2-C1.2/analysis/`, 22 tests) are in place.
+- **Pending author decision.** `P2-C1.4-XW-CONSTRUCTION-AND-ANALYSIS-IMPLEMENTATION-AMENDMENT-2026-10-02` (DRAFT) must be approved before the annotation lock.
 
 ## Latest execution progress — 2026-09-21
 
