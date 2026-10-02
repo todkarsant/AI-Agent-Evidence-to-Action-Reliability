@@ -16,7 +16,8 @@ Every implementation choice not stated verbatim by the protocol is listed in IMP
 and copied into the results JSON; these require author approval before unblinding.
 
 The script fails closed (exit code 2, no results written) on any input-integrity problem.
-A mechanical fold-feasibility failure writes a FEASIBILITY_STOP verdict (exit code 3) and fits nothing.
+A mechanical fold-feasibility failure (FEASIBILITY_STOP) or a primary-population shortfall against
+Riley et al. 2020 criteria (i)/(iii) (FEASIBILITY_STOP_RILEY) writes the verdict (exit code 3) and fits nothing.
 """
 from __future__ import annotations
 
@@ -95,7 +96,7 @@ IMPLEMENTATION_CHOICES: List[str] = [
     "IC06 Structurally missing row_count/column_count (null) are allowed only when execution_ok is false and are coded as 0 before log1p (log1p(0)=0), then standardized with the other training rows; execution_ok absorbs the structural-missingness level. Null counts with execution_ok true fail closed.",
     "IC07 L2 logistic regression via scikit-learn LogisticRegression(solver='lbfgs', C=C, l1_ratio=0.0 [== penalty='l2'; 'penalty' is deprecated in sklearn>=1.8], fit_intercept=True, max_iter=2000, tol=1e-8, class_weight=None). The lbfgs objective penalizes only the coefficient vector; the intercept is not penalized (sklearn LinearModelLoss.l2_penalty is applied to weights excluding the intercept).",
     "IC08 Feasibility (mechanical, protocol sections 4/9): before any fit, all 20x5 outer and 20x5x5 inner partitions are generated; FEASIBILITY_STOP if StratifiedGroupKFold raises, or any outer or inner training or validation fold contains zero events or zero non-events. Nothing is fitted after a primary FEASIBILITY_STOP.",
-    "IC09 Riley et al. 2020 criteria (i) and (iii) are computed at the observed primary-population prevalence with 4 parameters, shrinkage 0.90, R2_CS = 0.15 * max R2_CS, intercept margin 0.05; shortfall gives FEASIBILITY_WARNING_RILEY but the analysis still runs (implementation reading of protocol section 4; the author must confirm before unblinding).",
+    "IC09 Riley et al. 2020 criteria (i) and (iii) are computed at the observed primary-population prevalence with 4 parameters, shrinkage 0.90, R2_CS = 0.15 * max R2_CS, intercept margin 0.05; HARD STOP (author decision 2026-10-02, amendment A4): if the primary population fails criterion (i) or (iii), or the criteria are not computable (prevalence 0 or 1), the verdict is FEASIBILITY_STOP_RILEY and no model is fitted for any population. The Riley check is applied to the primary population only.",
     "IC10 Delta_logloss = mean of all 20 x N paired per-case differences (equal to the mean of the 20 repeat-level means because every repeat predicts every case once). Interval = numpy.percentile(repeat_deltas, [2.5, 97.5], method='linear').",
     "IC11 Secondary metrics are computed per repeat on the pooled outer predictions of that repeat (N cases) and summarized as the mean and the 2.5/97.5 percentiles over repeats. AUROC/AUPRC (sklearn roc_auc_score / average_precision_score) are null if a repeat has only one class.",
     "IC12 Calibration per repeat on pooled outer predictions: slope = coefficient of logit(p) in an unpenalized logistic regression of y on [1, logit(p)]; intercept = calibration-in-the-large, the intercept of an unpenalized logistic regression of y on a constant with logit(p) as offset. statsmodels GLM(Binomial) is used when installed; otherwise slope via sklearn LogisticRegression(C=inf) and intercept via 1-D Newton-Raphson. The method used is recorded. Fit failures (e.g. separation) are recorded as null with the reason.",
@@ -107,7 +108,7 @@ IMPLEMENTATION_CHOICES: List[str] = [
     "IC18 Input integrity (fail closed): cohort protocol_version must be P2-C1.4-ALIGNED-V2; unique decision_ids; X_W decision_id set identical to the cohort's; x_w finite numeric in [0,1] or null; E1/E2 records must have null x_w; y_h in {0,1,null}; E3E4 records must have null y_h, y_h_implied_by_definition 0 iff p0_correct is false.",
     "IC19 Convergence warnings from lbfgs are counted and reported per analysis, not treated as failures.",
     "IC20 --sha-check COHORT_SHA256 XW_SHA256 (optional): fail closed if the inputs do not match the expected hashes. SHA-256 of every input file is always recorded.",
-    "IC21 Exit codes: 0 analysis completed; 2 input invalid (no results written); 3 FEASIBILITY_STOP (verdict written, nothing fitted).",
+    "IC21 Exit codes: 0 analysis completed; 2 input invalid (no results written); 3 FEASIBILITY_STOP or FEASIBILITY_STOP_RILEY (verdict written, nothing fitted).",
 ]
 
 
@@ -431,7 +432,7 @@ def riley_quantities(n: int, events: int) -> dict:
         "realized_events": events,
     }
     if n == 0 or events == 0 or events == n:
-        out.update({"computable": False, "reason": "prevalence is 0 or 1", "verdict": "FEASIBILITY_WARNING_RILEY"})
+        out.update({"computable": False, "reason": "prevalence is 0 or 1", "verdict": "RILEY_CRITERIA_NOT_MET"})
         return out
     phi = events / n
     ln_lnull_per_n = phi * math.log(phi) + (1 - phi) * math.log(1 - phi)
@@ -454,7 +455,7 @@ def riley_quantities(n: int, events: int) -> dict:
             "criterion_iii_min_n": n_iii_c,
             "criterion_iii_min_n_unrounded": n_iii,
             "criterion_iii_met": bool(meets_iii),
-            "verdict": "RILEY_CRITERIA_MET" if (meets_i and meets_iii) else "FEASIBILITY_WARNING_RILEY",
+            "verdict": "RILEY_CRITERIA_MET" if (meets_i and meets_iii) else "RILEY_CRITERIA_NOT_MET",
         }
     )
     return out
@@ -813,7 +814,8 @@ def run(cohort_path: str, xw_path: str, out_dir: str, n_repeats: int, test_mode:
     for name, pop in pops.items():
         plans[name], reasons[name] = build_partitions(pop, n_repeats)
     feas = {name: ("FEASIBLE" if plans[name] is not None else "FEASIBILITY_STOP") for name in pops}
-    results["feasibility"] = {"per_population": feas, "reasons": reasons, "rule": IMPLEMENTATION_CHOICES[7]}
+    riley_ok = results["riley_2020"]["verdict"] == "RILEY_CRITERIA_MET"
+    results["feasibility"] = {"per_population": feas, "reasons": reasons, "rule": IMPLEMENTATION_CHOICES[7], "riley_stop_rule": IMPLEMENTATION_CHOICES[8], "riley_primary_met": riley_ok}
 
     os.makedirs(out_dir, exist_ok=True)
     analyses: Dict[str, dict] = {}
@@ -821,8 +823,12 @@ def run(cohort_path: str, xw_path: str, out_dir: str, n_repeats: int, test_mode:
         for name in pops:
             analyses[name] = {"status": "NOT_RUN_PRIMARY_FEASIBILITY_STOP"}
         verdict_primary = "FEASIBILITY_STOP"
+    elif not riley_ok:
+        for name in pops:
+            analyses[name] = {"status": "NOT_RUN_RILEY_STOP"}
+        verdict_primary = "FEASIBILITY_STOP_RILEY"
     else:
-        verdict_primary = "FEASIBILITY_WARNING_RILEY" if results["riley_2020"]["verdict"] == "FEASIBILITY_WARNING_RILEY" else "ANALYSIS_COMPLETED"
+        verdict_primary = "ANALYSIS_COMPLETED"
         for name, pop in pops.items():
             if plans[name] is None:
                 analyses[name] = {"status": "FEASIBILITY_STOP", "reason": reasons[name]}
@@ -834,7 +840,7 @@ def run(cohort_path: str, xw_path: str, out_dir: str, n_repeats: int, test_mode:
     results["verdicts"] = {
         "primary": verdict_primary,
         "riley": results["riley_2020"]["verdict"],
-        "robustness": robustness(analyses) if plans["primary"] is not None else {"flag": "NOT_ASSESSABLE"},
+        "robustness": robustness(analyses) if verdict_primary == "ANALYSIS_COMPLETED" else {"flag": "NOT_ASSESSABLE"},
         "inferential_decision_rule": "none frozen; Delta_logloss and its repeat-level interval are reported without a significance verdict",
     }
 
@@ -854,7 +860,7 @@ def run(cohort_path: str, xw_path: str, out_dir: str, n_repeats: int, test_mode:
     with open(os.path.join(out_dir, "run_metadata.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, sort_keys=True, indent=2)
         fh.write("\n")
-    return EXIT_FEASIBILITY_STOP if verdict_primary == "FEASIBILITY_STOP" else EXIT_OK
+    return EXIT_OK if verdict_primary == "ANALYSIS_COMPLETED" else EXIT_FEASIBILITY_STOP
 
 
 def _write_csv(path: str, rows: List[tuple]) -> None:
@@ -890,7 +896,9 @@ def render_summary(res: dict) -> str:
     L += ["", "Positive Delta_logloss = M1 (B + X_W) has lower out-of-sample log loss than M0 (B). The interval is over 20 repeat-level estimates (resampling instability), not a population confidence interval.", ""]
     r = res["riley_2020"]
     if r.get("computable"):
-        L += ["## Riley et al. 2020 (reported, not a stop gate)", "", f"- criterion (i) min N = {r['criterion_i_min_n']} (met: {r['criterion_i_met']}); criterion (iii) min N = {r['criterion_iii_min_n']} (met: {r['criterion_iii_met']}); realized N = {r['realized_n']}, events = {r['realized_events']}", ""]
+        L += ["## Riley et al. 2020 (primary population; hard stop if not met)", "", f"- criterion (i) min N = {r['criterion_i_min_n']} (met: {r['criterion_i_met']}); criterion (iii) min N = {r['criterion_iii_min_n']} (met: {r['criterion_iii_met']}); realized N = {r['realized_n']}, events = {r['realized_events']}", ""]
+    if res["verdicts"]["primary"] == "FEASIBILITY_STOP_RILEY":
+        L += ["## FEASIBILITY_STOP_RILEY", "", "The primary population does not meet Riley et al. 2020 criteria (i) and (iii) at the frozen planning values. No model was fitted; no parameter was changed.", ""]
     if res["feasibility"]["per_population"]["primary"] == "FEASIBILITY_STOP":
         L += ["## FEASIBILITY_STOP", "", f"Reason: {res['feasibility']['reasons']['primary']}", "Confirmatory fitting stopped; no fold count or parameter was changed.", ""]
     L += ["## Implementation choices requiring author approval", ""] + [f"- {c}" for c in res["implementation_choices_requiring_author_approval"]] + [""]
@@ -922,7 +930,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"FAIL CLOSED: {exc}", file=sys.stderr)
         return EXIT_INPUT_INVALID
     if code == EXIT_FEASIBILITY_STOP:
-        print("FEASIBILITY_STOP: see results.json", file=sys.stderr)
+        print("FEASIBILITY_STOP (mechanical or Riley): see results.json", file=sys.stderr)
     return code
 
 
