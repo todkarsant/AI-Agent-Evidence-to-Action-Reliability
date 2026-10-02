@@ -1,0 +1,11 @@
+{
+  "packet_sha256": {
+    "A": "120f688f2a7633364ea877d93cc3cd11ab178bd2b5feba2503da48b6f27ba050",
+    "B": "8c54a3b49b420dc2ffa6cda7ef2a9eb7773aa1a380d094a536039e37db94740a"
+  },
+  "packet_version": "P2-C1.4_XW_ANNOTATION_PACKET_V1_2026-09-21",
+  "rater_A_seed": 424241,
+  "rater_B_seed": 424242,
+  "source_cohort_sha256": "ddb6dba841fb5677e2c4900061ad33904a8bb45c6c334422e4440c208376846f",
+  "source_record_count": 4
+}
