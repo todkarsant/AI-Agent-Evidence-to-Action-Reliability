@@ -87,3 +87,20 @@ This file records material methodological and research decisions. Decisions shou
 
 **Effect:** The ceiling was fixed before any status count of qualification `36847267797` was seen. The 5% value is the author's judgement, not part of the original design.
 
+
+## 2026-10-02 — Cohort locked; full-cohort X_W annotation started
+
+**Decision:**
+- Accept the confirmatory cohort lock from acquisition `36853456589`: 44/44 shards, 8,638 records, forensic lock passed, 31 runtime failures (ceiling 431).
+- Annotate the full cohort with two independent human raters assigned by the author, as the frozen plan requires.
+- Implement and test the analysis in parallel on synthetic data only.
+
+**Reason:** Every acquisition acceptance condition passed. X_W must be constructed from human annotation before any outcome is examined.
+
+**Effect:**
+- No outcome summary has been opened.
+- The draft `P2-C1.4-XW-CONSTRUCTION-AND-ANALYSIS-IMPLEMENTATION-AMENDMENT-2026-10-02` proposes the following (pending author approval before the annotation lock):
+  - the rater-combination rule (mean of the two raters' X_W);
+  - the Riley reporting rule (warning, not stop);
+  - an outcome-blind missingness audit that does not split E3/E4;
+  - the remaining implementation choices.
