@@ -1,0 +1,189 @@
+{
+ "response_schema_version": "P2_C1_4_XW_RATER_RESPONSE_V1_2026-10-02",
+ "tool_version": "P2_C1_4_XW_ANNOTATOR_V1_2026-10-02",
+ "construct_codebook": "C4_2_4A3_WITNESS_CODEBOOK_v2_FROZEN_2026-09-19",
+ "unclear_rule": "C4_2_4A_UNCLEAR_XW_OPERATIONAL_RULE_FREEZE_2026-09-21",
+ "packet_version": "P2-C1.4_XW_ANNOTATION_PACKET_V1_2026-09-21",
+ "packet_sha256": "8c54a3b49b420dc2ffa6cda7ef2a9eb7773aa1a380d094a536039e37db94740a",
+ "rater_packet": "B",
+ "rater_id": "Tester B",
+ "independence_attested": true,
+ "complete": true,
+ "completed_cases": 4,
+ "total_cases": 4,
+ "exported_at": "2026-10-02T14:46:29.732Z",
+ "cases": [
+  {
+   "case_id": "T-000001",
+   "case_status": "SUCCESS",
+   "dimensions": {
+    "W1": {
+     "applicable": "YES",
+     "witness": "PRESENT",
+     "notes": ""
+    },
+    "W2": {
+     "applicable": "YES",
+     "witness": "ABSENT_OR_AMBIGUOUS",
+     "notes": ""
+    },
+    "W3": {
+     "applicable": "UNCLEAR",
+     "witness": "ABSENT_OR_AMBIGUOUS",
+     "notes": "question wording ambiguous: test"
+    },
+    "W4": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W5": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W6": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W7": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    }
+   },
+   "case_notes": "",
+   "updated_at": "2026-10-02T14:46:28.893Z"
+  },
+  {
+   "case_id": "T-000003",
+   "case_status": "NO_USABLE_EVIDENCE",
+   "dimensions": {
+    "W1": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W2": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W3": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W4": {
+     "applicable": "UNCLEAR",
+     "witness": null,
+     "notes": "ambiguous test"
+    },
+    "W5": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W6": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W7": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    }
+   },
+   "case_notes": "",
+   "updated_at": "2026-10-02T14:46:29.081Z"
+  },
+  {
+   "case_id": "T-000004",
+   "case_status": "SUCCESS",
+   "dimensions": {
+    "W1": {
+     "applicable": "YES",
+     "witness": "PRESENT",
+     "notes": ""
+    },
+    "W2": {
+     "applicable": "YES",
+     "witness": "ABSENT_OR_AMBIGUOUS",
+     "notes": ""
+    },
+    "W3": {
+     "applicable": "UNCLEAR",
+     "witness": "ABSENT_OR_AMBIGUOUS",
+     "notes": "question wording ambiguous: test"
+    },
+    "W4": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W5": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W6": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W7": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    }
+   },
+   "case_notes": "",
+   "updated_at": "2026-10-02T14:46:29.300Z"
+  },
+  {
+   "case_id": "T-000002",
+   "case_status": "NO_USABLE_EVIDENCE",
+   "dimensions": {
+    "W1": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W2": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W3": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W4": {
+     "applicable": "UNCLEAR",
+     "witness": null,
+     "notes": "ambiguous test"
+    },
+    "W5": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W6": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    },
+    "W7": {
+     "applicable": "NO",
+     "witness": null,
+     "notes": ""
+    }
+   },
+   "case_notes": "",
+   "updated_at": "2026-10-02T14:46:29.494Z"
+  }
+ ]
+}
