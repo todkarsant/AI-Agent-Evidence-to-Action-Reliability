@@ -1,0 +1,132 @@
+{
+  "blinding": {
+    "excluded_information": [
+      "generated SQL/reference SQL/reference answer",
+      "correctness labels",
+      "replacement/intervention/outcome labels",
+      "post-hoc evaluator labels",
+      "runtime/model telemetry",
+      "evidence/provenance hashes"
+    ]
+  },
+  "cases": [
+    {
+      "annotations": {
+        "W1": null,
+        "W2": null,
+        "W3": null,
+        "W4": null,
+        "W5": null,
+        "W6": null,
+        "W7": null,
+        "notes": null
+      },
+      "case_id": "T-000001",
+      "column_count": 1,
+      "database_id": "toy",
+      "execution_status": "SUCCESS",
+      "question": "What are the titles of all films?",
+      "returned_columns": [
+        "Title"
+      ],
+      "returned_rows": [
+        [
+          "A"
+        ],
+        [
+          "B"
+        ],
+        [
+          "C"
+        ],
+        [
+          "D"
+        ]
+      ],
+      "row_count": 4,
+      "schema": "CREATE TABLE \"film\" (\"Film_ID\" int, \"Title\" text, \"Studio\" text, \"Director\" text, PRIMARY KEY (\"Film_ID\"))"
+    },
+    {
+      "annotations": {
+        "W1": null,
+        "W2": null,
+        "W3": null,
+        "W4": null,
+        "W5": null,
+        "W6": null,
+        "W7": null,
+        "notes": null
+      },
+      "case_id": "T-000003",
+      "column_count": null,
+      "database_id": "toy",
+      "execution_status": "NO_USABLE_EVIDENCE",
+      "question": "List every director.",
+      "returned_columns": [],
+      "returned_rows": [],
+      "row_count": null,
+      "schema": "CREATE TABLE \"film\" (\"Film_ID\" int, \"Title\" text, \"Studio\" text, \"Director\" text, PRIMARY KEY (\"Film_ID\"))"
+    },
+    {
+      "annotations": {
+        "W1": null,
+        "W2": null,
+        "W3": null,
+        "W4": null,
+        "W5": null,
+        "W6": null,
+        "W7": null,
+        "notes": null
+      },
+      "case_id": "T-000004",
+      "column_count": 1,
+      "database_id": "toy",
+      "execution_status": "SUCCESS",
+      "question": "What are the names of studios that have made two or more films?",
+      "returned_columns": [
+        "Studio"
+      ],
+      "returned_rows": [
+        [
+          "Alpha"
+        ],
+        [
+          "Alpha"
+        ],
+        [
+          "Beta"
+        ],
+        [
+          "Gamma"
+        ]
+      ],
+      "row_count": 4,
+      "schema": "CREATE TABLE \"film\" (\"Film_ID\" int, \"Title\" text, \"Studio\" text, \"Director\" text, PRIMARY KEY (\"Film_ID\"))"
+    },
+    {
+      "annotations": {
+        "W1": null,
+        "W2": null,
+        "W3": null,
+        "W4": null,
+        "W5": null,
+        "W6": null,
+        "W7": null,
+        "notes": null
+      },
+      "case_id": "T-000002",
+      "column_count": null,
+      "database_id": "toy",
+      "execution_status": "NO_USABLE_EVIDENCE",
+      "question": "Which studios appear in the film list sorted?",
+      "returned_columns": [],
+      "returned_rows": [],
+      "row_count": null,
+      "schema": "CREATE TABLE \"film\" (\"Film_ID\" int, \"Title\" text, \"Studio\" text, \"Director\" text, PRIMARY KEY (\"Film_ID\"))"
+    }
+  ],
+  "packet_version": "P2-C1.4_XW_ANNOTATION_PACKET_V1_2026-09-21",
+  "randomization_seed": 424242,
+  "rater_packet": "B",
+  "source_record_count": 4
+}
