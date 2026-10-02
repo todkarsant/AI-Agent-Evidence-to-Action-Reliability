@@ -9,6 +9,8 @@
 
 ## Abstract
 
+**More capability should not mean more authority.** As more capable models are deployed where their outputs carry consequences, the central design question is not only whether a system can produce a better answer, but whether it should be authorised to act on it. This work starts from a separation between what a model may *propose* and what it is *authorised to do*: the model reasons and proposes, authorisation is a separate and auditable decision, and only approved steps are executed, deterministically and with a recorded rationale. This separation is a design position, not a finding of this study. Project 2 studies one measurable part of the authorisation step: whether the evidence visible at decision time predicts when authorising a replacement causes harm.
+
 Consequential analytical agents may produce executable and apparently plausible alternatives to an incumbent answer, yet replacing a correct incumbent can cause harm even when an intervention is triggered by decision-time evidence. Project 2 investigates whether an independently measured, observable representation of decision-time evidence provides incremental predictive information about harmful incumbent replacement beyond prespecified decision-time analytical signals.
 
 The research program was motivated by Project 1 discovery evidence in which an incumbent-preserving analytical intervention mechanism produced substantially more harmful replacements than rescues and increased cost. Project 2 deliberately does not treat that historical result as confirmatory evidence for the present construct. Instead, it develops and attacks a decision-time evidence-witness measurement based on seven analytical-obligation dimensions: selection, projection, aggregation, grouping, ordering, extremum, and join/linkage.
@@ -20,6 +22,21 @@ A separate predictive-validity attack established that the historical Project 1 
 The frozen confirmatory comparison is M0=f(B) versus M1=f(B,X_W), where B contains three prespecified decision-time analytical signals and X_W is the independently annotated evidence-witness score. The binary outcome is harmful incumbent replacement, Y_H. The primary estimand is the paired difference in out-of-sample log loss under repeated nested group-stratified cross-validation. Confirmatory model fitting and predictive-validity claims remain pending until the new aligned cohort and independent X_W annotation satisfy the frozen integrity gates.
 
 ## 1. Introduction
+
+### 1.0 Motivation: capability is not authority
+
+Capability is increasingly abundant; control is the harder problem. For an organisation deciding whether an AI system may act on consequential matters, such as money, records or customer outcomes, the practical question is how authority can be granted to a system whose internal reasoning cannot be fully inspected.
+
+The position taken here is that the answer is not to slow capability down. It is to separate what a system is allowed to *think* from what it is allowed to *do*:
+
+1. the model reasons and proposes;
+2. authorisation is a distinct decision, held by people or by an explicit, auditable policy;
+3. only approved steps are executed, deterministically;
+4. every decision is recorded in plain language.
+
+On this view, control rather than capability is what makes deployment defensible where it matters.
+
+This is a design position that motivates the research program. It is not an empirical claim tested here. The present study does not evaluate human authorisation, deterministic execution or decision logging. It tests a narrower question about the authorisation boundary: whether an independently measured representation of the evidence visible at decision time adds predictive information about when replacing an incumbent answer causes harm (§1.2).
 
 ### 1.1 Consequential analytical replacement
 
@@ -694,6 +711,13 @@ The remaining scientific question is empirical:
 > **Does adding X_W to the frozen baseline B improve out-of-sample prediction of harmful incumbent replacement under the frozen P2-C1.4 protocol?**
 
 That question remains open until the accepted aligned cohort, independent blinded annotation, provenance lock, and prespecified analysis are completed.
+
+The program is motivated by the position that more model capability should not, by itself, mean more authority to act (§1.0). The confirmatory result will not establish or refute that position.
+
+- **If X_W adds predictive information beyond B,** observable decision-time evidence becomes a candidate input for deciding when a proposed replacement should be authorised.
+- **If it does not,** that evidence is not shown to inform the authorisation decision under this protocol, and the separation between proposal and authorisation must rest on other grounds.
+
+Either outcome will be reported as such.
 
 ## 14. Reporting plan after confirmatory completion
 
