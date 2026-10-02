@@ -104,3 +104,18 @@ This file records material methodological and research decisions. Decisions shou
   - the Riley reporting rule (warning, not stop);
   - an outcome-blind missingness audit that does not split E3/E4;
   - the remaining implementation choices.
+
+## 2026-10-02 — X_W construction and analysis implementation amendment frozen
+
+**Decision:** The author approved `P2-C1.4-XW-CONSTRUCTION-AND-ANALYSIS-IMPLEMENTATION-AMENDMENT-2026-10-02`:
+
+- X_W is the mean of the two raters' X_W.
+- The missingness audit is outcome-blind; E3 and E4 are not split.
+- The other implementation choices were approved as drafted.
+- A4 was changed to a **hard stop**: if the primary population misses Riley et al. (2020) criterion (i) or (iii), no model is fitted (`FEASIBILITY_STOP_RILEY`).
+
+**Reason:** The author chose the strict reading of protocol §4 ("inadequate outcome count").
+
+**Effect:**
+- The decision was made before any annotation lock or outcome inspection; only the record-status counts had been seen.
+- The analysis code and its tests were updated to the hard stop (24 synthetic tests).
