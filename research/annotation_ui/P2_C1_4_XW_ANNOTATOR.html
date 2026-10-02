@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P2-C1.4 X_W Annotator</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1d1d1b;--muted:#6b6b66;--line:#d9d8d2;--card:#fff;--accent:#2f5d8a;--ok:#2e7d4f;--warn:#a15c00;--bad:#a12a2a;--sel:#e3ecf5}
+@media (prefers-color-scheme: dark){:root{--bg:#18191a;--fg:#e8e6e1;--muted:#a3a19b;--line:#3a3b3d;--card:#222324;--accent:#8ab4e0;--ok:#6cc08b;--warn:#e0a85a;--bad:#e07a7a;--sel:#2c3a48}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header b{font-size:15px}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:12px 0}
+.muted{color:var(--muted)}
+button,select,input[type=text],input[type=number]{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:140px;flex:1}
+.bar>div{height:100%;background:var(--ok)}
+pre{white-space:pre-wrap;word-break:break-word;margin:0;font:12.5px/1.4 ui-monospace,Consolas,monospace;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:8px}
+.tbl{overflow:auto;max-height:360px;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;font-size:13px;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+th{position:sticky;top:0;background:var(--card)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.dim{border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0}
+.dim.focus{outline:2px solid var(--accent)}
+.dim.done{border-color:var(--ok)}
+.opt{display:inline-block;margin:4px 6px 4px 0;padding:4px 10px;border:1px solid var(--line);border-radius:14px;cursor:pointer;user-select:none}
+.opt.on{background:var(--sel);border-color:var(--accent);font-weight:600}
+.opt.off{opacity:.35;pointer-events:none}
+textarea{width:100%;min-height:38px;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px}
+.status{font-weight:600}
+.status.SUCCESS{color:var(--ok)}
+.status.NO_USABLE_EVIDENCE{color:var(--warn)}
+.err{color:var(--bad)}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:12px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <b>P2-C1.4 X_W annotator</b>
+  <span id="hdrInfo" class="muted">No packet loaded</span>
+  <div class="bar" title="progress"><div id="prog" style="width:0%"></div></div>
+  <span id="progTxt" class="muted"></span>
+  <button id="btnExport" disabled>Export responses</button>
+</header>
+<div class="wrap">
+
+<section id="setup" class="card">
+  <h2 style="margin-top:0">Before you start</h2>
+  <ol>
+    <li>Open <b>only your own packet</b> file (<code>P2_C1_4_XW_RATER_A.json</code> or <code>P2_C1_4_XW_RATER_B.json</code>). Never open the other rater's packet or responses.</li>
+    <li>Do not look at any other project file, GitHub run, artifact, query text, reference answer, correctness label or outcome. Judge only what this screen shows.</li>
+    <li>Codebook: <b>C4_2_4A3 Witness Codebook v2 (frozen 2026-09-19)</b> with the frozen UNCLEAR rule (2026-09-21). The short definitions are repeated on every case.</li>
+    <li>Your work is saved in this browser automatically. Also use <b>Export responses</b> regularly as a backup; you can resume from an export on any computer.</li>
+  </ol>
+  <p><label>Packet file: <input type="file" id="fPacket" accept=".json,application/json"></label></p>
+  <p><label>Rater name or initials: <input type="text" id="raterId" size="24"></label></p>
+  <p><label><input type="checkbox" id="attest"> I confirm I will annotate independently: I will not see or discuss the other rater's packet or labels, and I will not use any outcome, correctness, SQL or reference information.</label></p>
+  <p><label>Resume from an earlier export (optional): <input type="file" id="fResume" accept=".json,application/json"></label></p>
+  <p><button class="primary" id="btnStart" disabled>Start annotating</button> <span id="setupMsg" class="muted"></span></p>
+</section>
+
+<section id="work" class="hidden">
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <button id="btnPrev">&larr; Previous</button>
+    <button id="btnNext">Next &rarr;</button>
+    <button id="btnNextTodo">Next incomplete</button>
+    <label>Go to # <input type="number" id="jump" min="1" style="width:90px"></label>
+    <span id="caseCounter" class="muted"></span>
+    <span class="muted" style="margin-left:auto">Keys: <kbd>&uarr;</kbd><kbd>&darr;</kbd> dimension, <kbd>Y</kbd><kbd>N</kbd><kbd>U</kbd> applicable, <kbd>P</kbd><kbd>A</kbd> witness, <kbd>Enter</kbd> next when complete</span>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:baseline">
+      <h2 id="cQ" style="margin:0;flex:1 1 400px;font-size:18px"></h2>
+    </div>
+    <div class="muted" id="cMeta" style="margin-top:6px"></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <b>Returned evidence</b> <span id="cRowInfo" class="muted"></span>
+        <div class="tbl" style="margin-top:8px"><table id="cRows"></table></div>
+        <button id="btnMoreRows" class="hidden" style="margin-top:8px">Show more rows</button>
+      </div>
+      <div class="card">
+        <details><summary><b>Database schema</b></summary><pre id="cSchema" style="margin-top:8px"></pre></details>
+      </div>
+    </div>
+    <div>
+      <div class="card" id="dims"></div>
+      <div class="card">
+        <b>Case note</b> <span class="muted">(optional)</span>
+        <textarea id="caseNote"></textarea>
+        <div id="caseErr" class="err" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card muted" style="font-size:13px">
+  <b>Rules (frozen).</b>
+  Applicability is decided from the natural-language question only. Mark <b>NO</b> if the question does not entail the dimension.
+  Mark <b>YES</b> if it does, then <b>PRESENT</b> if the displayed evidence exposes the witness, otherwise <b>ABSENT / AMBIGUOUS</b>.
+  Use <b>UNCLEAR</b> only when the wording of the question itself admits materially different readings about whether the dimension is entailed; give the reason in the note. Uncertainty about how a hidden query might have been written is <b>not</b> a reason for UNCLEAR: decide YES or NO from the question.
+  Empty results are valid evidence and must be judged. For <b>NO_USABLE_EVIDENCE</b> cases, judge applicability from the question; witness stays empty.
+  Completeness/cardinality is not a dimension.
+</section>
+</div>
+
+<script>
+"use strict";
+const TOOL_VERSION="P2_C1_4_XW_ANNOTATOR_V1_2026-10-02";
+const RESPONSE_VERSION="P2_C1_4_XW_RATER_RESPONSE_V1_2026-10-02";
+const CODEBOOK="C4_2_4A3_WITNESS_CODEBOOK_v2_FROZEN_2026-09-19";
+const UNCLEAR_RULE="C4_2_4A_UNCLEAR_XW_OPERATIONAL_RULE_FREEZE_2026-09-21";
+const PACKET_VERSION="P2-C1.4_XW_ANNOTATION_PACKET_V1_2026-09-21";
+const DIMS=[
+ ["W1","Selection witness","Evidence visibly exposes the predicate-bearing attribute/value(s) needed to inspect the requested restriction. A result's existence or plausibility is not a selection witness."],
+ ["W2","Projection witness","Requested output attributes are visibly present at the required granularity. Column count alone is insufficient; field identity matters."],
+ ["W3","Aggregation witness","Evidence visibly exposes the requested aggregate value and an interpretable field/label indicating the requested operation. It does not establish population correctness."],
+ ["W4","Grouping witness","Evidence visibly exposes the grouping key and corresponding per-group result structure required by the question."],
+ ["W5","Ordering witness","Displayed evidence exposes the comparison field and displayed ordering relationship. It does not establish global top-k completeness."],
+ ["W6","Extremum witness","Evidence exposes a candidate extreme value and the comparison field needed to inspect an extremum claim. It does not establish global maximality/minimality."],
+ ["W7","Join/linkage witness","Displayed evidence exposes the entity identifiers/attributes needed to inspect the requested cross-entity relationship."]
+];
+const ROW_STEP=100;
+let packet=null, packetSha=null, resp={}, idx=0, focusDim=0, rowsShown=ROW_STEP, resumeObj=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function sha256(text){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+function storeKey(){return "p2c14_xw_"+packetSha;}
+// Compact autosave: 8,638 cases must fit the ~5 MB browser storage quota.
+const AC={YES:"Y",NO:"N",UNCLEAR:"U"},WC={PRESENT:"P",ABSENT_OR_AMBIGUOUS:"A"};
+const AD={Y:"YES",N:"NO",U:"UNCLEAR"},WD={P:"PRESENT",A:"ABSENT_OR_AMBIGUOUS"};
+function pack(r){let a="",w="";const n={};for(const [d] of DIMS){const x=r.dimensions[d];a+=x.applicable?AC[x.applicable]:"-";w+=x.witness?WC[x.witness]:"-";if(x.notes)n[d]=x.notes;}const o={a,w};if(Object.keys(n).length)o.n=n;if(r.case_notes)o.c=r.case_notes;if(r.updated_at)o.t=r.updated_at;return o;}
+function unpack(o){const dimensions={};DIMS.forEach(([d],k)=>{dimensions[d]={applicable:AD[o.a[k]]||null,witness:WD[o.w[k]]||null,notes:(o.n&&o.n[d])||""};});return {dimensions,case_notes:o.c||"",updated_at:o.t||null};}
+let saveWarned=false, saveTimer=null;
+function save(){clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,400);}
+function saveNow(){clearTimeout(saveTimer);
+  if(!packetSha)return;
+  try{const r={};for(const k in resp)r[k]=pack(resp[k]);localStorage.setItem(storeKey(),JSON.stringify({v:2,rater_id:$("raterId").value,idx,r}));}
+  catch(e){if(!saveWarned){saveWarned=true;alert("Automatic saving in this browser failed ("+e.name+"). Use Export responses now and regularly; resume from the export later.");}}
+}
+function loadSaved(){try{const s=localStorage.getItem(storeKey());if(!s)return null;const o=JSON.parse(s);const resp={};for(const k in (o.r||{}))resp[k]=unpack(o.r[k]);return {rater_id:o.rater_id,idx:o.idx,resp};}catch(e){return null;}}
+
+function emptyResp(c){const d={};for(const [w] of DIMS)d[w]={applicable:null,witness:null,notes:""};return {dimensions:d,case_notes:""};}
+function caseErrors(c,r){
+  const e=[];
+  for(const [w] of DIMS){
+    const d=r.dimensions[w];
+    if(!["YES","NO","UNCLEAR"].includes(d.applicable)){e.push(w+": choose applicability");continue;}
+    if(c.execution_status==="NO_USABLE_EVIDENCE"){if(d.witness!==null)e.push(w+": witness must be empty for NO_USABLE_EVIDENCE");}
+    else if(d.applicable==="NO"){if(d.witness!==null)e.push(w+": witness must be empty when not applicable");}
+    else if(!["PRESENT","ABSENT_OR_AMBIGUOUS"].includes(d.witness))e.push(w+": choose PRESENT or ABSENT / AMBIGUOUS");
+    if(d.applicable==="UNCLEAR"&&!d.notes.trim())e.push(w+": UNCLEAR needs a reason in the note");
+  }
+  return e;
+}
+function isDone(i){const c=packet.cases[i];const r=resp[c.case_id];return !!r&&caseErrors(c,r).length===0;}
+function doneCount(){let n=0;for(let i=0;i<packet.cases.length;i++)if(isDone(i))n++;return n;}
+
+function updateProgress(){
+  const n=doneCount(),N=packet.cases.length;
+  $("prog").style.width=(100*n/N).toFixed(2)+"%";
+  $("progTxt").textContent=n+" / "+N+" complete";
+}
+
+function render(){
+  const c=packet.cases[idx];
+  if(!resp[c.case_id])resp[c.case_id]=emptyResp(c);
+  const r=resp[c.case_id];
+  $("caseCounter").textContent="Case "+(idx+1)+" of "+packet.cases.length+(isDone(idx)?" (complete)":"");
+  $("cQ").textContent=c.question;
+  $("cMeta").innerHTML="Case <b>"+esc(c.case_id)+"</b> &middot; database <b>"+esc(c.database_id)+"</b> &middot; status <span class='status "+esc(c.execution_status)+"'>"+esc(c.execution_status)+"</span>";
+  $("cSchema").textContent=c.schema||"";
+  // rows
+  const cols=c.returned_columns||[], rows=c.returned_rows||[];
+  $("cRowInfo").textContent=c.execution_status==="NO_USABLE_EVIDENCE"?"(no usable evidence)":"row_count "+c.row_count+", column_count "+c.column_count+(rows.length<(c.row_count||0)?", "+rows.length+" rows captured":"");
+  const shown=rows.slice(0,rowsShown);
+  let h="";
+  if(c.execution_status==="NO_USABLE_EVIDENCE"){h="<tr><td><em>No usable evidence: execution produced no interpretable result.</em></td></tr>";}
+  else{
+    h="<thead><tr>"+cols.map(x=>"<th>"+esc(x)+"</th>").join("")+"</tr></thead><tbody>";
+    h+=shown.length?shown.map(row=>"<tr>"+(Array.isArray(row)?row:[row]).map(x=>"<td>"+esc(x===null?"NULL":x)+"</td>").join("")+"</tr>").join(""):"<tr><td colspan='"+Math.max(cols.length,1)+"'><em>Empty result (0 rows). Empty results are valid evidence.</em></td></tr>";
+    h+="</tbody>";
+  }
+  $("cRows").innerHTML=h;
+  $("btnMoreRows").classList.toggle("hidden",rows.length<=rowsShown);
+  $("btnMoreRows").textContent="Show more rows ("+(rows.length-Math.min(rowsShown,rows.length))+" more)";
+  // dims
+  const nue=c.execution_status==="NO_USABLE_EVIDENCE";
+  $("dims").innerHTML=DIMS.map(([w,name,def],k)=>{
+    const d=r.dimensions[w];
+    const witOff=nue||d.applicable==="NO"||d.applicable===null;
+    const done=caseErrors(c,{dimensions:{[w]:d,...Object.fromEntries(DIMS.filter(x=>x[0]!==w).map(x=>[x[0],{applicable:"NO",witness:null,notes:""}]))}}).length===0;
+    const o=(field,val,label,off)=>"<span class='opt"+(d[field]===val?" on":"")+(off?" off":"")+"' data-w='"+w+"' data-f='"+field+"' data-v='"+val+"'>"+label+"</span>";
+    return "<div class='dim"+(k===focusDim?" focus":"")+(done?" done":"")+"' data-k='"+k+"'><b>"+w+" &mdash; "+name+"</b><div class='muted' style='font-size:13px'>"+def+"</div>"
+      +"<div>Applicable: "+o("applicable","YES","YES")+o("applicable","NO","NO")+o("applicable","UNCLEAR","UNCLEAR")+"</div>"
+      +"<div>Witness: "+o("witness","PRESENT","PRESENT",witOff)+o("witness","ABSENT_OR_AMBIGUOUS","ABSENT / AMBIGUOUS",witOff)+"</div>"
+      +"<textarea data-note='"+w+"' placeholder='Note"+(d.applicable==="UNCLEAR"?" (required: why the question wording is ambiguous)":" (optional)")+"'>"+esc(d.notes)+"</textarea></div>";
+  }).join("");
+  $("caseNote").value=r.case_notes||"";
+  $("caseErr").textContent=caseErrors(c,r).join(" · ");
+  updateProgress();
+}
+
+function setField(w,f,v){
+  const c=packet.cases[idx], d=resp[c.case_id].dimensions[w];
+  if(f==="applicable"){d.applicable=v; if(v==="NO"||c.execution_status==="NO_USABLE_EVIDENCE")d.witness=null;}
+  else{ if(c.execution_status==="NO_USABLE_EVIDENCE"||d.applicable==="NO"||d.applicable===null)return; d.witness=v;}
+  resp[c.case_id].updated_at=new Date().toISOString();
+  save(); render();
+}
+function go(i){if(i<0||i>=packet.cases.length)return; idx=i; focusDim=0; rowsShown=ROW_STEP; save(); render(); window.scrollTo(0,0);}
+function nextTodo(){for(let k=1;k<=packet.cases.length;k++){const i=(idx+k)%packet.cases.length;if(!isDone(i)){go(i);return;}}alert("All cases are complete. Export your responses.");}
+
+$("dims").addEventListener("click",e=>{const t=e.target.closest(".opt");if(t){setField(t.dataset.w,t.dataset.f,t.dataset.v);return;}const dm=e.target.closest(".dim");if(dm&&e.target.tagName!=="TEXTAREA"){focusDim=+dm.dataset.k;render();}});
+$("dims").addEventListener("input",e=>{const w=e.target.dataset.note;if(!w)return;const c=packet.cases[idx];resp[c.case_id].dimensions[w].notes=e.target.value;resp[c.case_id].updated_at=new Date().toISOString();save();$("caseErr").textContent=caseErrors(c,resp[c.case_id]).join(" · ");updateProgress();});
+$("caseNote").addEventListener("input",e=>{const c=packet.cases[idx];resp[c.case_id].case_notes=e.target.value;save();});
+$("btnPrev").onclick=()=>go(idx-1); $("btnNext").onclick=()=>go(idx+1); $("btnNextTodo").onclick=nextTodo;
+$("jump").addEventListener("change",e=>go((+e.target.value||1)-1));
+$("btnMoreRows").onclick=()=>{rowsShown+=ROW_STEP;render();};
+document.addEventListener("keydown",e=>{
+  if(!packet||$("work").classList.contains("hidden"))return;
+  if(["TEXTAREA","INPUT"].includes(document.activeElement.tagName))return;
+  const w=DIMS[focusDim][0], k=e.key.toLowerCase();
+  if(e.key==="ArrowDown"){focusDim=Math.min(6,focusDim+1);render();e.preventDefault();}
+  else if(e.key==="ArrowUp"){focusDim=Math.max(0,focusDim-1);render();e.preventDefault();}
+  else if(k==="y"){setField(w,"applicable","YES");}
+  else if(k==="n"){setField(w,"applicable","NO"); if(focusDim<6){focusDim++;render();}}
+  else if(k==="u"){setField(w,"applicable","UNCLEAR");}
+  else if(k==="p"){setField(w,"witness","PRESENT"); if(focusDim<6){focusDim++;render();}}
+  else if(k==="a"){setField(w,"witness","ABSENT_OR_AMBIGUOUS"); if(focusDim<6){focusDim++;render();}}
+  else if(e.key==="Enter"){ if(isDone(idx))nextTodo(); else $("caseErr").textContent="Not complete: "+caseErrors(packet.cases[idx],resp[packet.cases[idx].case_id]).join(" · "); }
+});
+
+function buildExport(){
+  const cases=packet.cases.map(c=>{const r=resp[c.case_id]||emptyResp(c);return {case_id:c.case_id,case_status:c.execution_status,dimensions:Object.fromEntries(DIMS.map(([w])=>[w,{applicable:r.dimensions[w].applicable,witness:r.dimensions[w].witness,notes:r.dimensions[w].notes||""}])),case_notes:r.case_notes||"",updated_at:r.updated_at||null};});
+  const n=doneCount();
+  return {response_schema_version:RESPONSE_VERSION,tool_version:TOOL_VERSION,construct_codebook:CODEBOOK,unclear_rule:UNCLEAR_RULE,packet_version:packet.packet_version,packet_sha256:packetSha,rater_packet:packet.rater_packet,rater_id:$("raterId").value.trim(),independence_attested:$("attest").checked,complete:n===packet.cases.length,completed_cases:n,total_cases:packet.cases.length,exported_at:new Date().toISOString(),cases};
+}
+$("btnExport").onclick=()=>{
+  saveNow(); const o=buildExport(), blob=new Blob([JSON.stringify(o,null,1)+"\n"],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="P2_C1_4_XW_RESPONSES_RATER_"+packet.rater_packet+"_"+(o.complete?"FINAL":"PARTIAL_"+o.completed_cases)+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+};
+
+let packetText=null;
+function checkReady(){$("btnStart").disabled=!(packet&&$("attest").checked&&$("raterId").value.trim());}
+$("fPacket").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  $("setupMsg").textContent="Reading packet…";
+  packetText=await f.text();
+  let p; try{p=JSON.parse(packetText);}catch(err){$("setupMsg").innerHTML="<span class='err'>Not a valid JSON file.</span>";return;}
+  if(p.packet_version!==PACKET_VERSION||!["A","B"].includes(p.rater_packet)||!Array.isArray(p.cases)||p.cases.length!==p.source_record_count){$("setupMsg").innerHTML="<span class='err'>This is not a P2-C1.4 X_W rater packet.</span>";return;}
+  packet=p; packetSha=await sha256(packetText);
+  $("setupMsg").textContent="Packet "+p.rater_packet+", "+p.cases.length+" cases, SHA-256 "+packetSha.slice(0,16)+"…";
+  const s=loadSaved(); if(s){resp=s.resp||{}; idx=s.idx||0; if(s.rater_id&&!$("raterId").value)$("raterId").value=s.rater_id; $("setupMsg").textContent+=" · saved progress found in this browser";}
+  checkReady();
+});
+$("fResume").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  try{resumeObj=JSON.parse(await f.text());}catch(err){$("setupMsg").innerHTML="<span class='err'>Resume file is not valid JSON.</span>";return;}
+  $("setupMsg").textContent="Resume file loaded ("+(resumeObj.completed_cases??"?")+" complete). It will be applied when you start.";
+});
+$("attest").addEventListener("change",checkReady); $("raterId").addEventListener("input",checkReady);
+$("btnStart").onclick=()=>{
+  if(resumeObj){
+    if(resumeObj.packet_sha256!==packetSha){alert("The resume file belongs to a different packet. It was not applied.");}
+    else{for(const c of resumeObj.cases){resp[c.case_id]={dimensions:c.dimensions,case_notes:c.case_notes||"",updated_at:c.updated_at||null};} if(resumeObj.rater_id&&!$("raterId").value)$("raterId").value=resumeObj.rater_id;}
+  }
+  $("setup").classList.add("hidden"); $("work").classList.remove("hidden"); $("btnExport").disabled=false;
+  $("hdrInfo").textContent="Rater packet "+packet.rater_packet+" · "+$("raterId").value.trim();
+  save(); render();
+};
+window.addEventListener("beforeunload",saveNow);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")saveNow();});
+</script>
+</body>
+</html>
