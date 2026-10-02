@@ -45,7 +45,7 @@ def _run(paths, out, repeats=REPEATS, extra=()):
 @pytest.fixture(scope="module")
 def null_runs(tmp_path_factory):
     d = tmp_path_factory.mktemp("null")
-    paths = _write(d / "in", *SYN.make(600, seed=11, signal="none"))
+    paths = _write(d / "in", *SYN.make(600, seed=11, signal="none", base_rate=0.25))
     c1 = _run(paths, d / "out1")
     c2 = _run(paths, d / "out2")
     return paths, d / "out1", d / "out2", c1, c2
@@ -54,7 +54,7 @@ def null_runs(tmp_path_factory):
 @pytest.fixture(scope="module")
 def signal_run(tmp_path_factory):
     d = tmp_path_factory.mktemp("signal")
-    paths = _write(d / "in", *SYN.make(600, seed=12, signal="xw"))
+    paths = _write(d / "in", *SYN.make(600, seed=12, signal="xw", base_rate=0.25))
     code = _run(paths, d / "out")
     return paths, d / "out", code
 
@@ -238,7 +238,7 @@ def test_feasibility_stop_when_too_few_events(tmp_path):
     assert r["feasibility"]["per_population"]["primary"] == "FEASIBILITY_STOP"
     assert all(v["status"] == "NOT_RUN_PRIMARY_FEASIBILITY_STOP" for v in r["analyses"].values())
     assert not any(f.startswith("per_case") for f in os.listdir(tmp_path / "out"))
-    assert r["riley_2020"]["verdict"] == "FEASIBILITY_WARNING_RILEY"
+    assert r["riley_2020"]["verdict"] == "RILEY_CRITERIA_NOT_MET"
 
 
 def test_riley_quantities():
@@ -251,7 +251,35 @@ def test_riley_quantities():
     q = A.riley_quantities(10000, 636)
     assert np.isclose(q["criterion_i_min_n_unrounded"], exp_i)
     assert q["criterion_i_met"] == (10000 >= q["criterion_i_min_n"])
-    assert A.riley_quantities(50, 5)["verdict"] == "FEASIBILITY_WARNING_RILEY"
+    assert A.riley_quantities(50, 5)["verdict"] == "RILEY_CRITERIA_NOT_MET"
+    assert A.riley_quantities(100, 0)["verdict"] == "RILEY_CRITERIA_NOT_MET"
+
+
+def test_riley_hard_stop_fits_nothing(tmp_path):
+    # folds are mechanically feasible, but the primary population is below Riley criterion (i)
+    c, x, ref = SYN.make(600, seed=12, signal="none", base_rate=0.08)
+    recs, xm = A.validate_inputs(c, x)
+    pops, _ = A.build_populations(recs, xm)
+    p = pops["primary"]
+    assert A.build_partitions(p, REPEATS)[1] is None
+    q = A.riley_quantities(p.n, int(p.y.sum()))
+    assert q["verdict"] == "RILEY_CRITERIA_NOT_MET"
+    paths = _write(tmp_path / "in", c, x, ref)
+    code = _run(paths, tmp_path / "out")
+    assert code == A.EXIT_FEASIBILITY_STOP
+    r = _results(tmp_path / "out")
+    assert r["verdicts"]["primary"] == "FEASIBILITY_STOP_RILEY"
+    assert r["verdicts"]["robustness"]["flag"] == "NOT_ASSESSABLE"
+    assert r["feasibility"]["per_population"]["primary"] == "FEASIBLE"
+    assert all(v["status"] == "NOT_RUN_RILEY_STOP" for v in r["analyses"].values())
+    assert not any(f.startswith("per_case") for f in os.listdir(tmp_path / "out"))
+
+
+def test_riley_met_in_completed_runs(null_runs, signal_run):
+    for out in (null_runs[1], signal_run[1]):
+        r = _results(out)
+        assert r["riley_2020"]["verdict"] == "RILEY_CRITERIA_MET"
+        assert r["verdicts"]["primary"] == "ANALYSIS_COMPLETED"
 
 
 # ---------------------------------------------------------------- missingness audit
