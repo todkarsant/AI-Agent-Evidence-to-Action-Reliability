@@ -40,7 +40,7 @@ jobs:
         with:
           name: p2-c1-4-confirmatory-aligned-cohort
           path: source_cohort
-          run-id: ${{ inputs.source_run_id }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
           github-token: ${{ github.token }}
 
       - name: Download frozen manifest
@@ -48,7 +48,7 @@ jobs:
         with:
           name: p2-c1-4-confirmatory-frozen-manifest
           path: frozen_manifest
-          run-id: ${{ inputs.source_run_id }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
           github-token: ${{ github.token }}
 
       - name: Verify exact 8,638 / 44 / manifest / forensic lock gates
