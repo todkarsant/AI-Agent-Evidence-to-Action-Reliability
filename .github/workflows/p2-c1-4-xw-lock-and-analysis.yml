@@ -1,0 +1,181 @@
+name: P2-C1.4 X_W lock, construction and confirmatory analysis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "research/annotation/p2_c1_4_xw_responses/*.json"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: p2-c1-4-xw-lock-and-analysis
+  cancel-in-progress: false
+
+jobs:
+  stage1:
+    name: "Stage 1 (outcome-blind): validate exports, lock raw labels, build X_W"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      xw_sha256: ${{ steps.verdict.outputs.xw_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Read source run IDs
+        id: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
+          print(f"packets_run_id={s['packets_run_id']}")
+          PY
+
+      - name: Download blinded annotation packets (no outcomes)
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-xw-blinded-annotation-packets
+          path: packets
+          run-id: ${{ steps.src.outputs.packets_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Validate exports, lock raw annotations, construct X_W
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/cohort/p2_c1_4_post_annotation_gate.py stage1 \
+            --packets packets \
+            --responses research/annotation/p2_c1_4_xw_responses \
+            --out stage1
+
+      - name: Record stage 1 verdict
+        id: verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          v = json.load(open("stage1/STAGE1_VERDICT.json"))
+          assert v["status"] == "PASS_RAW_ANNOTATIONS_LOCKED_XW_CONSTRUCTED", v
+          print(f"xw_sha256={v['xw_sha256']}")
+          PY
+          cat stage1/STAGE1_VERDICT.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload raw-annotation lock, reliability report and X_W
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-xw-raw-lock-and-construction
+          path: stage1/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Upload stage 1 refusal report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-xw-stage1-refusal
+          path: stage1/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  stage2:
+    name: "Stage 2: frozen confirmatory analysis (runs once)"
+    needs: stage1
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse if the confirmatory analysis has already been executed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          n=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=p2-c1-4-confirmatory-analysis-results" --jq '.total_count')
+          echo "previous confirmatory analysis artifacts: $n"
+          if [ "$n" != "0" ]; then
+            echo "REFUSED: the confirmatory analysis has already been executed once (protocol: single run)." >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned analysis environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check numpy==2.4.4 scipy==1.17.1 scikit-learn==1.8.0 statsmodels==0.15.0
+          python -c "import numpy,scipy,sklearn,statsmodels,platform;print(platform.python_version(),numpy.__version__,scipy.__version__,sklearn.__version__,statsmodels.__version__)"
+
+      - name: Read source run IDs
+        id: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
+          print(f"cohort_run_id={s['cohort_run_id']}")
+          print(f"expected_cohort_sha256={s['expected_cohort_sha256']}")
+          PY
+
+      - name: Download stage 1 construction
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-xw-raw-lock-and-construction
+          path: stage1
+
+      - name: Check X_W is the file stage 1 produced
+        shell: bash
+        run: |
+          set -euo pipefail
+          got=$(sha256sum stage1/construction/P2_C1_4_XW.json | cut -d' ' -f1)
+          test "$got" = "${{ needs.stage1.outputs.xw_sha256 }}"
+
+      - name: Download locked cohort (after the raw annotations are locked)
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-aligned-cohort
+          path: source_cohort
+          run-id: ${{ steps.src.outputs.cohort_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Run the frozen confirmatory analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/cohort/p2_c1_4_post_annotation_gate.py stage2 \
+            --cohort-dir source_cohort \
+            --construction stage1/construction \
+            --out stage2 \
+            --expected-cohort-sha256 "${{ steps.src.outputs.expected_cohort_sha256 }}"
+          cat stage2/STAGE2_VERDICT.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload confirmatory analysis results
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-analysis-results
+          path: stage2/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Upload stage 2 refusal report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-analysis-stage2-refusal
+          path: stage2/*_VERDICT.json
+          retention-days: 30
+          if-no-files-found: ignore
