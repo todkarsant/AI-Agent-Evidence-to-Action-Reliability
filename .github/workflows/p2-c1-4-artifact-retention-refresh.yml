@@ -1,0 +1,93 @@
+name: P2-C1.4 artifact retention refresh
+
+# Re-uploads the blinded packets, frozen manifest and locked cohort with 90-day retention, after
+# verifying their hashes. The contents are unchanged. Afterwards, set both run IDs in
+# research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json to this run's ID.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read source run IDs
+        id: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
+          for k in ("packets_run_id", "cohort_run_id", "expected_cohort_sha256"):
+              print(f"{k}={s[k]}")
+          PY
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-xw-blinded-annotation-packets
+          path: packets
+          run-id: ${{ steps.src.outputs.packets_run_id }}
+          github-token: ${{ github.token }}
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-aligned-cohort
+          path: source_cohort
+          run-id: ${{ steps.src.outputs.cohort_run_id }}
+          github-token: ${{ github.token }}
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: frozen_manifest
+          run-id: ${{ steps.src.outputs.cohort_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify hashes before re-upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+          m = json.loads(Path("packets/P2_C1_4_XW_PACKET_MANIFEST.json").read_text())
+          for k in ("A", "B"):
+              assert sha(f"packets/P2_C1_4_XW_RATER_{k}.json") == m["packet_sha256"][k], k
+          c = sha("source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json")
+          assert c == "${{ steps.src.outputs.expected_cohort_sha256 }}", c
+          assert c == m["source_cohort_sha256"], "packets were not generated from this cohort"
+          print({"packets": "OK", "cohort_sha256": c})
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-xw-blinded-annotation-packets
+          path: packets/
+          retention-days: 90
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-aligned-cohort
+          path: source_cohort/
+          retention-days: 90
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: frozen_manifest/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Next step
+        run: echo "Set packets_run_id and cohort_run_id to ${{ github.run_id }} in research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json" >> "$GITHUB_STEP_SUMMARY"
