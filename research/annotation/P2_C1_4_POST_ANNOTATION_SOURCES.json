@@ -1,0 +1,6 @@
+{
+  "description": "Where the post-annotation gate downloads the blinded packets and the locked cohort from. If the artifacts are refreshed (p2-c1-4-artifact-retention-refresh), set both run IDs to the refresh run ID. Never change expected_cohort_sha256.",
+  "packets_run_id": "37017913823",
+  "cohort_run_id": "36853456589",
+  "expected_cohort_sha256": "da537c75ce5778af3c36d05d8e59f7cea296aa5b8a4bc0c527b7cf352ebd9b8b"
+}
