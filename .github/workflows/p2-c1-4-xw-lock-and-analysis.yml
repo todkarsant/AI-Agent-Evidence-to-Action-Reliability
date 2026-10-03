@@ -18,7 +18,7 @@ concurrency:
 jobs:
   stage1:
     name: "Stage 1 (outcome-blind): validate exports, lock raw labels, build X_W"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     outputs:
       xw_sha256: ${{ steps.verdict.outputs.xw_sha256 }}
@@ -90,7 +90,7 @@ jobs:
   stage2:
     name: "Stage 2: frozen confirmatory analysis (runs once)"
     needs: stage1
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
