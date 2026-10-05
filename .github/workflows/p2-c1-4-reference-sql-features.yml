@@ -1,0 +1,117 @@
+name: P2-C1.4 reference-SQL features (outcome-blind)
+
+# Computes Spider hardness and nesting depth of every frozen decision's reference SQL for the
+# systematic-missingness audit. It reads only the frozen manifest, the Spider source bundle and the
+# pinned official evaluator; it never downloads the cohort. It fails closed unless the CSV is
+# byte-identical to expected_reference_features_csv_sha256 in the sources file.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  SPIDER_COMMIT: b7b5b8c890cd30e35427348bb9eb8c6d1350ca7c
+  SPIDER_EVALUATION_SHA256: c61f18f40bec5af1984af0e8731e678f6cee7976611d910e6e5c144d757fd827
+  SPIDER_PROCESS_SQL_SHA256: 909833d02b64124f407b218bdfa7bf6d3b3ab17593ae9d2bd4ebc8f4ab498354
+
+jobs:
+  features:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Read sources
+        id: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
+          for k in ("cohort_run_id", "spider_source_run_id", "expected_frozen_manifest_sha256", "expected_reference_features_csv_sha256"):
+              print(f"{k}={s[k]}")
+          PY
+
+      - name: Download frozen manifest (no outcomes)
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-frozen-manifest
+          path: frozen_manifest
+          run-id: ${{ steps.src.outputs.cohort_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download Spider source bundle (no outcomes)
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-spider-source
+          path: spider_source
+          run-id: ${{ steps.src.outputs.spider_source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Pinned Spider evaluator and NLTK
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/taoyds/spider.git external/spider
+          git -C external/spider checkout --quiet "$SPIDER_COMMIT"
+          echo "$SPIDER_EVALUATION_SHA256  external/spider/evaluation.py" | sha256sum -c -
+          echo "$SPIDER_PROCESS_SQL_SHA256  external/spider/process_sql.py" | sha256sum -c -
+          python -m pip install --disable-pip-version-check "nltk==3.9.4" "pytest==8.4.1"
+          mkdir -p "$HOME/nltk_data"
+          python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
+          echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
+
+      - name: Verify frozen manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${{ steps.src.outputs.expected_frozen_manifest_sha256 }}  frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json" | sha256sum -c -
+
+      - name: Unit tests
+        shell: bash
+        run: SPIDER_EVAL_DIR=external/spider python -m pytest research/tests/test_P2_C1_4_reference_sql_features.py -q
+
+      - name: Compute features
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/cohort/reference_sql_features_P2_C1_4.py \
+            --manifest frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json \
+            --questions spider_source/confirmatory_questions_source.json \
+            --database-dir spider_source/database \
+            --spider-eval-dir external/spider \
+            --output reference_sql_features/P2_C1_4_REFERENCE_SQL_FEATURES.csv \
+            --summary reference_sql_features/P2_C1_4_REFERENCE_SQL_FEATURES_SUMMARY.json
+
+      - name: Check reproduction and consistency with the E1 census
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${{ steps.src.outputs.expected_reference_features_csv_sha256 }}  reference_sql_features/P2_C1_4_REFERENCE_SQL_FEATURES.csv" | sha256sum -c -
+          python - <<'PY'
+          import json
+          c = json.load(open("frozen_manifest/P2_C1_4_E1_REFERENCE_SQL_CENSUS.json"))
+          s = json.load(open("reference_sql_features/P2_C1_4_REFERENCE_SQL_FEATURES_SUMMARY.json"))
+          census = {e["decision_id"] for e in c["excluded"] if e["reason"] == "REFERENCE_SQL_NOT_PARSEABLE"}
+          mine = {u["decision_id"] for u in s["unparseable"]}
+          assert census == mine, (census, mine)
+          assert s["features_written"] + s["unparseable_count"] == s["manifest_case_count"] == 8638
+          print({"unparseable_match_census": True, **{k: s[k] for k in ("features_written", "hardness_counts_overall", "nesting_depth_counts_overall")}})
+          PY
+          cat reference_sql_features/P2_C1_4_REFERENCE_SQL_FEATURES_SUMMARY.json >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-reference-sql-features
+          path: reference_sql_features/
+          retention-days: 90
+          if-no-files-found: error
