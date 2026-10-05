@@ -65,7 +65,7 @@ jobs:
           git -C external/spider checkout --quiet "$SPIDER_COMMIT"
           echo "$SPIDER_EVALUATION_SHA256  external/spider/evaluation.py" | sha256sum -c -
           echo "$SPIDER_PROCESS_SQL_SHA256  external/spider/process_sql.py" | sha256sum -c -
-          python -m pip install --disable-pip-version-check "nltk==3.9.4" "pytest==8.4.1"
+          python -m pip install --disable-pip-version-check "nltk==3.9.4" "pytest==8.4.1" numpy==2.4.4 scipy==1.17.1 scikit-learn==1.8.0 statsmodels==0.15.0
           mkdir -p "$HOME/nltk_data"
           python -m nltk.downloader -d "$HOME/nltk_data" punkt_tab
           echo "NLTK_DATA=$HOME/nltk_data" >> "$GITHUB_ENV"
