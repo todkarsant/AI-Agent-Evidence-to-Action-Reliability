@@ -119,3 +119,21 @@ This file records material methodological and research decisions. Decisions shou
 **Effect:**
 - The decision was made before any annotation lock or outcome inspection; only the record-status counts had been seen.
 - The analysis code and its tests were updated to the hard stop (24 synthetic tests).
+
+## 2026-10-05 — Reference-SQL features for the missingness audit
+
+**Decision:** Compute the two audit features named in amendment A7 outcome-blind, with `research/cohort/reference_sql_features_P2_C1_4.py`.
+
+- **Spider hardness:** the official `Evaluator.eval_hardness`, at taoyds/spider `b7b5b8c`.
+- **Nesting depth:** the maximum depth of nested query blocks in the evaluator's parse. It counts WHERE, HAVING and ON operands, FROM subqueries and INTERSECT/UNION/EXCEPT branches.
+- **Unparseable reference SQL:** written as missing.
+- **Pipeline:** the gate passes the features to the analysis's `--reference-features`, and they are hash-checked.
+
+**Reason:** A7 deferred these features to a separate outcome-blind script. The nesting-depth definition is an implementation choice, fixed here before any outcome or annotation lock.
+
+**Effect:**
+- **Coverage:** on 2026-10-05, 8,637 of the 8,638 decisions got features.
+- **The one unparseable decision:** `P2C14-CONF-001800`, identical to the census `REFERENCE_SQL_NOT_PARSEABLE` set.
+- **Expected CSV:** SHA-256 `5e1b2edb…5b68`. CI must reproduce it byte for byte.
+- **CI reproduction:** run `37284300121` reproduced the CSV byte for byte from the refreshed artifacts (refresh run `37283958876`, which also now keeps the Spider bundle).
+- **Outcome-blindness:** only overall counts were viewed; nothing was broken down by record status or outcome.
