@@ -1,7 +1,7 @@
 name: P2-C1.4 artifact retention refresh
 
-# Re-uploads the blinded packets, frozen manifest and locked cohort with 90-day retention, after
-# verifying their hashes. The contents are unchanged. Afterwards, set both run IDs in
+# Re-uploads the blinded packets, frozen manifest, locked cohort and Spider source bundle with 90-day retention, after
+# verifying their hashes. The contents are unchanged. Afterwards, set all three run IDs in
 # research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json to this run's ID.
 
 on:
@@ -26,7 +26,7 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
-          for k in ("packets_run_id", "cohort_run_id", "expected_cohort_sha256"):
+          for k in ("packets_run_id", "cohort_run_id", "spider_source_run_id", "expected_cohort_sha256", "expected_frozen_manifest_sha256"):
               print(f"{k}={s[k]}")
           PY
 
@@ -51,6 +51,13 @@ jobs:
           run-id: ${{ steps.src.outputs.cohort_run_id }}
           github-token: ${{ github.token }}
 
+      - uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-spider-source
+          path: spider_source
+          run-id: ${{ steps.src.outputs.spider_source_run_id }}
+          github-token: ${{ github.token }}
+
       - name: Verify hashes before re-upload
         shell: bash
         run: |
@@ -65,6 +72,10 @@ jobs:
           c = sha("source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json")
           assert c == "${{ steps.src.outputs.expected_cohort_sha256 }}", c
           assert c == m["source_cohort_sha256"], "packets were not generated from this cohort"
+          f = sha("frozen_manifest/P2_C1_4_CONFIRMATORY_MANIFEST.json")
+          assert f == "${{ steps.src.outputs.expected_frozen_manifest_sha256 }}", f
+          assert Path("spider_source/confirmatory_questions_source.json").is_file()
+          assert Path("spider_source/database").is_dir()
           print({"packets": "OK", "cohort_sha256": c})
           PY
 
@@ -89,5 +100,12 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-confirmatory-spider-source
+          path: spider_source/
+          retention-days: 90
+          if-no-files-found: error
+
       - name: Next step
-        run: echo "Set packets_run_id and cohort_run_id to ${{ github.run_id }} in research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Set packets_run_id, cohort_run_id and spider_source_run_id to ${{ github.run_id }} in research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json" >> "$GITHUB_STEP_SUMMARY"
