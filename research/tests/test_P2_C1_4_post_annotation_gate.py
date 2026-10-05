@@ -77,7 +77,7 @@ def simulate_export(packet_path: Path, rater_id: str, seed: int) -> dict:
 @pytest.fixture(scope="module")
 def world(tmp_path_factory):
     d = tmp_path_factory.mktemp("gate")
-    cohort, _, _ = SYN.make(N, seed=12, signal="xw", base_rate=0.25)
+    cohort, _, ref = SYN.make(N, seed=12, signal="xw", base_rate=0.25)
     cdir = d / "cohort"
     (cdir / "lock").mkdir(parents=True)
     cfile = cdir / "P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json"
@@ -91,7 +91,12 @@ def world(tmp_path_factory):
     for k, s in (("A", 1), ("B", 2)):
         exp = simulate_export(pdir / f"P2_C1_4_XW_RATER_{k}.json", f"Synthetic rater {k}", s)
         (rdir / f"P2_C1_4_XW_RESPONSES_RATER_{k}_FINAL.json").write_text(json.dumps(exp, indent=1), encoding="utf-8")
-    return {"d": d, "cdir": cdir, "cfile": cfile, "pdir": pdir, "rdir": rdir}
+    ffile = d / "P2_C1_4_REFERENCE_SQL_FEATURES.csv"
+    with open(ffile, "w", encoding="utf-8") as fh:
+        fh.write("decision_id,hardness,nesting_depth\n")
+        for row in ref:
+            fh.write(f"{row['decision_id']},{row['hardness']},{row['nesting_depth']}\n")
+    return {"d": d, "cdir": cdir, "cfile": cfile, "pdir": pdir, "rdir": rdir, "ffile": ffile}
 
 
 def stage1(w, out, rdir=None, pdir=None):
@@ -169,3 +174,21 @@ def test_stage2_refuses_wrong_or_unlinked_cohort(world, tmp_path):
             "--expected-cohort-sha256", sha(f), "--test-mode-repeats", "1")
     assert r.returncode == 1 and "annotation packets" in verdict(tmp_path / "s2b", "stage2")["reason"]
     assert not (tmp_path / "s2b" / "analysis").exists()
+
+
+def test_stage2_passes_reference_features_and_checks_their_hash(world, tmp_path):
+    out1 = tmp_path / "s1"
+    assert stage1(world, out1).returncode == 0
+    r = run(GATE, "stage2", "--cohort-dir", world["cdir"], "--construction", out1 / "construction", "--out", tmp_path / "s2",
+            "--expected-cohort-sha256", sha(world["cfile"]), "--test-mode-repeats", "1",
+            "--reference-features", world["ffile"], "--expected-reference-features-sha256", sha(world["ffile"]))
+    assert r.returncode == 0, r.stderr + r.stdout
+    v = verdict(tmp_path / "s2", "stage2")
+    assert v["reference_features_sha256"] == sha(world["ffile"])
+    res = json.loads((tmp_path / "s2" / "analysis" / "results.json").read_text())
+    assert isinstance(res["missingness_audit"]["reference_sql_hardness"], dict)
+    assert res["inputs"]["reference_features_sha256"] == sha(world["ffile"])
+    r = run(GATE, "stage2", "--cohort-dir", world["cdir"], "--construction", out1 / "construction", "--out", tmp_path / "s2x",
+            "--expected-cohort-sha256", sha(world["cfile"]), "--test-mode-repeats", "1",
+            "--reference-features", world["ffile"], "--expected-reference-features-sha256", "0" * 64)
+    assert r.returncode == 1 and "reference-features" in verdict(tmp_path / "s2x", "stage2")["reason"]
