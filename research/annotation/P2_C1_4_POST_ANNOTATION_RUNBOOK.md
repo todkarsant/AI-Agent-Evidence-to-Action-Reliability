@@ -21,10 +21,14 @@ Rater B export ─┘        │
                          │    3. each export passes the validator (complete, attested, frozen vocabulary)
                          │    4. raw labels hash-locked → reliability report → X_W built
                          │
-                         └─ Stage 2 (only if Stage 1 passed; runs ONCE ever)
+                         ├─ Features (outcome-blind, in parallel with Stage 1)
+                         │    reference-SQL hardness + nesting depth, must reproduce CSV 5e1b2edb…
+                         │
+                         └─ Stage 2 (only if Stage 1 and Features passed; runs ONCE ever)
                               5. refuse if a confirmatory result already exists
                               6. cohort SHA = expected = the cohort the packets came from
-                              7. frozen M0 vs M1 analysis (20 repeats, no test mode)
+                              7. frozen M0 vs M1 analysis (20 repeats, no test mode),
+                                 missingness audit includes hardness and nesting depth
                                  → ANALYSIS_COMPLETED, FEASIBILITY_STOP_RILEY or FEASIBILITY_STOP
 ```
 
@@ -67,6 +71,14 @@ GitHub artifacts expire on the following dates. The gate needs the packets and t
 > - **Sources file:** now points to `37102281986`.
 > - **New expiry:** about 90 days after 2026-10-03, so around 2027-01-01. This assumes the repository's maximum artifact retention is 90 days; check the expiry on the run page.
 > - **Next refresh:** due before about 2026-12-20, if Stage 2 has not run by then.
+>
+> **Status 2026-10-05: refreshed again.**
+>
+> - **Run:** `37283958876`.
+> - **Coverage:** it now also keeps the Spider source bundle, and it verified the frozen manifest `4500d33b…`.
+> - **Sources file:** all three run IDs now point to `37283958876`.
+> - **New expiry:** around 2027-01-03.
+> - **Next refresh:** due before about 2026-12-22.
 
 
 1. Go to **Actions → P2-C1.4 artifact retention refresh → Run workflow** (branch `main`).
@@ -197,3 +209,16 @@ After Stage 2:
 | `research/cohort/construct_P2_C1_4_XW.py` | Raw-label lock, reliability report, X_W |
 | `research/P2-C1.2/analysis/run_P2_C1_2_confirmatory_analysis.py` | Frozen M0 vs M1 analysis |
 | `research/tests/test_P2_C1_4_post_annotation_gate.py` | End-to-end synthetic tests of the whole chain |
+| `.github/workflows/p2-c1-4-reference-sql-features.yml` | Outcome-blind reference-SQL features (called by the gate; also runnable by hand) |
+| `research/cohort/reference_sql_features_P2_C1_4.py` | Spider hardness and nesting depth from the pinned evaluator |
+
+## Reference-SQL features (missingness audit)
+
+The audit compares E2, E3/E4 and EVALUABLE on Spider **hardness** and on **nesting depth** of the reference SQL. Both are computed outcome-blind: the script reads only the frozen manifest, the Spider bundle and the pinned evaluator.
+
+- **First run:** 2026-10-05, on this computer, over all 8,638 decisions. 8,637 got features.
+- **CI reproduction:** run `37284300121` reproduced the CSV byte for byte.
+- **The one unparseable decision:** `P2C14-CONF-001800`, the same decision the frozen E1 census marks `REFERENCE_SQL_NOT_PARSEABLE`.
+- **Expected CSV hash:** `5e1b2edb195adde12a74f05310a05eef84c3fd0c33c58d9f89e257eecb5a5b68`, recorded in the sources file. The CI job fails closed if its CSV differs.
+- **Nesting depth:** the maximum depth of nested query blocks. It counts subqueries in WHERE, HAVING and ON, FROM-clause subqueries, and INTERSECT/UNION/EXCEPT branches.
+- **Retention:** the Spider bundle artifact must stay alive too. The retention refresh now re-uploads it, and `spider_source_run_id` in the sources file must point at the latest refresh.
