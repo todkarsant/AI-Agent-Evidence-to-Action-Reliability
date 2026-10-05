@@ -87,9 +87,13 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+  features:
+    name: "Reference-SQL features (outcome-blind)"
+    uses: ./.github/workflows/p2-c1-4-reference-sql-features.yml
+
   stage2:
     name: "Stage 2: frozen confirmatory analysis (runs once)"
-    needs: stage1
+    needs: [stage1, features]
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -129,6 +133,7 @@ jobs:
           s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
           print(f"cohort_run_id={s['cohort_run_id']}")
           print(f"expected_cohort_sha256={s['expected_cohort_sha256']}")
+          print(f"expected_reference_features_csv_sha256={s['expected_reference_features_csv_sha256']}")
           PY
 
       - name: Download stage 1 construction
@@ -136,6 +141,12 @@ jobs:
         with:
           name: p2-c1-4-xw-raw-lock-and-construction
           path: stage1
+
+      - name: Download reference-SQL features
+        uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-reference-sql-features
+          path: reference_sql_features
 
       - name: Check X_W is the file stage 1 produced
         shell: bash
@@ -160,7 +171,9 @@ jobs:
             --cohort-dir source_cohort \
             --construction stage1/construction \
             --out stage2 \
-            --expected-cohort-sha256 "${{ steps.src.outputs.expected_cohort_sha256 }}"
+            --expected-cohort-sha256 "${{ steps.src.outputs.expected_cohort_sha256 }}" \
+            --reference-features reference_sql_features/P2_C1_4_REFERENCE_SQL_FEATURES.csv \
+            --expected-reference-features-sha256 "${{ steps.src.outputs.expected_reference_features_csv_sha256 }}"
           cat stage2/STAGE2_VERDICT.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload confirmatory analysis results
