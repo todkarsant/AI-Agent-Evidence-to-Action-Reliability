@@ -109,7 +109,8 @@ def stage1(packets: Path, responses: Path, out: Path) -> None:
     print("STAGE1 PASS")
 
 
-def stage2(cohort_dir: Path, construction: Path, out: Path, expected_cohort_sha: str, test_mode_repeats: int | None = None) -> None:
+def stage2(cohort_dir: Path, construction: Path, out: Path, expected_cohort_sha: str, test_mode_repeats: int | None = None,
+           reference_features: Path | None = None, expected_features_sha: str | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     cohort = cohort_dir / COHORT_FILE
     lockf = cohort_dir / COHORT_LOCK
@@ -133,10 +134,19 @@ def stage2(cohort_dir: Path, construction: Path, out: Path, expected_cohort_sha:
             refuse(out, "stage2", "forensic cohort lock is not PASS_IMMUTABLE_COHORT_LOCK")
     elif test_mode_repeats is None:
         refuse(out, "stage2", f"forensic cohort lock file missing: {lockf}")
+    fsha = None
+    if reference_features is not None:
+        if not reference_features.is_file():
+            refuse(out, "stage2", f"reference-features file missing: {reference_features}")
+        fsha = sha(reference_features)
+        if expected_features_sha and fsha != expected_features_sha.lower():
+            refuse(out, "stage2", "reference-features CSV differs from the expected file", got=fsha, expected=expected_features_sha)
     xsha = sha(xw)
     adir = out / "analysis"
     cmd = [sys.executable, str(ANALYSIS), "--cohort", str(cohort), "--xw", str(xw), "--out", str(adir),
            "--sha-check", csha, xsha]
+    if reference_features is not None:
+        cmd += ["--reference-features", str(reference_features)]
     if test_mode_repeats is not None:  # local pipeline tests only; recorded in results.json
         cmd += ["--test-mode", "--repeats", str(test_mode_repeats)]
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -154,6 +164,7 @@ def stage2(cohort_dir: Path, construction: Path, out: Path, expected_cohort_sha:
         "test_mode": res["test_mode"],
         "cohort_sha256": csha,
         "xw_sha256": xsha,
+        "reference_features_sha256": fsha,
         "raw_annotation_lock_sha256": sha(rawlock),
         "results_json_sha256": sha(adir / "results.json"),
     })
@@ -173,11 +184,14 @@ def main() -> None:
     s2.add_argument("--out", type=Path, required=True)
     s2.add_argument("--expected-cohort-sha256", required=True)
     s2.add_argument("--test-mode-repeats", type=int, default=None, help="LOCAL TESTS ONLY")
+    s2.add_argument("--reference-features", type=Path, default=None, help="CSV from reference_sql_features_P2_C1_4.py")
+    s2.add_argument("--expected-reference-features-sha256", default=None)
     a = ap.parse_args()
     if a.stage == "stage1":
         stage1(a.packets, a.responses, a.out)
     else:
-        stage2(a.cohort_dir, a.construction, a.out, a.expected_cohort_sha256, a.test_mode_repeats)
+        stage2(a.cohort_dir, a.construction, a.out, a.expected_cohort_sha256, a.test_mode_repeats,
+               a.reference_features, a.expected_reference_features_sha256)
 
 
 if __name__ == "__main__":
