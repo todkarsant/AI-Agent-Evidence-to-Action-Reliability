@@ -55,6 +55,30 @@ def refuse(out: Path, stage: str, reason: str, **extra) -> None:
     sys.exit(1)
 
 
+def lock_ids(cdir: Path) -> list:
+    return [r["decision_id"] for r in json.loads((cdir / "P2_C1_4_XW.json").read_text(encoding="utf-8"))["records"]]
+
+
+def expand_xw_to_cohort(xw: Path, cohort: Path, record: Path, out: Path) -> Path:
+    """Subsample design: every cohort decision that was not sampled gets x_w = null (not annotated)."""
+    xwj = json.loads(xw.read_text(encoding="utf-8"))
+    rec = json.loads(record.read_text(encoding="utf-8"))
+    annotated = {r["decision_id"]: r["x_w"] for r in xwj["records"]}
+    if set(annotated) != set(rec["sampled_decision_ids"]):
+        raise ValueError("X_W decisions differ from the sampling record")
+    ids = [r["decision_id"] for r in json.loads(cohort.read_text(encoding="utf-8"))["records"]]
+    if not set(annotated) <= set(ids):
+        raise ValueError("X_W contains decisions that are not in the cohort")
+    full = {"xw_construction_version": xwj["xw_construction_version"],
+            "raw_annotation_lock_sha256": xwj.get("raw_annotation_lock_sha256"),
+            "expanded_from_subsample": {"xw_sha256": sha(xw), "sampling_record_sha256": sha(record),
+                                        "not_sampled_x_w": None, "n_annotated": len(annotated), "n_cohort": len(ids)},
+            "records": [{"decision_id": d, "x_w": annotated.get(d)} for d in ids]}
+    dest = out / "P2_C1_4_XW_FULL_COHORT.json"
+    write(dest, full)
+    return dest
+
+
 def stage1(packets: Path, responses: Path, out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     present = {k: (responses / n).is_file() for k, n in RESPONSE_NAMES.items()}
@@ -94,6 +118,16 @@ def stage1(packets: Path, responses: Path, out: Path) -> None:
     if r.returncode != 0:
         refuse(out, "stage1", "X_W construction failed", detail=r.stderr[-1000:] or r.stdout[-1000:])
     lock = json.loads((cdir / "P2_C1_4_XW_RAW_ANNOTATION_LOCK.json").read_text(encoding="utf-8"))
+    rec_sha = None
+    rec_p = packets / "SAMPLING_RECORD.json"
+    if rec_p.is_file():  # annotation subsample (blinded feasibility and subsample amendment)
+        rec = json.loads(rec_p.read_text(encoding="utf-8"))
+        if rec.get("subsample_packet_sha256") != man["packet_sha256"]:
+            refuse(out, "stage1", "sampling record does not match the subsample packets")
+        if sorted(rec["sampled_decision_ids"]) != sorted(lock_ids(cdir)):
+            refuse(out, "stage1", "annotated cases differ from the sampling record")
+        (out / "SAMPLING_RECORD.json").write_bytes(rec_p.read_bytes())
+        rec_sha = sha(rec_p)
     write(out / "STAGE1_VERDICT.json", {
         "stage": "stage1",
         "status": "PASS_RAW_ANNOTATIONS_LOCKED_XW_CONSTRUCTED",
@@ -104,13 +138,15 @@ def stage1(packets: Path, responses: Path, out: Path) -> None:
         "xw_sha256": sha(cdir / "P2_C1_4_XW.json"),
         "reliability_sha256": sha(cdir / "P2_C1_4_XW_RELIABILITY.json"),
         "case_count": lock["case_count"],
+        "sampling_record_sha256": rec_sha,
         "outcomes_accessed": False,
     })
     print("STAGE1 PASS")
 
 
 def stage2(cohort_dir: Path, construction: Path, out: Path, expected_cohort_sha: str, test_mode_repeats: int | None = None,
-           reference_features: Path | None = None, expected_features_sha: str | None = None) -> None:
+           reference_features: Path | None = None, expected_features_sha: str | None = None,
+           sampling_record: Path | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     cohort = cohort_dir / COHORT_FILE
     lockf = cohort_dir / COHORT_LOCK
@@ -141,6 +177,17 @@ def stage2(cohort_dir: Path, construction: Path, out: Path, expected_cohort_sha:
         fsha = sha(reference_features)
         if expected_features_sha and fsha != expected_features_sha.lower():
             refuse(out, "stage2", "reference-features CSV differs from the expected file", got=fsha, expected=expected_features_sha)
+    xw_annotated_sha = sha(xw)
+    if sampling_record is not None:
+        if not sampling_record.is_file():
+            refuse(out, "stage2", f"sampling record missing: {sampling_record}")
+        rec = json.loads(sampling_record.read_text(encoding="utf-8"))
+        if rec.get("cohort_sha256") != csha:
+            refuse(out, "stage2", "sampling record was drawn from a different cohort")
+        try:
+            xw = expand_xw_to_cohort(xw, cohort, sampling_record, out)
+        except ValueError as exc:
+            refuse(out, "stage2", str(exc))
     xsha = sha(xw)
     adir = out / "analysis"
     cmd = [sys.executable, str(ANALYSIS), "--cohort", str(cohort), "--xw", str(xw), "--out", str(adir),
@@ -164,6 +211,8 @@ def stage2(cohort_dir: Path, construction: Path, out: Path, expected_cohort_sha:
         "test_mode": res["test_mode"],
         "cohort_sha256": csha,
         "xw_sha256": xsha,
+        "xw_annotated_sha256": xw_annotated_sha,
+        "sampling_record_sha256": sha(sampling_record) if sampling_record is not None else None,
         "reference_features_sha256": fsha,
         "raw_annotation_lock_sha256": sha(rawlock),
         "results_json_sha256": sha(adir / "results.json"),
@@ -186,12 +235,13 @@ def main() -> None:
     s2.add_argument("--test-mode-repeats", type=int, default=None, help="LOCAL TESTS ONLY")
     s2.add_argument("--reference-features", type=Path, default=None, help="CSV from reference_sql_features_P2_C1_4.py")
     s2.add_argument("--expected-reference-features-sha256", default=None)
+    s2.add_argument("--sampling-record", type=Path, default=None, help="SAMPLING_RECORD.json when a subsample was annotated")
     a = ap.parse_args()
     if a.stage == "stage1":
         stage1(a.packets, a.responses, a.out)
     else:
         stage2(a.cohort_dir, a.construction, a.out, a.expected_cohort_sha256, a.test_mode_repeats,
-               a.reference_features, a.expected_reference_features_sha256)
+               a.reference_features, a.expected_reference_features_sha256, a.sampling_record)
 
 
 if __name__ == "__main__":
