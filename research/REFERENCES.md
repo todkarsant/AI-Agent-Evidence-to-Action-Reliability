@@ -109,16 +109,33 @@ Entry 8 could not be verified.
 
 ## C. Corporate / industry evidence — deliberately not treated as peer-reviewed science
 
-### C1. Gartner / hyperautomation market claim
-A secondary SEC filing quoting Gartner states that the **hyperautomation total software market opportunity** was projected to exceed **$1 trillion by 2026**. The source is not the Gartner report itself, so the claim is retained as a secondary attribution rather than a directly verified Gartner primary-source statistic:
-- SEC filing quoting Gartner: https://www.sec.gov/Archives/edgar/data/1835972/000121390024067780/ea0211153-424b3_ilearning.htm
+### C1. Gartner (checked 2026-10-08 against Gartner's own press releases)
+**Correction.** The earlier entry said that "hyperautomation total software market opportunity was projected to exceed $1 trillion by 2026", attributed to Gartner via an SEC filing (iLearningEngines 424B3, 9 Aug 2024). The filing contains **no** Gartner citation; "hyperautomation" appears there only once, in a risk factor. Gartner's own release gives a different figure. **Do not use the $1 trillion figure.**
 
-Important correction to the user-supplied wording:
-- I have **not verified a primary Gartner source for the specific wording that the RPA market “stalled at about $3B” because it is unreliable/costly**.
-- Therefore that sentence is NOT entered as an established factual claim.
-- It may be used only as an attributed corporate/market narrative if a primary or exact secondary source is later located.
+Verified Gartner primary releases:
+- Gartner (2021, April 28). Hyperautomation-enabling software market forecast to reach $596.6B in 2022 (from $481.6B in 2020). https://www.gartner.com/en/newsroom/press-releases/2021-04-28-gartner-forecasts-worldwide-hyperautomation-enabling-software-market-to-reach-nearly-600-billion-by-2022
+- Gartner (2022, August 1). RPA software spending of $2.9B in 2022 (+19.5%), forecast at $3.35B in 2023 (+17.5%). Growth is described as slower than in previous years, but the market is still called "high-growth". The release does **not** say RPA stalled because it is unreliable or costly; that wording remains unverified and must not be used. https://www.gartner.com/en/newsroom/press-releases/2022-08-1-rpa-forecast-2022-2q22-press-release
+- Gartner (2025, June 25). Over 40% of agentic AI projects will be canceled by end of 2027, citing escalating costs, unclear business value and inadequate risk controls. **Cited in the manuscript.** https://www.gartner.com/en/newsroom/press-releases/2025-06-25-gartner-predicts-over-40-percent-of-agentic-ai-projects-will-be-canceled-by-end-of-2027
 
-### C2. Kognitos
+All three are analyst forecasts, not peer-reviewed evidence.
+
+### C1b. NVIDIA (checked 2026-10-08)
+NVIDIA (2026, September 28). *NVIDIA Launches Open Agent Safety Platform to Secure Agents From Testing to Deployment.* https://nvidianews.nvidia.com/news/open-agent-safety-platform
+- **OpenShell:** an open-source runtime boundary that traces agent actions and enforces policy.
+- **Sentry:** an out-of-band watchdog on BlueField-4 DPUs, intended to detect agents acting outside their boundaries and quarantine them.
+- **Partners:** more than 100 organisations are named as partners.
+
+This is a vendor announcement and is cited in the manuscript as industry context only.
+
+### C1c. Social-media posts supplied 2026-10-08 (not cited)
+Three X posts were supplied:
+- x.com/shivam74689/status/2106406422573449583
+- x.com/nikks_techie/status/2106366160694616537
+- x.com/nikks_techie/status/2106361698223640714
+
+They could not be read automatically because X blocks it, and their content is unverified. Social-media posts are not appropriate references for a journal article. Their idea is that a 95%-accurate agent still causes loss on the remaining 5%, and that guardrails are the response. That idea is expressed in the manuscript as the authors' own hypothetical illustration, without citation.
+
+### C2. Kognitos (re-checked 2026-10-08: the homepage title is "Kognitos: The Deterministic Agentic AI Platform for the Enterprise"; the tagline "Deterministic Agents, Hallucination-Free AI" and "English-as-Code" are both present; the platform page describes a "deterministic Symbolic Executor")
 Kognitos markets an enterprise automation platform using the terms **“Deterministic Agents,” “Hallucination-Free AI,”** and **“English as Code.”** Its website describes a symbolic executor, auditable decisions, and a deterministic execution architecture:
 - Kognitos corporate site: https://www.kognitos.com/
 - Platform: https://www.kognitos.com/platform/
