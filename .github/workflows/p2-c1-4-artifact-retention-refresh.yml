@@ -28,11 +28,12 @@ jobs:
           s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
           for k in ("packets_run_id", "cohort_run_id", "spider_source_run_id", "expected_cohort_sha256", "expected_frozen_manifest_sha256"):
               print(f"{k}={s[k]}")
+          print(f"packets_artifact={s.get('packets_artifact', 'p2-c1-4-xw-blinded-annotation-packets')}")
           PY
 
       - uses: actions/download-artifact@v5
         with:
-          name: p2-c1-4-xw-blinded-annotation-packets
+          name: ${{ steps.src.outputs.packets_artifact }}
           path: packets
           run-id: ${{ steps.src.outputs.packets_run_id }}
           github-token: ${{ github.token }}
@@ -81,7 +82,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: p2-c1-4-xw-blinded-annotation-packets
+          name: ${{ steps.src.outputs.packets_artifact }}
           path: packets/
           retention-days: 90
           if-no-files-found: error
