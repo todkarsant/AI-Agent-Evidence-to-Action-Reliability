@@ -38,12 +38,13 @@ jobs:
           import json
           s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
           print(f"packets_run_id={s['packets_run_id']}")
+          print(f"packets_artifact={s.get('packets_artifact', 'p2-c1-4-xw-blinded-annotation-packets')}")
           PY
 
       - name: Download blinded annotation packets (no outcomes)
         uses: actions/download-artifact@v5
         with:
-          name: p2-c1-4-xw-blinded-annotation-packets
+          name: ${{ steps.src.outputs.packets_artifact }}
           path: packets
           run-id: ${{ steps.src.outputs.packets_run_id }}
           github-token: ${{ github.token }}
@@ -173,7 +174,8 @@ jobs:
             --out stage2 \
             --expected-cohort-sha256 "${{ steps.src.outputs.expected_cohort_sha256 }}" \
             --reference-features reference_sql_features/P2_C1_4_REFERENCE_SQL_FEATURES.csv \
-            --expected-reference-features-sha256 "${{ steps.src.outputs.expected_reference_features_csv_sha256 }}"
+            --expected-reference-features-sha256 "${{ steps.src.outputs.expected_reference_features_csv_sha256 }}" \
+            $( [ -f stage1/SAMPLING_RECORD.json ] && echo "--sampling-record stage1/SAMPLING_RECORD.json" )
           cat stage2/STAGE2_VERDICT.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload confirmatory analysis results
