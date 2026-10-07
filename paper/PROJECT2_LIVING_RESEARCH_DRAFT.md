@@ -726,6 +726,10 @@ Runtime non-evaluability can be related to case difficulty. The primary populati
 
 The larger selection is by evidence availability, not by runtime failure. 41.6% of decisions have no usable decision-time evidence, and these are concentrated in harder queries (§8.3). Any confirmatory result therefore describes decisions for which the agent produced interpretable evidence. It is not informative about the harder decisions for which it did not. This is a scope restriction of the frozen construct: X_W is undefined without evidence. It is not a defect that analysis can repair.
 
+This exclusion removes no possible harms. `NO_USABLE_EVIDENCE` coincides exactly with `execution_ok = false`: P0 produced no executable result. The E1 census already excluded reference queries the official evaluator cannot execute. So P0 cannot be scored correct for these decisions, and Y_H = 0 by the outcome definition. The primary population therefore contains every decision at which a harmful replacement was possible. This follows from the definitions and will be confirmed mechanically on the locked outcomes.
+
+A related consequence: because `execution_ok` is 1 for every decision with usable evidence, the baseline B is effectively the two count features in the primary analysis. The frozen model keeps the constant column, which receives a zero coefficient under L2 penalisation.
+
 ### 10.6 Dependence
 
 Nominal record count may exceed the amount of independent information if cases share database/question structure. The frozen outer evaluation therefore preserves the defined dependence grouping.
