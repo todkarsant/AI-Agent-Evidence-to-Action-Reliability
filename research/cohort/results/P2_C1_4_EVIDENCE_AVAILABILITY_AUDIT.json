@@ -1,0 +1,81 @@
+{
+  "audit": "P2-C1.4 evidence availability (outcome-blind; descriptive; not prespecified)",
+  "counts": {
+    "NO_USABLE_EVIDENCE": 3590,
+    "SUCCESS": 5048
+  },
+  "inputs": {
+    "packet_sha256": "9d8c5bd3f837b9bc4268c8711aa065a2e955c17358169d83dd5745fee7ce40b7",
+    "reference_features_sha256": "5e1b2edb195adde12a74f05310a05eef84c3fd0c33c58d9f89e257eecb5a5b68"
+  },
+  "n_decisions": 8638,
+  "no_usable_evidence_fraction": 0.4156,
+  "outcome_fields_used": [],
+  "per_database_no_usable_evidence_rate": {
+    "max": 0.72,
+    "median": 0.3806,
+    "min": 0.1176,
+    "n_databases": 146
+  },
+  "question_length_chars": {
+    "NO_USABLE_EVIDENCE": {
+      "mean": 70.63,
+      "median": 69.0,
+      "n": 3590,
+      "q25": 52.0,
+      "q75": 87.0
+    },
+    "SUCCESS": {
+      "mean": 63.69,
+      "median": 61.0,
+      "n": 5048,
+      "q25": 47.0,
+      "q75": 78.0
+    }
+  },
+  "reference_features_missing": [
+    "P2C14-CONF-001800"
+  ],
+  "reference_sql_hardness": {
+    "NO_USABLE_EVIDENCE": {
+      "n": 3589,
+      "proportions": {
+        "easy": 0.1265,
+        "extra": 0.3018,
+        "hard": 0.2541,
+        "medium": 0.3176
+      }
+    },
+    "SUCCESS": {
+      "n": 5048,
+      "proportions": {
+        "easy": 0.3021,
+        "extra": 0.1321,
+        "hard": 0.1991,
+        "medium": 0.3667
+      }
+    }
+  },
+  "reference_sql_nesting_depth": {
+    "NO_USABLE_EVIDENCE": {
+      "n": 3589,
+      "proportions": {
+        "0": 0.8448,
+        "1": 0.1399,
+        "2": 0.0128,
+        "3": 0.002,
+        "4": 0.0006
+      }
+    },
+    "SUCCESS": {
+      "n": 5048,
+      "proportions": {
+        "0": 0.8437,
+        "1": 0.149,
+        "2": 0.0067,
+        "3": 0.0006
+      }
+    }
+  },
+  "test": "descriptive only; no hypothesis test"
+}
