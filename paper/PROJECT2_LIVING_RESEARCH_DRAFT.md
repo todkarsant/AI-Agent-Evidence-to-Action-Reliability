@@ -1,9 +1,9 @@
 # AI Agent Evidence-to-Action Reliability — Project 2
 
-**Status:** Living manuscript — P2-C1.4 confirmatory protocol frozen; confirmatory cohort/results not yet accepted or analyzed  
+**Status:** Living manuscript — P2-C1.4 confirmatory cohort locked (2026-10-02); blinded feasibility check passed and annotation subsample drawn (2026-10-07); confirmatory results pending  
 **Manuscript branch:** `paper/p2-c1-4-frozen-state-update-2026-09-26`  
 **Base manuscript commit:** `4c8496d3991dfb6449c34a5468406fa488ae01e2`  
-**Update date:** 2026-09-26
+**Update date:** 2026-10-07
 
 > **Evidence-status rule.** This manuscript distinguishes completed methodological gates, runtime qualification, failed/rejected attempts, frozen protocol elements, and pending confirmatory results. No confirmatory predictive result is reported until the aligned cohort, independent X_W annotation, provenance lock, and prespecified analysis have actually completed.
 
@@ -20,6 +20,8 @@ A first human-annotation attempt was mechanically preserved but failed forensic 
 A separate predictive-validity attack established that the historical Project 1 outcome records cannot be retrospectively aligned with the independently measured X_W cohort because the required decision-time evidence was not preserved on the same decision units. Historical outcomes are therefore not joined to the new measurement cohort. A new aligned outcome-bearing cohort was designed and the confirmatory statistical and collection protocol was frozen before confirmatory outcome collection.
 
 The frozen confirmatory comparison is M0=f(B) versus M1=f(B,X_W), where B contains three prespecified decision-time analytical signals and X_W is the independently annotated evidence-witness score. The binary outcome is harmful incumbent replacement, Y_H. The primary estimand is the paired difference in out-of-sample log loss under repeated nested group-stratified cross-validation. Confirmatory model fitting and predictive-validity claims remain pending until the new aligned cohort and independent X_W annotation satisfy the frozen integrity gates.
+
+The confirmatory cohort of 8,638 decisions has been acquired and locked. A blinded, run-once feasibility check found that the eligible primary population (5,044 decisions) meets the Riley et al. (2020) sample-size criteria, and a random subsample of 1,709 decisions was drawn for independent double annotation. An outcome-blind audit shows that 41.6% of all decisions produced no usable decision-time evidence and that these decisions are concentrated in harder queries; the primary population therefore over-represents easier decisions.
 
 ## 1. Introduction
 
@@ -456,6 +458,21 @@ Confirmatory analysis stops if, among other failures:
 
 No scientific parameter, cohort definition, model family, seed, or exclusion rule may be changed to rescue a failed confirmatory run.
 
+### 6.13 Annotation subsample (amendment 2026-10-07)
+
+The frozen protocol asked both raters to annotate every usable decision, about 8,600 cases each. The author judged this infeasible. Amendment `P2-C1.4-BLINDED-FEASIBILITY-AND-ANNOTATION-SUBSAMPLE-AMENDMENT-2026-10-07` was approved and frozen before execution. It replaces full-cohort annotation with two steps.
+
+1. **Blinded feasibility check, run once before annotation.** The frozen Riley hard stop is applied to the full eligible primary population: EVALUABLE decisions with usable evidence and Y_H defined. If that population fails, no annotation is requested and the confirmatory result is a feasibility stop. Only the pooled event count enters the calculation, and it is never printed.
+2. **Random annotation subsample.** Otherwise, n_sub = min(N, max(⌈1.5 × n_Riley⌉, ⌈50 / prevalence⌉)) decisions are drawn by simple random sampling, seed 20261007. All E3/E4 decisions with usable evidence are added for S1/S2.
+
+Both raters annotate the same subsample, each in their own random order. Eligible decisions that were not sampled have X_W missing completely at random by design, and are reported separately from `NO_USABLE_EVIDENCE` in the cohort flow. The analysis itself is unchanged. The Riley hard stop is applied again to the realised primary population.
+
+Disclosed limitations:
+
+- The subsample gives less precision than full-cohort annotation would.
+- The outcome rate, but not any association with it, informed the annotation sample size through this pre-specified rule. The sample size therefore reveals the outcome rate approximately.
+- The inflation factor, the minimum expected event count and the seed were set by the implementer before execution.
+
 ## 7. Runtime and provenance qualification
 
 ### 7.1 Non-confirmatory runtime qualification
@@ -567,6 +584,23 @@ Cohort flow by record status. These are pre-analysis counts and contain no outco
 
 The outcome summaries held in the lock artifact were not opened before annotation.
 
+**Evidence availability (outcome-blind; not prespecified).** 3,590 of the 8,638 frozen decisions (41.6%) have `NO_USABLE_EVIDENCE`: the agent's decision produced no interpretable result. Of the 8,604 EVALUABLE decisions, 3,560 are `NO_USABLE_EVIDENCE` and 5,044 have usable evidence. By the frozen protocol (§6.12, protocol §13), these decisions are outside the primary population.
+
+They are not a random subset. Measured on reference-SQL hardness:
+
+| Reference-SQL hardness | Usable evidence (n = 5,048) | NO_USABLE_EVIDENCE (n = 3,589) |
+|---|---|---|
+| easy | 30.2% | 12.6% |
+| medium | 36.7% | 31.8% |
+| hard | 19.9% | 25.4% |
+| extra | 13.2% | 30.2% |
+
+Their questions are also longer (median 69 vs 61 characters). The `NO_USABLE_EVIDENCE` rate ranges from 11.8% to 72.0% across the 146 databases (median 38.1%).
+
+Source: `research/cohort/results/P2_C1_4_EVIDENCE_AVAILABILITY_AUDIT.json`. It was computed from the blinded packet and the reference-SQL features only, with no outcome field read.
+
+**Annotation subsample (§6.13).** The blinded feasibility check (run `37663285811`, 2026-10-07) returned `SUBSAMPLE_DRAWN`: the 5,044 eligible primary decisions meet the Riley criteria. 1,705 of them were sampled at random and 4 E3/E4 decisions with usable evidence were added, giving 1,709 cases per rater.
+
 Blinded rater packets A and B were generated in run `37017913823`. The annotation tool, response validator, X_W construction and analysis code were written and tested on synthetic data before annotation began. The X_W combination rule and analysis implementation details are frozen in `P2-C1.4-XW-CONSTRUCTION-AND-ANALYSIS-IMPLEMENTATION-AMENDMENT-2026-10-02`.
 
 ### 8.4 Current manuscript boundary
@@ -607,7 +641,9 @@ The following methodological states are established:
 | Confirmatory cohort acquisition (8,638 / 44 shards) | Complete; 31 runtime failures (0.36%), within frozen ceiling |
 | Confirmatory cohort immutable lock | Passed (run `36853456589`) |
 | Blinded annotation packets | Generated (run `37017913823`) |
-| Confirmatory human annotation | In progress (two independent raters) |
+| Blinded feasibility check (run once) | Passed: `SUBSAMPLE_DRAWN` (run `37663285811`) |
+| Evidence-availability audit (outcome-blind) | 41.6% of decisions have no usable evidence; concentrated in harder queries (§8.3) |
+| Confirmatory human annotation | Pending: 1,709-case subsample, two independent raters |
 | Analysis code | Implemented and tested on synthetic data only |
 | M0/M1 confirmatory model | Not run |
 | Incremental predictive validity | Not established |
@@ -643,6 +679,7 @@ The following structure is fixed now. Every bracketed value will be filled only 
 
 **9.3.2 Primary population and outcome prevalence.**
 
+- **Cohort flow:** eligible primary decisions 5,044 → randomly sampled 1,705 → not sampled (X_W missing by design) 3,339; sampled but X_W undefined [n].
 - **Primary population:** [n] decisions in [g] (database, question) groups.
 - **Harmful replacements Y_H:** [k], prevalence [p].
 - **Feasibility:** verdict [ANALYSIS_COMPLETED / FEASIBILITY_STOP_RILEY / FEASIBILITY_STOP]. A Riley shortfall on criterion (i) or (iii) at the frozen planning values is a hard stop: no model is fitted and only descriptives are reported.
@@ -686,6 +723,8 @@ The historical discovery outcome is relatively sparse. The confirmatory protocol
 `NO_USABLE_EVIDENCE` is not equivalent to zero witness sufficiency. Treating it as zero would change the construct.
 
 Runtime non-evaluability can be related to case difficulty. The primary population may then under-represent difficult decisions. The S1/S2 analyses and the systematic-missingness audit (§6.12) report how far this could affect the conclusion; they do not remove the limitation.
+
+The larger selection is by evidence availability, not by runtime failure. 41.6% of decisions have no usable decision-time evidence, and these are concentrated in harder queries (§8.3). Any confirmatory result therefore describes decisions for which the agent produced interpretable evidence. It is not informative about the harder decisions for which it did not. This is a scope restriction of the frozen construct: X_W is undefined without evidence. It is not a defect that analysis can repair.
 
 ### 10.6 Dependence
 
@@ -805,3 +844,5 @@ After the immutable cohort and annotation gates pass, this manuscript should be 
 - claim-by-claim evidence mapping.
 
 No result should be inserted into these sections until it is generated and provenance-checked under the frozen protocol.
+
+The §9.3 numbers are rendered mechanically from the Stage 1 and Stage 2 outputs by `research/cohort/render_P2_C1_4_findings.py`. That script checks the hash chain, computes no new statistic and applies no significance rule. Its report (`P2_C1_4_FINDINGS.md`, with input hashes) is the source for every bracketed value.
