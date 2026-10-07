@@ -178,6 +178,16 @@ jobs:
             $( [ -f stage1/SAMPLING_RECORD.json ] && echo "--sampling-record stage1/SAMPLING_RECORD.json" )
           cat stage2/STAGE2_VERDICT.json >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Render findings report (formats the frozen outputs; computes nothing new)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/cohort/render_P2_C1_4_findings.py \
+            --stage1 stage1 --stage2 stage2 --out stage2/findings \
+            --evidence-availability research/cohort/results/P2_C1_4_EVIDENCE_AVAILABILITY_AUDIT.json
+          cat stage2/findings/P2_C1_4_FINDINGS.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload confirmatory analysis results
         uses: actions/upload-artifact@v4
         with:
