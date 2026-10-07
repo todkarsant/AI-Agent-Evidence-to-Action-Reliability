@@ -4,6 +4,15 @@
 
 **Applies to:** cohort `da537c75ce5778af3c36d05d8e59f7cea296aa5b8a4bc0c527b7cf352ebd9b8b` (acquisition run `36853456589`) and blinded packets from post-lock run `37017913823`.
 
+> **Update 2026-10-07: the raters annotate a subsample, not the full cohort.**
+>
+> - **Why:** amendment `P2-C1.4-BLINDED-FEASIBILITY-AND-ANNOTATION-SUBSAMPLE-AMENDMENT-2026-10-07`.
+> - **Feasibility run:** `37663285811`, verdict `SUBSAMPLE_DRAWN`.
+> - **Workload:** 1,709 cases per rater.
+> - **Rater packets:** come from artifact `p2-c1-4-xw-subsample-annotation-packets` of run `37663285811` (packets A `f7bd7bac…`, B `50a32588…`). They expire around 2027-01-05.
+> - **Full packets:** the full packets from `37017913823` / `37283958876` are **no longer sent** to raters.
+> - **Automatic handling:** the sources file already points the gate at the subsample. Stage 1 checks the sampling record, and Stage 2 expands X_W to the full cohort automatically.
+
 **Governing documents:**
 - frozen protocol `P2-C1.4-CONFIRMATORY-V1-RUNTIME3-2026-09-21`;
 - missingness amendment (2026-10-01);
@@ -97,9 +106,9 @@ Send each rater **only** their own three files, privately (by email or a shared 
 |---|---|
 | `P2_C1_4_XW_ANNOTATOR.html` (from `research/annotation_ui/`) | same tool |
 | `P2_C1_4_RATER_INSTRUCTIONS.md` | same instructions |
-| `P2_C1_4_XW_RATER_A.json` (from the packets artifact) | `P2_C1_4_XW_RATER_B.json` |
+| `P2_C1_4_XW_RATER_A.json` (from the **subsample** packets artifact, run `37663285811`; 1,709 cases) | `P2_C1_4_XW_RATER_B.json` (same artifact) |
 
-Never send the packet manifest, the cohort, or the other rater's packet.
+Never send the packet manifest, `SAMPLING_RECORD.json`, the cohort, or the other rater's packet.
 
 ## Step 3: While the raters work
 
