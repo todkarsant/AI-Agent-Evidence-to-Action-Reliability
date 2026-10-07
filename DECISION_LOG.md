@@ -157,3 +157,19 @@ This file records material methodological and research decisions. Decisions shou
 - **Hashes:** sampling record `8f35a39e…eea6`; subsample packets A `f7bd7bac…1dcf`, B `50a32588…882b`; parent packet manifest `1140d08d…739e`.
 - **Sources file:** now points the gate at artifact `p2-c1-4-xw-subsample-annotation-packets` from run `37663285811`. The cohort and Spider bundle stay at refresh run `37283958876`.
 - **Blinding:** the event count and prevalence were not printed or viewed. Only the verdict JSON was read.
+
+## 2026-10-07 — Evidence-availability audit and findings renderer
+
+**Decision:** Two additions while the raters work. Neither changes the protocol, the population, the model or any hypothesis.
+
+1. **Outcome-blind evidence-availability audit** (`research/cohort/p2_c1_4_evidence_availability_audit.py`; result `research/cohort/results/P2_C1_4_EVIDENCE_AVAILABILITY_AUDIT.json`). It compares decisions with usable evidence to `NO_USABLE_EVIDENCE` decisions. It reads only a blinded packet and the reference-SQL features; no cohort or outcome field is read. It is **not prespecified** and is reported as descriptive.
+2. **Findings renderer** (`research/cohort/render_P2_C1_4_findings.py`). It formats the Stage 1 and Stage 2 outputs into the §9.3 report, after checking the hash chain. It computes no new statistic and applies no significance rule. It runs inside Stage 2 as a non-blocking step, so the one-time results upload even if rendering fails.
+
+**Result of the audit:**
+- 3,590 of 8,638 decisions (41.6%) have no usable evidence, including 3,560 of the 8,604 EVALUABLE decisions.
+- Reference-SQL "extra" hardness is 30.2% among these decisions vs 13.2% with usable evidence; "easy" is 12.6% vs 30.2%.
+- Questions are longer (median 69 vs 61 characters).
+- The rate per database ranges from 11.8% to 72.0%.
+- Packets A and B gave identical results.
+
+**Effect:** The primary population over-represents easier decisions. This is reported as a scope restriction in §8.3 and §10.5.
