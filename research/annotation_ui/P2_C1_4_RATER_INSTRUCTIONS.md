@@ -5,7 +5,7 @@ You are one of two independent raters, A or B. You will receive two files:
 - `P2_C1_4_XW_ANNOTATOR.html`, the annotation tool. It runs offline in any modern browser.
 - Your packet, `P2_C1_4_XW_RATER_A.json` **or** `P2_C1_4_XW_RATER_B.json`. Open only your own packet.
 
-Each packet holds the same 8,638 decisions, in a different random order.
+Each packet holds the same decisions, in a different random order.
 
 ## Independence (required)
 
