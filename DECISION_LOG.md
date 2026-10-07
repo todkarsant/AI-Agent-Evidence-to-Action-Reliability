@@ -152,3 +152,8 @@ This file records material methodological and research decisions. Decisions shou
 - **Outcome information used:** only the pooled event count, inside the Riley calculation. It is never printed.
 - **Not sampled:** decisions outside the subsample have X_W missing by design.
 - **Frozen first:** the amendment was frozen before the check ran.
+- **Executed once:** run `37663285811` on commit `d119b74` (2026-10-07). Verdict `SUBSAMPLE_DRAWN`: the full eligible primary population (N = 5,044) meets the Riley criteria, so annotation goes ahead on a subsample.
+- **Subsample:** 1,705 randomly sampled primary decisions plus 4 E3/E4 decisions with usable evidence = **1,709 cases per rater** (about 20% of the original burden).
+- **Hashes:** sampling record `8f35a39e…eea6`; subsample packets A `f7bd7bac…1dcf`, B `50a32588…882b`; parent packet manifest `1140d08d…739e`.
+- **Sources file:** now points the gate at artifact `p2-c1-4-xw-subsample-annotation-packets` from run `37663285811`. The cohort and Spider bundle stay at refresh run `37283958876`.
+- **Blinding:** the event count and prevalence were not printed or viewed. Only the verdict JSON was read.
