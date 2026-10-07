@@ -137,3 +137,18 @@ This file records material methodological and research decisions. Decisions shou
 - **Expected CSV:** SHA-256 `5e1b2edb…5b68`. CI must reproduce it byte for byte.
 - **CI reproduction:** run `37284300121` reproduced the CSV byte for byte from the refreshed artifacts (refresh run `37283958876`, which also now keeps the Spider bundle).
 - **Outcome-blindness:** only overall counts were viewed; nothing was broken down by record status or outcome.
+
+## 2026-10-07 — Blinded feasibility check and annotation subsample
+
+**Decision:** The author chose to replace full-cohort human annotation with:
+
+1. a blinded, run-once feasibility check (Riley hard stop on the full eligible population);
+2. if that passes, a random annotation subsample sized from the frozen Riley planning values (`P2-C1.4-BLINDED-FEASIBILITY-AND-ANNOTATION-SUBSAMPLE-AMENDMENT-2026-10-07`).
+
+**Reason:** About 8,600 cases per rater (estimated 50–100 hours each) was judged infeasible. Annotation is also pointless if the outcome count cannot support the model.
+
+**Effect:**
+- **Unchanged:** two independent human raters and the frozen codebook.
+- **Outcome information used:** only the pooled event count, inside the Riley calculation. It is never printed.
+- **Not sampled:** decisions outside the subsample have X_W missing by design.
+- **Frozen first:** the amendment was frozen before the check ran.
