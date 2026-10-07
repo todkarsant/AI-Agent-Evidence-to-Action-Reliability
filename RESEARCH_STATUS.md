@@ -1,6 +1,6 @@
 # Research Status
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-07
 
 ## Overall status
 
@@ -26,8 +26,15 @@ The repository is the canonical source of truth. The project has completed the c
 | C.4.2.4-A Human X_W validation | **RESOLVED** | 49/49 applicability and 27/27 witness agreement; explicit independence attestation |
 | P2-C1.2 Predictive / Incremental Validity Attack | **COMPLETE** | Confirmatory modeling blocked by alignment/missingness/model-protocol issues |
 | P2-C1.3 Aligned cohort reconstruction | **COMPLETE — FAILED** | Historical outcome/X_W alignment cannot be established |
-| P2-C1.4 New aligned cohort | **COHORT LOCKED 2026-10-02; X_W ANNOTATION IN PROGRESS** | Acquisition `36853456589` (44/44 shards, 8,638 records, lock passed, 31 runtime failures vs ceiling 431). Packets: post-lock run `37017913823`. |
+| P2-C1.4 New aligned cohort | **COHORT LOCKED 2026-10-02; BLINDED FEASIBILITY PASSED 2026-10-07; X_W ANNOTATION OF SUBSAMPLE PENDING** | Acquisition `36853456589` (44/44 shards, 8,638 records, lock passed, 31 runtime failures vs ceiling 431). Full packets: post-lock run `37017913823`. Subsample packets (1,709 cases per rater): run `37663285811`. |
 | Confirmatory M0 vs M1 | **BLOCKED until annotation lock** | Analysis code implemented and tested on synthetic data only; implementation amendment frozen 2026-10-02 (Riley hard stop) |
+
+## Latest execution progress — 2026-10-07
+
+- **Amendment.** `P2-C1.4-BLINDED-FEASIBILITY-AND-ANNOTATION-SUBSAMPLE-AMENDMENT-2026-10-07` was approved and frozen before execution. Full-cohort annotation (about 8,600 cases per rater) was judged infeasible.
+- **Blinded feasibility check.** Run `37663285811` (once only). Verdict `SUBSAMPLE_DRAWN`: the eligible primary population (N = 5,044) meets the Riley criteria. The event count was not printed.
+- **Annotation subsample.** 1,709 cases per rater (1,705 random primary decisions, seed 20261007, plus 4 E3/E4). Decisions not sampled have X_W missing by design (missing completely at random).
+- **Next.** Build the two rater kits from the subsample packets; the two raters annotate independently; then the gate (Stage 1 → Stage 2) runs once.
 
 ## Latest execution progress — 2026-10-02
 
