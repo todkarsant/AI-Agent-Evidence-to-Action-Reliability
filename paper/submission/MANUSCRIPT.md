@@ -40,6 +40,16 @@ One response is to separate what a model may *propose* from what it is *authoris
 
 This separation is a design position that motivates the work. It is not a finding of this study. This study examines one measurable part of the authorisation step.
 
+**Industry context.** The same concern is visible in practice. The sources in this paragraph are analyst forecasts and vendor statements, not research evidence.
+
+- Gartner predicts that over 40% of agentic AI projects will be cancelled by the end of 2027. It cites escalating costs, unclear business value and inadequate risk controls (Gartner, 2025).
+- Vendors increasingly market control rather than capability. NVIDIA's Open Agent Safety Platform enforces policy at a runtime boundary outside the model and the agent harness. It adds an out-of-band monitor intended to detect agents acting outside their boundaries and quarantine them (NVIDIA, 2026).
+- Kognitos markets its agents as "deterministic", with auditable execution (Kognitos, n.d.).
+
+These are claims about products and forecasts. They are not evidence that such controls work, and we cite them only to show that the authorisation problem is recognised outside research.
+
+**Why the residual error matters (illustration).** Consider a hypothetical agent that is right 95% of the time. It is still wrong once in twenty actions. If each wrong action it is allowed to execute can cause a financial loss, the expected loss grows with the number of actions it is authorised to take. Guardrails reduce this exposure only to the extent that they can tell, at decision time, which actions fall in the erroneous 5%. Guardrails here means rules that block, escalate or route certain actions. The figures are illustrative, not data. This study asks whether such a decision-time signal exists for one consequential action: replacing an existing answer.
+
 **The replacement setting.** Consider an analytical agent that has already produced an answer, the *incumbent*, and that may replace it with a revised answer. Replacement is itself a consequential decision. Replacing a correct incumbent with an incorrect answer is a harm that would not have occurred without the intervention.
 
 Discovery work that preceded this study used the same Spider workload and the same intervention code base. In its development record, an incumbent-preserving intervention mechanism produced 21 harmful replacements against 2 rescues among 330 intervention-eligible cases. We treat that observation as motivation only, not as evidence for the present predictor (§3.11).
@@ -464,6 +474,8 @@ Collins, G. S., Moons, K. G. M., Dhiman, P., Riley, R. D., Beam, A. L., Van Cals
 
 de Zarzà, I., de Curtò, J., Cabot, J., Manzoni, P., & Calafate, C. T. (2026). *Semantic invariance in agentic AI* (arXiv:2603.13173) [Preprint]. arXiv. https://arxiv.org/abs/2603.13173
 
+Gartner. (2025, June 25). *Gartner predicts over 40% of agentic AI projects will be canceled by end of 2027* [Press release; industry forecast, not peer-reviewed]. https://www.gartner.com/en/newsroom/press-releases/2025-06-25-gartner-predicts-over-40-percent-of-agentic-ai-projects-will-be-canceled-by-end-of-2027
+
 Gneiting, T., & Raftery, A. E. (2007). Strictly proper scoring rules, prediction, and estimation. *Journal of the American Statistical Association*. https://doi.org/10.1198/016214506000001437 [[volume, issue and pages to confirm from the publisher page]]
 
 Guo, X., Xu, Z., Huo, D., Zhang, Y., Wang, W., Yang, Q., Yu, D., & Wang, Y. (2026). *When tool outputs become commands: Separating action induction from runtime authorization in tool-augmented LLM agents* (arXiv:2608.27146) [Preprint]. arXiv. https://arxiv.org/abs/2608.27146
@@ -472,9 +484,13 @@ Gupta, A. (2026). *ReliabilityBench: Evaluating LLM agent reliability under prod
 
 Gwet, K. L. (2008). Computing inter-rater reliability and its variance in the presence of high agreement. *British Journal of Mathematical and Statistical Psychology, 61*, 29–48. https://doi.org/10.1348/000711006X126600
 
+Kognitos. (n.d.). *Kognitos: The deterministic agentic AI platform for the enterprise* [Vendor website; product claims, not independent evidence]. Retrieved October 8, 2026, from https://www.kognitos.com/
+
 Liao, J. (2026). *Auditing provenance sensitivity in LLM agent action selection* (arXiv:2607.20827) [Preprint]. arXiv. https://arxiv.org/abs/2607.20827
 
 Meta. (2024). *Llama-3.2-1B* [Large language model]. Hugging Face. https://huggingface.co/meta-llama/Llama-3.2-1B
+
+NVIDIA. (2026, September 28). *NVIDIA launches Open Agent Safety Platform to secure agents from testing to deployment* [Press release; vendor announcement, not independent evidence]. https://nvidianews.nvidia.com/news/open-agent-safety-platform
 
 Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel, O., Blondel, M., Prettenhofer, P., Weiss, R., Dubourg, V., Vanderplas, J., Passos, A., Cournapeau, D., Brucher, M., Perrot, M., & Duchesnay, É. (2011). Scikit-learn: Machine learning in Python. *Journal of Machine Learning Research, 12*, 2825–2830. https://jmlr.org/papers/v12/pedregosa11a.html
 
@@ -510,4 +526,4 @@ Zhang, H., & Wu, W. (2026). Do LLMs know when evidence is insufficient? An evide
 
 Zheng, Y., Zhou, J., Hu, R., & Fang, R. (2026). *Evidence-verified LLM agents for safe backend incident remediation* [Preprint]. ResearchGate. https://doi.org/10.13140/RG.2.2.24026.91840
 
-*Reference verification:* every entry above was checked against a primary page (publisher, arXiv, DOI registry, ACL Anthology or JMLR) on 2026-10-08. Remaining gaps are marked `[[…]]`. One register entry (an SSRN working paper) could not be verified and is not cited.
+*Reference verification:* every entry above was checked against a primary page (publisher, arXiv, DOI registry, ACL Anthology, JMLR, or the issuing organisation's own release or website) on 2026-10-08. Industry sources are labelled as such. Remaining gaps are marked `[[…]]`. One register entry (an SSRN working paper) could not be verified and is not cited.
