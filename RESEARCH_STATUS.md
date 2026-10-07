@@ -34,7 +34,10 @@ The repository is the canonical source of truth. The project has completed the c
 - **Amendment.** `P2-C1.4-BLINDED-FEASIBILITY-AND-ANNOTATION-SUBSAMPLE-AMENDMENT-2026-10-07` was approved and frozen before execution. Full-cohort annotation (about 8,600 cases per rater) was judged infeasible.
 - **Blinded feasibility check.** Run `37663285811` (once only). Verdict `SUBSAMPLE_DRAWN`: the eligible primary population (N = 5,044) meets the Riley criteria. The event count was not printed.
 - **Annotation subsample.** 1,709 cases per rater (1,705 random primary decisions, seed 20261007, plus 4 E3/E4). Decisions not sampled have X_W missing by design (missing completely at random).
-- **Next.** Build the two rater kits from the subsample packets; the two raters annotate independently; then the gate (Stage 1 → Stage 2) runs once.
+- **Rater kits.** Built and verified locally (1,709 cases each); with the author for private distribution.
+- **Evidence-availability audit (outcome-blind, not prespecified).** 41.6% of decisions (3,590 of 8,638) have no usable decision-time evidence, concentrated in harder queries. The primary population therefore over-represents easier decisions (paper §8.3 and §10.5).
+- **Findings renderer.** `research/cohort/render_P2_C1_4_findings.py` turns the Stage 2 outputs into the §9.3 report automatically. Tested on synthetic data, including the Riley hard-stop case.
+- **Next.** The two raters annotate independently; then the gate (Stage 1 → Stage 2 → findings report) runs once.
 
 ## Latest execution progress — 2026-10-02
 
