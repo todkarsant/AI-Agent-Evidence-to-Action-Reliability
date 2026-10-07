@@ -1,0 +1,94 @@
+name: P2-C1.4 blinded feasibility and annotation subsample
+
+# Amendment P2-C1.4-BLINDED-FEASIBILITY-AND-ANNOTATION-SUBSAMPLE-AMENDMENT-2026-10-07.
+# Runs ONCE. It uses only the pooled event count of the eligible population, inside the frozen Riley
+# calculation, and never prints it. Output: FULL_COHORT_FAILS_RILEY (no annotation), or
+# SUBSAMPLE_DRAWN with two subsample packets for the human raters.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  feasibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse if the blinded feasibility check has already run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          n=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=p2-c1-4-blinded-feasibility-verdict" --jq '.total_count')
+          echo "previous feasibility verdicts: $n"
+          test "$n" = "0" || { echo "REFUSED: the blinded feasibility check runs once only." >&2; exit 1; }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned analysis environment
+        run: python -m pip install --disable-pip-version-check numpy==2.4.4 scipy==1.17.1 scikit-learn==1.8.0 statsmodels==0.15.0
+
+      - name: Read sources
+        id: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s = json.load(open("research/annotation/P2_C1_4_POST_ANNOTATION_SOURCES.json"))
+          for k in ("packets_run_id", "cohort_run_id", "expected_cohort_sha256"):
+              print(f"{k}={s[k]}")
+          print(f"packets_artifact={s.get('packets_artifact', 'p2-c1-4-xw-blinded-annotation-packets')}")
+          PY
+
+      - name: Check that the full blinded packets are the source
+        shell: bash
+        run: test "${{ steps.src.outputs.packets_artifact }}" = "p2-c1-4-xw-blinded-annotation-packets"
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-xw-blinded-annotation-packets
+          path: packets
+          run-id: ${{ steps.src.outputs.packets_run_id }}
+          github-token: ${{ github.token }}
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: p2-c1-4-confirmatory-aligned-cohort
+          path: source_cohort
+          run-id: ${{ steps.src.outputs.cohort_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Blinded feasibility and subsample
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/cohort/p2_c1_4_blinded_feasibility_and_subsample.py \
+            --cohort source_cohort/P2_C1_4_CONFIRMATORY_ALIGNED_RECORDS.json \
+            --packets packets \
+            --expected-cohort-sha256 "${{ steps.src.outputs.expected_cohort_sha256 }}" \
+            --out feasibility
+          cat feasibility/FEASIBILITY_VERDICT.json >> "$GITHUB_STEP_SUMMARY"
+          rm -rf source_cohort
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-blinded-feasibility-verdict
+          path: feasibility/FEASIBILITY_VERDICT.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-c1-4-xw-subsample-annotation-packets
+          path: feasibility/packets/
+          retention-days: 90
+          if-no-files-found: ignore
