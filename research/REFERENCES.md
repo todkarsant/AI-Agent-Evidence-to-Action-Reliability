@@ -1,6 +1,6 @@
 # Research Reference Register
 
-Last updated: 2026-09-18.
+Last updated: 2026-10-08. Entries 1–16 were checked against their primary pages on 2026-10-08; see the verification note at the end of section B.
 
 This register is the working literature/evidence index for Project 2. It is intentionally separated into (A) scholarly research, (B) methodological/measurement sources, (C) industry/corporate evidence, and (D) journal targets/watchlist.
 
@@ -35,6 +35,7 @@ This register is the working literature/evidence index for Project 2. It is inte
    - Novelty implication: another direct collision for standalone evidence-sufficiency novelty.
 
 8. Wu, J. (2026). **From Evidence to Action: A Systematic Study of External Knowledge Grounding in LLM-based Agents.** SSRN 7335618. https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7335618
+   - **UNVERIFIED (2026-10-08):** the SSRN page and Crossref record could not be read (rate-limited) and an exact-title search returned no match. Do not cite until verified.
    - Relevance: explicitly studies the gap between consulting evidence and having that evidence govern reasoning/planning/action; emphasizes runtime verification, provenance, uncertainty, and verifiable state change.
    - Status: preprint/working paper; do not treat as peer-reviewed journal evidence unless independently verified.
 
@@ -46,7 +47,7 @@ This register is the working literature/evidence index for Project 2. It is inte
     - Relevance: separates action induction from runtime authorization and ties execution authority to audited evidence.
     - Novelty implication: action authorization/provenance separation is adjacent but distinct from Project 2's intended incremental-validity question.
 
-11. Zheng, Y., Zhou, J., Hu, R., & Fang, R. et al. (2026). **Evidence-Verified LLM Agents for Safe Backend Incident Remediation.** Preprint/ResearchGate record; DOI:10.13140/RG.2.2.24026.91840.
+11. Zheng, Y., Zhou, J., Hu, R., & Fang, R. (2026). **Evidence-Verified LLM Agents for Safe Backend Incident Remediation.** Preprint/ResearchGate record; DOI:10.13140/RG.2.2.24026.91840.
     - Relevance: evidence gate between hypothesis generation and remediation execution.
     - Status: preprint/grey literature; use as contextual evidence, not as a peer-reviewed anchor unless publication status is verified.
 
@@ -63,7 +64,7 @@ This register is the working literature/evidence index for Project 2. It is inte
     - Relevance: benchmark validity, dynamic evaluation, judge reliability, safety measurement, governance/auditability, and proxy-target divergence.
     - Novelty implication: supports our insistence on measurement validity and separation of observable proxies from target properties.
 
-16. Adeli, S. (2026). **Strategic Verification for Long-Running LLM Agents.** Preprints.org, submitted August 2026. https://www.preprints.org/manuscript/202608.2057
+16. Adeli, S. (2026). **Strategic Verification for Long-Running LLM Agents.** Preprints.org, posted 28 August 2026. https://doi.org/10.20944/preprints202608.2057.v1
     - Relevance: verification as a resource-constrained decision problem; verifier reliability and verification cost.
     - Status: explicitly marked non-peer-reviewed preprint; contextual only.
 
@@ -82,6 +83,29 @@ This register is the working literature/evidence index for Project 2. It is inte
     - C.4.2.4-A.2: witness redesign and novelty collision.
     - C.4.2.4-A.2B: mechanical redundancy attack.
     - C.4.2.4-A.3: witness codebook/baseline-independence attack.
+
+19. Verified methodological references (checked 2026-10-08 against publisher, DOI or official pages; used in `paper/submission/MANUSCRIPT.md`):
+    - Riley, R. D., et al. (2020). Calculating the sample size required for developing a clinical prediction model. *BMJ, 368*, m441. https://doi.org/10.1136/bmj.m441
+    - Riley, R. D., et al. (2019). Minimum sample size for developing a multivariable prediction model: Part II—Binary and time-to-event outcomes. *Statistics in Medicine, 38*(7), 1276–1296. https://doi.org/10.1002/sim.7992 (correction: https://doi.org/10.1002/sim.8409, concerns the time-to-event criterion only)
+    - Yu, T., et al. (2018). Spider. *EMNLP 2018*, 3911–3921. https://doi.org/10.18653/v1/D18-1425
+    - Cohen, J. (1960). *Educational and Psychological Measurement, 20*(1), 37–46. https://doi.org/10.1177/001316446002000104
+    - Gwet, K. L. (2008). *British Journal of Mathematical and Statistical Psychology, 61*, 29–48. https://doi.org/10.1348/000711006X126600 (issue number not confirmed)
+    - Pedregosa, F., et al. (2011). Scikit-learn. *JMLR, 12*, 2825–2830. https://jmlr.org/papers/v12/pedregosa11a.html
+    - Gneiting, T., & Raftery, A. E. (2007). *JASA*. https://doi.org/10.1198/016214506000001437 (volume/issue/pages not confirmed from a primary page)
+    - Varma, S., & Simon, R. (2006). *BMC Bioinformatics, 7*, 91. https://doi.org/10.1186/1471-2105-7-91
+    - Van Calster, B., et al. (2019). Calibration: The Achilles heel of predictive analytics. *BMC Medicine, 17*, 230. https://doi.org/10.1186/s12916-019-1466-7
+    - Collins, G. S., et al. (2024). TRIPOD+AI statement. *BMJ, 385*, e078378. https://doi.org/10.1136/bmj-2023-078378
+    - Rubin, D. B. (1976). Inference and missing data. *Biometrika, 63*(3), 581–592. https://doi.org/10.1093/biomet/63.3.581
+    - Meta. (2024). Llama-3.2-1B model card. https://huggingface.co/meta-llama/Llama-3.2-1B (release 25 Sep 2024; Llama 3.2 Community License)
+
+**Verification note (2026-10-08).** Entries 1–7, 9, 10 and 12–16 were verified, with these notes:
+- entry 1 is accepted at ICML 2026;
+- entry 4 is accepted at AMSTA 2026;
+- entries 6 and 14 are peer-reviewed, and entry 14 is a review article;
+- entry 11 has exactly four authors;
+- entry 2's first author is Aayush Gupta and entry 9's is Junchi Liao.
+
+Entry 8 could not be verified.
 
 ## C. Corporate / industry evidence — deliberately not treated as peer-reviewed science
 
